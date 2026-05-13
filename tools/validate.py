@@ -161,6 +161,60 @@ class Validator:
             if not skill_md.exists():
                 self.error(f"SKILLS references missing: skills/{skill}/SKILL.md")
 
+    def check_review_process_reviewers(self) -> None:
+        """Verify reviewer names in review-process skill resolve to real
+        agents/skills. Catches typos like 'architect-pyton' in routing tables.
+        Skips wildcards (regex `[a-z0-9-]` cannot capture `*`).
+        """
+        self.check("Review-process reviewer references")
+        skill_dir = self.root / "skills" / "review-process"
+        if not skill_dir.is_dir():
+            return
+
+        backtick = re.compile(r"`([a-z][a-z0-9-]+)`")
+        agent_prefixes = (
+            "code-reviewer-", "security-reviewer-", "tdd-guide-", "architect-",
+            "refactor-cleaner-", "build-error-resolver-", "e2e-test-",
+        )
+        skill_names = {
+            "megamind-deep", "megamind-adversarial",
+            "megamind-creative", "megamind-financial",
+            "gui-threading", "python-qt-gui",
+        }
+
+        existing_agents = {p.stem for p in (self.root / "agents").glob("*.md")}
+        existing_skills = {
+            d.name for d in (self.root / "skills").iterdir()
+            if d.is_dir() and (d / "SKILL.md").exists()
+        }
+
+        seen: set[tuple[str, str]] = set()
+        for md in sorted(skill_dir.rglob("*.md")):
+            text = md.read_text()
+            for m in backtick.finditer(text):
+                token = m.group(1)
+                if any(token.startswith(p) and len(token) > len(p)
+                       for p in agent_prefixes):
+                    key = (md.name, token)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    if token not in existing_agents:
+                        self.error(
+                            f"Review-process {md.name}: backticked agent "
+                            f"`{token}` has no matching agents/{token}.md"
+                        )
+                elif token in skill_names:
+                    key = (md.name, token)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    if token not in existing_skills:
+                        self.error(
+                            f"Review-process {md.name}: backticked skill "
+                            f"`{token}` has no matching skills/{token}/SKILL.md"
+                        )
+
     def check_version(self) -> None:
         self.check("Version (file or git tag)")
         ver_path = self.root / "VERSION"
@@ -374,6 +428,7 @@ class Validator:
         self.check_registry_modular_rules()
         self.check_registry_hooks()
         self.check_registry_skills()
+        self.check_review_process_reviewers()
         self.check_version()
         self.check_setup_parse()
         self.check_setup_version()

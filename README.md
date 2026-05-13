@@ -228,6 +228,7 @@ Slash commands are available inside Claude Code after running `setup.py init`:
 | `/update-foundry-check` | Checks if an update is available without applying changes. |
 | `/update-foundry-interactive` | Full interactive menu to add or change component selections. |
 | `/update-codemaps` | Generates or refreshes architecture documentation per module. |
+| `/review-process` | Runs a tiered review (risk-tier T0-T4, mode, reviewer routing, finding ledger). See [Review Process](#review-process). |
 | `/private-list` | Lists registered private config sources with status. |
 | `/private-remove` | Removes a private source by prefix. `/private-remove company` removes all `company-*` files. |
 | `/prj-new <name>` | Creates a new named project in `.claude/prjs/<name>.md`. See [Project Management](#project-management). |
@@ -278,7 +279,7 @@ The skill menu in `setup.py init` presents related skills as **groups**, not ind
 | **Megamind Reasoning** | `megamind-deep`, `megamind-creative`, `megamind-adversarial`, `megamind-financial` |
 | **Project Management** | `prj-new`, `prj-list`, `prj-pause`, `prj-resume`, `prj-done`, `prj-delete` |
 
-Both groups are **auto-selected by default**. Individual non-grouped skills (`clickhouse-io`, `gui-threading`, `learn`, `update-foundry`, `snapshot-list`, `private-list`, `private-remove`, etc.) continue to appear as individual entries.
+Both groups are **auto-selected by default**. Individual non-grouped skills (`clickhouse-io`, `gui-threading`, `learn`, `update-foundry`, `snapshot-list`, `private-list`, `private-remove`, `review-process`, etc.) continue to appear as individual entries. A handful — `update-foundry`, `learn`, `learn-recall`, `snapshot-list`, `private-list`, `private-remove`, and `review-process` — are auto-selected by default; the others are off until explicitly toggled on.
 
 **Hidden skills (gated on MCP selection):** the 7 `copilot-*` skills do NOT appear in the skill selection menu. They're installed automatically when (and only when) you toggle `copilot-mcp` ON in the **MCP servers** menu — because a slash command like `/copilot-ask` is useless without the extension + bridge, so it never makes sense to select them individually. Deselecting `copilot-mcp` in the MCP menu strips all 7 in one step.
 
@@ -466,6 +467,41 @@ python3 tools/run_benchmark.py --skill megamind-financial --runs 2
 # Compare against saved baseline
 python3 tools/run_benchmark.py --runs 5 --save results/new.json --compare results/old.json
 ```
+
+## Review Process
+
+A tiered review-orchestration skill that turns scattered reviewers into a disciplined workflow. Default-on in `setup.py init`; activates on `/review-process` or whenever a change/decision/PR is about to be reviewed.
+
+> **Rollout note for existing projects.** `review-process` is in the `always_on` set, so it auto-appears on the next `/update-foundry` even if it's missing from a stale manifest. The skill is dormant until invoked — adding the files costs ~30 KB on disk and zero runtime overhead until you use `/review-process`. To remove it, delete `.claude/skills/review-process/` and `.claude/commands/review-process.md` after the update; foundry will re-add them on the run after that unless you also remove it from `always_on` in `tools/setup.py`. If this default-on behavior is unwanted, file an issue and we'll move it to a normal opt-in toggle.
+
+### What it adds
+
+- **Risk tiers T0–T4** — mechanical → normal → integrated → high-risk → release/post-incident
+- **Review modes** — `AUDIT_ONLY`, `FIX_AUTHORIZED`, `FIX_AND_COMMIT_AUTHORIZED`
+- **Model strategies** — `SINGLE_FAST`, `DIVERSE_STANDARD`, `PREMIUM_TARGETED`, `MIXED_PREMIUM`, `USER_SPECIFIED`
+- **Reviewer routing** — triggers map to existing foundry reviewers (`megamind-*` skills + `code-reviewer-*`, `security-reviewer-*`, `tdd-guide-*`, `architect-*`, `refactor-cleaner-*`, `build-error-resolver-*` agents)
+- **Finding ledger** — every finding gets severity, confidence, evidence strength, disposition, and prevention action
+- **Reviewer compaction** — at most one reviewer per concern; adversarial covers cross-concern interactions
+- **Persistent review state** — recurring findings, converted checks, deferrals, and accepted risks live in the project at `docs/review-state/log.md` (seeded on first use from the skill's templates)
+
+### Layered sub-files (additive)
+
+| File | Applies to |
+|------|-----------|
+| `SKILL.md` | Canonical entry — shared tiers/modes/routing/ledger/state |
+| `general.md` | Non-software decisions, plans, documents, policies |
+| `software.md` | Any-language code change (smells, omissions, architecture, tests) |
+| `python.md` | Python code, packaging, scripts, libraries |
+| `python-non-gui.md` | Python CLI/service/worker/library |
+| `python-gui.md` | PySide6/PyQt/Qt desktop GUI (references `gui-threading` + `python-qt-gui` skills) |
+
+Always start with the general process and add every more-specific sub-file whose trigger applies.
+
+### Relationship to other foundry artifacts
+
+- Complements `pr-review-toolkit` (which reviews already-created PRs) — this skill governs pre-commit / pre-PR review.
+- Complements the `code-review` plugin (single-shot review) — this skill is a tiered governance process.
+- Routes work to skills/agents foundry already ships; if a referenced reviewer isn't installed, the review header records it as unavailable.
 
 ## Copilot MCP (opt-in)
 

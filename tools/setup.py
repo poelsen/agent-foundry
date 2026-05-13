@@ -237,7 +237,7 @@ LEARNED_SKILLS_DIR = REPO_ROOT / "skills" / "learned"
 SKILLS = [
     "clickhouse-io", "gui-threading", "python-qt-gui",
     "megamind-deep", "megamind-creative", "megamind-adversarial", "megamind-financial",
-    "minimax-multimodal", "delegate",
+    "minimax-multimodal", "delegate", "review-process",
     "update-foundry", "learn", "learn-recall", "snapshot-list",
     "private-list", "private-remove",
     "prj-new", "prj-list", "prj-pause", "prj-resume", "prj-done", "prj-delete",
@@ -1562,7 +1562,7 @@ def cmd_init(
                             auto.add(i)
                     # Default-on individual skills (the small always-useful set)
                     always_on = ("update-foundry", "learn", "learn-recall", "snapshot-list",
-                                 "private-list", "private-remove")
+                                 "private-list", "private-remove", "review-process")
                     for i, skill in enumerate(SKILLS):
                         if skill in always_on:
                             auto.add(i)
