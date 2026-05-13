@@ -4,13 +4,14 @@
 ## Rules
 
 Read rules in `.claude/rules/` before making changes:
+- `enterprise.md` — Enterprise security (production, compliance)
 - `github.md` — GitHub workflow (gh CLI, PR conventions)
 - `python.md` — Python tooling (uv, pytest, ruff)
+- `scripts.md` — Scripts & CLI (argument parsing, error handling)
 - `agents.md` — Agent orchestration
 - `architecture.md` — Architecture principles
 - `codemaps.md` — Codemap system
 - `coding-style.md` — Code style guidelines
-- `enterprise.md` — Enterprise
 - `git-workflow.md` — Git workflow and commit conventions
 - `hooks.md` — Hooks system
 - `performance.md` — Performance and model selection
@@ -20,7 +21,7 @@ Read rules in `.claude/rules/` before making changes:
 ## Foundry Defaults
 
 ```bash
-uv sync --extra dev  # Setup (uses uv.lock)
+uv sync --extra dev  # Setup
 uv run pytest  # Tests
 ```
 
