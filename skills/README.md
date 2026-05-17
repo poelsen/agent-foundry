@@ -2,7 +2,7 @@
 
 Skills are reusable knowledge modules that provide domain-specific patterns, best practices, and implementation guidance.
 
-> **Skill groups in `setup.py init`:** Megamind Reasoning (4 skills) and Project Management (6 skills) are toggled as groups, not individually. The 7 `copilot-*` skills are hidden from the menu and gated on the `copilot-mcp` MCP server selection — selecting the MCP auto-installs all 7, deselecting strips them. See the top-level [README — Skill Selection](../README.md#skill-selection-groups-hidden-skills-gating) section for details.
+> **Skill groups in `setup.py init`:** Megamind Reasoning (4 skills) and Project Management (6 skills) are toggled as groups, not individually. See the top-level [README — Skill Selection](../README.md#skill-selection-groups-hidden-skills-gating) section for details.
 
 ## Available Skills
 
@@ -108,24 +108,16 @@ Real-world validation comes from usage by software engineers who report that the
 |-------|---------|-------------|
 | [clickhouse-io](clickhouse-io/) | ClickHouse analytics patterns | Data engineering |
 
-### Copilot MCP (Opt-in)
+### Copilot CLI
 
-Route Claude Code tasks to VS Code Copilot models (Claude Opus/Sonnet 4.6, GPT-5.4, Gemini 3.1, Grok, etc.) via an MCP bridge — saves Anthropic API tokens by using your existing Copilot subscription. **Disabled by default.** Enable by selecting `copilot-mcp` in the MCP-servers toggle during `setup.py init`, which pulls in these skills and installs the VS Code extension (pre-built .vsix from the release tarball, or rebuilt from source as a fallback).
+| Skill | Purpose | When to Use |
+|-------|---------|-------------|
+| [copilot-cli](copilot-cli/) | Local GitHub Copilot CLI invocation contract | Running a non-Claude model (e.g. `gpt-5.4`) for cross-model review |
 
-> **⚠ Runtime requirements — every time you use a `/copilot-*` command:**
-> VS Code must be running **with the project folder open as a workspace**, Claude Code must be launched from within that workspace tree, and the workspace's `.vscode/settings.json` must contain `{ "copilot-mcp.autoStart": true }` — the extension is installed machine-wide but **idle by default** and only starts in workspaces you explicitly opt in.
-
-| Skill | Purpose | Command |
-|-------|---------|---------|
-| [copilot-list-models](copilot-list-models/) | List available Copilot models | `/copilot-list-models` |
-| [copilot-ask](copilot-ask/) | One-shot prompt to any model | `/copilot-ask <model> <prompt>` |
-| [copilot-review](copilot-review/) | Code review via Copilot | `/copilot-review [model] [target]` |
-| [copilot-audit](copilot-audit/) | Adversarial audit | `/copilot-audit [skill] [model] [target]` |
-| [copilot-agent](copilot-agent/) | Autonomous agent loop | `/copilot-agent [model] [session:name] <task>` |
-| [copilot-multi](copilot-multi/) | Fan-out to multiple models | `/copilot-multi [models:list] <task>` |
-| [copilot-job](copilot-job/) | Background job management | `/copilot-job [start\|status\|list] <args>` |
-
-Requires VS Code + GitHub Copilot subscription. Extension auto-rebuilds on `/update-foundry` when prereqs (`code`, `node`, `npm`) are present. See the top-level [README — Copilot MCP section](../README.md#copilot-mcp-opt-in) for usage examples and troubleshooting.
+Reference skill, not a slash command. `review-process` consults it to run a
+second cross-model reviewer via `copilot -p`. Requires the `copilot` CLI on
+`PATH`; if absent, review-process falls back to a second Claude run. See the
+top-level [README — Copilot CLI section](../README.md#copilot-cli).
 
 ### Project Management
 

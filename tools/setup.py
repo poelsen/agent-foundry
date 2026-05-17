@@ -241,8 +241,7 @@ SKILLS = [
     "update-foundry", "learn", "learn-recall", "snapshot-list",
     "private-list", "private-remove",
     "prj-new", "prj-list", "prj-pause", "prj-resume", "prj-done", "prj-delete",
-    "copilot-list-models", "copilot-ask", "copilot-review", "copilot-audit",
-    "copilot-agent", "copilot-multi", "copilot-job",
+    "copilot-cli",
 ]
 
 # Skill groups — presented in the skill selection menu as a single toggle.
@@ -258,18 +257,9 @@ SKILL_GROUPS: dict[str, list[str]] = {
     ],
 }
 
-# Skills that are only deployed when the copilot-mcp MCP server is selected.
-# Deploying them without the MCP server + VS Code extension gives the user
-# dead slash-commands, so they're gated on the MCP opt-in.
-COPILOT_SKILLS = [
-    "copilot-list-models", "copilot-ask", "copilot-review", "copilot-audit",
-    "copilot-agent", "copilot-multi", "copilot-job",
-]
-
-# Skills that are never shown in the interactive skill menu. Copilot skills
-# are gated entirely on the copilot-mcp MCP-server selection, so exposing
-# them as individual toggles would let users accidentally break the set.
-HIDDEN_SKILLS: set[str] = set(COPILOT_SKILLS)
+# Skills that are never shown in the interactive skill menu. None today —
+# kept as an explicit empty set so the menu-build logic stays uniform.
+HIDDEN_SKILLS: set[str] = set()
 
 # Optional feature toggles presented in the setup menu. Each tuple is
 # (key, label, description). When an entry is selected, the mapped file
@@ -1180,85 +1170,6 @@ def _substitute_placeholders(value):
     return value
 
 
-def _copilot_prereqs_missing() -> list[str]:
-    """Return the list of missing prerequisites for install-copilot-mcp.sh.
-
-    An empty list means all prereqs are present. Used to decide whether
-    to auto-run the install script during non-interactive updates.
-    """
-    required = ["code", "node", "npm", "bash", "curl", "python3", "awk", "mktemp"]
-    return [cmd for cmd in required if shutil.which(cmd) is None]
-
-
-def _maybe_install_copilot_extension(interactive: bool) -> None:
-    """Run tools/install-copilot-mcp.sh when copilot-mcp was selected.
-
-    Behaviour:
-      1. Prereqs are checked BEFORE any prompt or auto-run. If anything is
-         missing, skip cleanly with a clear error pointing at the absolute
-         path of the install script — never prompt the user about an install
-         that would definitely fail.
-      2. The message adapts to whether a pre-built .vsix is present
-         (release tarball case, ~2s install) or the script will fall back
-         to building from source (bare git clone case, ~30s install).
-      3. Interactive mode: confirms before running.
-         Non-interactive mode (e.g. /update-foundry): auto-runs so updates
-         keep the installed extension in sync without manual steps.
-    """
-    script = (REPO_ROOT / "tools" / "install-copilot-mcp.sh").resolve()
-    if not script.is_file():
-        return
-
-    # Step 1 — prereqs first. No point asking the user about an install that
-    # will fail; this also prevents the confusing "yes → ERROR: missing code"
-    # flow users hit before this change.
-    missing = _copilot_prereqs_missing()
-    if missing:
-        print("\n  Copilot MCP selected — skipping extension install "
-              f"(missing prereqs: {', '.join(missing)}).")
-        print(f"  Install the missing tools, then run manually:")
-        print(f"    {script}")
-        if "code" in missing:
-            print("")
-            print("  Note: 'code' is the shell command on your PATH that controls VS Code")
-            print("  (e.g. 'code --install-extension foo.vsix'), NOT the integrated terminal.")
-            print("  On WSL, 'code' is typically not available in a plain WSL shell — open")
-            print("  a terminal inside VS Code and run the script from there:")
-            print(f"    {script}")
-        return
-
-    # Step 2 — detect pre-built .vsix for accurate messaging
-    prebuilt_dir = REPO_ROOT / "vscode-copilot-mcp"
-    prebuilt = any(prebuilt_dir.glob("vscode-copilot-mcp-*.vsix"))
-
-    # Step 3 — interactive confirm / non-interactive notice
-    if interactive:
-        print("\n  Copilot MCP selected. The VS Code extension will be installed.")
-        if prebuilt:
-            print("  Pre-built .vsix found — fast install path.")
-            print("  This runs: code --install-extension + npm install (MCP bridge deps)")
-        else:
-            print("  No pre-built .vsix found — building from source.")
-            print("  This runs: npm install + tsc + vsce package + code --install-extension")
-        if not confirm("  Install the extension now?", default=True):
-            print(f"  Skipped. Run manually later:")
-            print(f"    bash {script}")
-            return
-    else:
-        action = "installing pre-built extension" if prebuilt else "rebuilding from source"
-        print(f"\n  Copilot MCP selected — {action} to match foundry source")
-
-    try:
-        subprocess.run(["bash", str(script)], check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"\n  Extension install failed (exit {e.returncode}).")
-        print(f"  Fix the issue and re-run manually:")
-        print(f"    bash {script}")
-    except FileNotFoundError:
-        print(f"\n  bash not found on PATH. Run manually:")
-        print(f"    bash {script}")
-
-
 def write_mcp_servers(project: Path, servers: list[str]) -> None:
     """Deep-merge selected MCP servers into <project>/.mcp.json.
 
@@ -1562,7 +1473,8 @@ def cmd_init(
                             auto.add(i)
                     # Default-on individual skills (the small always-useful set)
                     always_on = ("update-foundry", "learn", "learn-recall", "snapshot-list",
-                                 "private-list", "private-remove", "review-process")
+                                 "private-list", "private-remove", "review-process",
+                                 "copilot-cli")
                     for i, skill in enumerate(SKILLS):
                         if skill in always_on:
                             auto.add(i)
@@ -1574,7 +1486,7 @@ def cmd_init(
                                 auto.add(SKILLS.index(skill))
 
                     # Build the visible menu: groups first, then ungrouped
-                    # skills; HIDDEN_SKILLS (copilot-*) never appear.
+                    # skills; HIDDEN_SKILLS never appear (none today).
                     grouped_members = {s for members in SKILL_GROUPS.values() for s in members}
                     ungrouped = [s for s in SKILLS
                                  if s not in grouped_members and s not in HIDDEN_SKILLS]
@@ -1602,8 +1514,6 @@ def cmd_init(
                         chosen_visible = auto_visible
 
                     # Project visible-menu decisions back onto SKILLS indices.
-                    # Hidden skills (copilot-*) are left alone — they're
-                    # managed by the copilot-mcp MCP gating pass, not here.
                     final = set(auto)
                     for vi, skills in enumerate(visible_to_skills):
                         idxs = {SKILLS.index(s) for s in skills}
@@ -1809,15 +1719,6 @@ def cmd_init(
     selected_features = [OPTIONAL_FEATURES[i][0]
                          for i in sorted(saved_steps.get("features", set()))]
 
-    # Copilot-* skills are gated on the copilot-mcp MCP server being selected.
-    # Selecting the MCP pulls in the skills; deselecting drops them.
-    if "copilot-mcp" in mcp_servers:
-        for skill in COPILOT_SKILLS:
-            if skill not in selected_skills:
-                selected_skills.append(skill)
-    else:
-        selected_skills = [s for s in selected_skills if s not in COPILOT_SKILLS]
-
     # Reconcile feature-required skills: any feature that's enabled MUST
     # have its required skills installed, regardless of what the manifest
     # says. This heals stale manifests from before the skill was declared
@@ -1892,10 +1793,6 @@ def cmd_init(
     # MCP servers
     if mcp_servers:
         write_mcp_servers(project, mcp_servers)
-
-    # Copilot MCP: offer to build & install the VS Code extension
-    if "copilot-mcp" in mcp_servers:
-        _maybe_install_copilot_extension(interactive)
 
     # ── Private Sources ──
     private_sources: list[dict] = []

@@ -49,22 +49,10 @@ jobs:
         with:
           python-version: '3.11'
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
       - name: Configure git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Pre-build vscode-copilot-mcp extension
-        run: |
-          cd vscode-copilot-mcp
-          npm ci --no-audit --no-fund
-          npm run compile
-          npx --yes @vscode/vsce package --allow-missing-repository
-          ls -la vscode-copilot-mcp-*.vsix
 
       - name: Compute CalVer version
         id: version
@@ -99,18 +87,10 @@ jobs:
           echo "$version" > VERSION
 
           mkdir -p dist
-          # Note: the pre-built vscode-copilot-mcp-*.vsix IS included in the
-          # tarball (skip the *.vsix exclude) so /update-foundry can install
-          # the extension without needing tsc/vsce on the user's machine.
           tar czf "dist/claude-foundry-${version}.tar.gz" \
             --transform "s,^,claude-foundry-${version}/," \
-            --exclude='vscode-copilot-mcp/node_modules' \
-            --exclude='vscode-copilot-mcp/mcp/node_modules' \
-            --exclude='vscode-copilot-mcp/out' \
-            --exclude='vscode-copilot-mcp/.vscode-test' \
             VERSION rules/ rule-library/ agents/ commands/ skills/ \
-            hooks/ mcp-configs/ vscode-copilot-mcp/ \
-            tools/setup.py tools/install-copilot-mcp.sh
+            hooks/ mcp-configs/ tools/setup.py
 
       - name: Validate tarball
         run: |
@@ -123,12 +103,8 @@ jobs:
           version="${{ steps.version.outputs.version }}"
           # Create a stable "latest" filename alongside the versioned one
           cp "dist/claude-foundry-${version}.tar.gz" "dist/claude-foundry-latest.tar.gz"
-          # Also attach the .vsix directly so users can download + install
-          # the extension without unpacking the whole tarball.
-          vsix=$(ls -1 vscode-copilot-mcp/vscode-copilot-mcp-*.vsix | head -1)
           gh release create "$version" \
             "dist/claude-foundry-${version}.tar.gz" \
             "dist/claude-foundry-latest.tar.gz" \
-            "$vsix" \
             --title "v${version}" \
             --generate-notes

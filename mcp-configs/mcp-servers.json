@@ -22,11 +22,6 @@
       "command": "npx",
       "args": ["-y", "@railway/mcp-server"],
       "description": "Railway deployments"
-    },
-    "copilot-mcp": {
-      "command": "node",
-      "args": ["{FOUNDRY_ROOT}/vscode-copilot-mcp/mcp/server.js"],
-      "description": "Route tasks to VS Code Copilot models (requires VS Code extension — run tools/install-copilot-mcp.sh)"
     }
   },
   "_comments": {

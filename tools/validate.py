@@ -180,6 +180,7 @@ class Validator:
             "megamind-deep", "megamind-adversarial",
             "megamind-creative", "megamind-financial",
             "gui-threading", "python-qt-gui",
+            "copilot-cli",
         }
 
         existing_agents = {p.stem for p in (self.root / "agents").glob("*.md")}
@@ -320,18 +321,10 @@ class Validator:
             else:
                 source_cmds = {f.name for f in (self.root / "commands").glob("*.md")}
                 deployed_cmds = {f.name for f in commands_dir.glob("*.md")}
-                # Commands tied to opt-in skills (e.g. copilot-*) aren't expected to
-                # deploy in the default non-interactive smoke run.
-                gated_skills = set(getattr(setup_module, "COPILOT_SKILLS", []))
-                gated_cmds = {
-                    f"{s}.md" for s in gated_skills
-                } | {
-                    f.name for f in (self.root / "commands").glob("*.md")
-                    if any(f.stem.startswith(f"{s}-") for s in gated_skills)
-                }
                 # Commands gated behind an OPTIONAL_FEATURES toggle (e.g.
-                # commands/delegate.md under "minimax-delegate") shouldn't
-                # be expected either — features default OFF in the smoke run.
+                # commands/delegate.md under "minimax-delegate") aren't
+                # expected to deploy — features default OFF in the smoke run.
+                gated_cmds: set[str] = set()
                 feature_paths = getattr(setup_module, "FEATURE_PATHS", {})
                 for paths in feature_paths.values():
                     for rel in paths:
@@ -370,22 +363,11 @@ class Validator:
 
             # Check expected contents
             expected = ["VERSION", "rules", "rule-library", "agents", "commands",
-                        "skills", "hooks", "mcp-configs", "tools/setup.py",
-                        "tools/install-copilot-mcp.sh",
-                        "vscode-copilot-mcp/package.json",
-                        "vscode-copilot-mcp/FOUNDRY-INTEGRATION.md",
-                        "vscode-copilot-mcp/mcp/server.js"]
+                        "skills", "hooks", "mcp-configs", "tools/setup.py"]
             for item in expected:
                 path = root / item
                 if not path.exists():
                     self.error(f"Tarball missing: {item}")
-
-            # Pre-built .vsix must be present in release tarballs so
-            # /update-foundry can install the extension without rebuilding
-            vsix_candidates = list((root / "vscode-copilot-mcp").glob("vscode-copilot-mcp-*.vsix"))
-            if not vsix_candidates:
-                self.error("Tarball missing: vscode-copilot-mcp/vscode-copilot-mcp-*.vsix "
-                           "(release workflow must pre-build the extension)")
 
             # VERSION in tarball must be valid CalVer
             ver_file = root / "VERSION"

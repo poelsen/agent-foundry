@@ -78,7 +78,7 @@ RELEASE_JSON=$(curl -sL "$API_URL")
 
 LATEST_VERSION=$(echo "$RELEASE_JSON" | $PYTHON -c "import json,sys; print(json.load(sys.stdin)['tag_name'])")
 RELEASE_URL=$(echo "$RELEASE_JSON" | $PYTHON -c "import json,sys; print(json.load(sys.stdin)['html_url'])")
-# Find the tarball asset specifically (not the .vsix or other attachments)
+# Find the tarball asset specifically (not the latest-alias or other attachments)
 ASSET_URL=$(echo "$RELEASE_JSON" | $PYTHON -c "
 import json,sys
 d = json.load(sys.stdin)

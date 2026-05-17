@@ -2,11 +2,10 @@
 
 Covers:
 - SKILL_GROUPS shape + default contents
-- HIDDEN_SKILLS excludes copilot-* from visible menu
+- HIDDEN_SKILLS is well-formed (empty today; no skills are menu-hidden)
 - _install_foundry_payload writes setup.py + foundry.tar.gz to <project>/.foundry/
 - Payload install is idempotent and skips when REPO_ROOT lives inside target
 - Migrates away from legacy <project>/.claude/foundry/ exploded tree
-- Absolute-path messages in copilot install hook
 """
 
 from __future__ import annotations
@@ -48,7 +47,7 @@ class TestSkillGroupsShape:
         }
 
     def test_copilot_is_not_a_group(self):
-        """Copilot is gated on MCP selection, not presented as a group."""
+        """Copilot CLI is a single reference skill, never a group."""
         assert "Copilot MCP" not in setup_py.SKILL_GROUPS
         assert "Copilot" not in setup_py.SKILL_GROUPS
 
@@ -61,22 +60,21 @@ class TestSkillGroupsShape:
 
 
 class TestHiddenSkills:
-    """Verify HIDDEN_SKILLS removes copilot-* from the visible menu."""
+    """HIDDEN_SKILLS is kept as an explicit set so the menu-build logic
+    stays uniform. No skills are menu-hidden today (the copilot-* MCP skills
+    that used to live here were retired with the VS Code bridge)."""
 
     def test_hidden_skills_exists(self):
         assert hasattr(setup_py, "HIDDEN_SKILLS")
         assert isinstance(setup_py.HIDDEN_SKILLS, set)
 
-    def test_all_copilot_skills_are_hidden(self):
-        for skill in setup_py.COPILOT_SKILLS:
-            assert skill in setup_py.HIDDEN_SKILLS, (
-                f"{skill} must be in HIDDEN_SKILLS so it doesn't appear in the menu"
-            )
+    def test_hidden_skills_is_empty(self):
+        assert setup_py.HIDDEN_SKILLS == set()
 
-    def test_non_copilot_skills_not_hidden(self):
-        non_copilot = ("megamind-deep", "prj-new", "learn", "clickhouse-io")
-        for skill in non_copilot:
-            assert skill not in setup_py.HIDDEN_SKILLS
+    def test_no_copilot_mcp_skill_constant(self):
+        """The COPILOT_SKILLS gating list was removed; nothing should
+        reintroduce a menu-hidden copilot skill set by accident."""
+        assert not hasattr(setup_py, "COPILOT_SKILLS")
 
 
 class TestFoundryPayloadInstall:
@@ -252,45 +250,6 @@ class TestFoundryPayloadInstall:
         assert any(
             args and str(args[0]) == str(legacy) for _, args, _ in registered
         ), f"expected atexit cleanup of {legacy}, got: {registered}"
-
-
-class TestCopilotInstallMessagePath:
-    """Verify the copilot-install message prints an absolute path."""
-
-    def test_skip_message_uses_absolute_path(self, monkeypatch, capsys):
-        monkeypatch.setattr(setup_py, "_copilot_prereqs_missing", lambda: ["code"])
-        setup_py._maybe_install_copilot_extension(interactive=False)
-        out = capsys.readouterr().out
-        # Must contain the absolute path to install-copilot-mcp.sh, not relative
-        assert "/tools/install-copilot-mcp.sh" in out
-        # No relative path tokens like "./tools" or "tools/install"
-        assert "./tools/" not in out
-        # Path must be absolute (starts with /)
-        for line in out.splitlines():
-            if "install-copilot-mcp.sh" in line:
-                # Extract the path and check it's absolute
-                assert "/install-copilot-mcp.sh" in line
-                # Find the path substring
-                idx = line.find("/")
-                if idx != -1:
-                    path_part = line[idx:].strip().split()[0]
-                    # Should start with / (absolute)
-                    assert path_part.startswith("/"), (
-                        f"expected absolute path, got: {path_part}"
-                    )
-
-    def test_failure_message_uses_absolute_path(self, monkeypatch, capsys):
-        monkeypatch.setattr(setup_py, "_copilot_prereqs_missing", lambda: [])
-
-        def fake_run(cmd, check=True):
-            raise setup_py.subprocess.CalledProcessError(1, cmd)
-
-        monkeypatch.setattr(setup_py.subprocess, "run", fake_run)
-        setup_py._maybe_install_copilot_extension(interactive=False)
-        out = capsys.readouterr().out
-        assert "install-copilot-mcp.sh" in out
-        # The re-run hint must be absolute
-        assert "bash /" in out
 
 
 class TestFeatureRequiredSkills:

@@ -185,7 +185,7 @@ Everything is copied into `<project>/.claude/`:
 | **Skills** | `skills/` | Domain knowledge modules (GUI threading patterns, ClickHouse, learned patterns) |
 | **Hooks** | `hooks/library/` | Shell scripts that run before/after Claude Code tool calls (formatters, type checkers) |
 | **Plugins** | configured in `settings.json` | LSP servers and workflow plugins (feature-dev, PR review toolkit) |
-| **Copilot MCP** (opt-in) | `vscode-copilot-mcp/` | VS Code extension + MCP bridge that routes tasks to Copilot models. Disabled by default. See [Copilot MCP](#copilot-mcp-opt-in). |
+| **Copilot CLI** | `skills/copilot-cli/` | Thin reference skill for the local GitHub Copilot CLI — lets review-process run non-Claude models (e.g. GPT-5.4). See [Copilot CLI](#copilot-cli). |
 
 ## Rules
 
@@ -279,9 +279,7 @@ The skill menu in `setup.py init` presents related skills as **groups**, not ind
 | **Megamind Reasoning** | `megamind-deep`, `megamind-creative`, `megamind-adversarial`, `megamind-financial` |
 | **Project Management** | `prj-new`, `prj-list`, `prj-pause`, `prj-resume`, `prj-done`, `prj-delete` |
 
-Both groups are **auto-selected by default**. Individual non-grouped skills (`clickhouse-io`, `gui-threading`, `learn`, `update-foundry`, `snapshot-list`, `private-list`, `private-remove`, `review-process`, etc.) continue to appear as individual entries. A handful — `update-foundry`, `learn`, `learn-recall`, `snapshot-list`, `private-list`, `private-remove`, and `review-process` — are auto-selected by default; the others are off until explicitly toggled on.
-
-**Hidden skills (gated on MCP selection):** the 7 `copilot-*` skills do NOT appear in the skill selection menu. They're installed automatically when (and only when) you toggle `copilot-mcp` ON in the **MCP servers** menu — because a slash command like `/copilot-ask` is useless without the extension + bridge, so it never makes sense to select them individually. Deselecting `copilot-mcp` in the MCP menu strips all 7 in one step.
+Both groups are **auto-selected by default**. Individual non-grouped skills (`clickhouse-io`, `gui-threading`, `learn`, `update-foundry`, `snapshot-list`, `private-list`, `private-remove`, `review-process`, `copilot-cli`, etc.) continue to appear as individual entries. A handful — `update-foundry`, `learn`, `learn-recall`, `snapshot-list`, `private-list`, `private-remove`, `review-process`, and `copilot-cli` — are auto-selected by default; the others are off until explicitly toggled on.
 
 The manifest still stores individual skill names (not group names), so existing projects keep working without migration.
 
@@ -503,138 +501,32 @@ Always start with the general process and add every more-specific sub-file whose
 - Complements the `code-review` plugin (single-shot review) — this skill is a tiered governance process.
 - Routes work to skills/agents foundry already ships; if a referenced reviewer isn't installed, the review header records it as unavailable.
 
-## Copilot MCP (opt-in)
+## Copilot CLI
 
-Route Claude Code tasks to VS Code Copilot models (Claude Opus/Sonnet 4.6, GPT-5.4, Gemini 3.1, Grok, etc.) via an MCP bridge. Saves Anthropic API tokens by using your existing GitHub Copilot subscription. **Disabled by default** — selecting `copilot-mcp` in the MCP-servers toggle during `setup.py init` enables the whole thing: 7 slash-command skills, MCP server registration, and installing the VS Code extension.
+Foundry no longer ships a VS Code extension or MCP bridge for Copilot. With the
+GitHub Copilot CLI installed locally, reaching non-Claude models is trivial — a
+single `copilot -p` invocation — so the bridge, its 7 `/copilot-*` skills, and
+the per-workspace runtime gymnastics were retired in favour of a thin reference
+skill.
 
-> **⚠ Runtime requirements — read this before you try the commands:**
->
-> Every time you want to use a `/copilot-*` slash command, **all of these must be true**:
->
-> 1. **VS Code is running** on your machine
-> 2. **The project folder is opened** as a workspace in VS Code (File → Open Folder)
-> 3. **Claude Code is launched from within that workspace tree** — the MCP bridge walks up from your cwd looking for `.vscode/copilot-mcp.json`. If Claude Code runs from `~/unrelated/` while VS Code has `~/my-project/` open, the bridge will not find the extension.
-> 4. **The extension is enabled for that workspace** — see the "Enable per workspace" step below. The extension is installed machine-wide but **idle by default**; it only starts when a workspace's `.vscode/settings.json` opts in.
->
-> Without all four, `/copilot-*` commands fail with "extension not reachable". Closing VS Code stops the bridge until you reopen the workspace.
-
-### Components
-
-- **VS Code extension** — HTTP server inside VS Code that proxies to the `vscode.lm` API (forces `vendor: copilot`)
-- **MCP bridge** — Node.js stdio server that forwards Claude Code tool calls to the extension's HTTP endpoint
-- **7 slash-command skills**: `/copilot-list-models`, `/copilot-ask`, `/copilot-review`, `/copilot-audit`, `/copilot-agent`, `/copilot-multi`, `/copilot-job`
-
-### Install
-
-During `setup.py init`, toggle `copilot-mcp` in the MCP-servers menu. That single decision does everything:
-
-1. Writes the `copilot-mcp` entry to `.claude.json` with an absolute path to `<foundry>/vscode-copilot-mcp/mcp/server.js`
-2. Auto-selects all 7 `copilot-*` skills for deployment to `.claude/skills/`
-3. Runs [`tools/install-copilot-mcp.sh`](tools/install-copilot-mcp.sh) to install the VS Code extension:
-   - Interactive mode: prompts before installing
-   - Non-interactive mode (e.g. `/update-foundry`): auto-runs if all prereqs are present, skips gracefully with a clear notice if not
-
-The install script uses a **pre-built `.vsix`** when available (shipped in every foundry release tarball, built by CI) — in that case the install is just `code --install-extension vscode-copilot-mcp-*.vsix --force` plus `npm install` in the MCP bridge directory. If you're on a bare git clone with no pre-built .vsix, the script falls back to the full build chain (`npm install` → `tsc` → `vsce package`). Both paths are idempotent.
-
-To **disable** Copilot MCP on a project that previously had it enabled, run `setup.py init` interactively and toggle `copilot-mcp` OFF in the MCP-servers menu. Setup.py will strip the copilot-* skills and remove the MCP entry from `.claude.json`. Optionally also remove the `copilot-mcp.autoStart` line from the workspace's `.vscode/settings.json` and uninstall the extension from VS Code.
-
-### Requirements
-
-- VS Code with GitHub Copilot Chat (paid subscription with model access)
-- Node.js >= 20
-- **`code` shell command on PATH** — this is the *external* `code` executable used by `code --install-extension <vsix>`, NOT the integrated terminal panel inside VS Code. Install via VS Code: `Ctrl+Shift+P` → `Shell Command: Install 'code' command in PATH`, then restart your shell.
-- `bash`, `curl`, `python3`, `awk`, `mktemp` (for background-job watcher; standard on Linux/macOS/WSL/Git Bash)
-
-> **WSL caveat**: the `code` command from VS Code Server (`~/.vscode-server/bin/<hash>/bin/remote-cli/code`) only works **inside an integrated VS Code terminal session**, not from a plain WSL bash. On WSL: open VS Code with your WSL workspace attached, open a terminal inside VS Code, and re-run `python3 <project>/.foundry/setup.py init <project>` from there — the integrated terminal sets up `PATH` so `code` is available, and setup.py will trigger the extension install internally.
-
-### After install (REQUIRED — the extension is disabled by default)
-
-1. **Enable the extension for your workspace.** In the project root, add or edit `.vscode/settings.json`:
-
-   ```json
-   {
-     "copilot-mcp.autoStart": true
-   }
-   ```
-
-   The extension is installed machine-wide but **idle by default** — it only starts the HTTP bridge in workspaces where you explicitly opt in via this setting. This prevents it from running in unrelated VS Code windows.
-
-2. **Make the setting take effect.** The extension reads `autoStart` once at activation, so changing it at runtime doesn't notify the running instance. Pick one:
-   - Run `Developer: Reload Window` from the VS Code command palette (re-activates the extension), **or**
-   - Run `Copilot MCP: Start Server` from the command palette (starts the server immediately, no reload).
-
-   You do **not** need to restart all of VS Code.
-
-3. **Restart Claude Code** (MCP server processes are spawned at startup — this is a one-time step after the very first install, not after every toggle).
-
-4. **Open the target workspace in VS Code** if it isn't already open. The extension writes `.vscode/copilot-mcp.json` with the connection info.
-
-5. From Claude Code in that workspace: `/copilot-list-models` — should return ~20 models.
-
-6. First LM request triggers a one-time VS Code "Allow" popup granting the extension LM API access — click Allow. It persists for the VS Code session.
-
-You can verify the extension is installed and its state from the VS Code Extensions panel (`Ctrl+Shift+X` → search "Copilot MCP"). Its logs are in `Output → Copilot MCP`.
-
-### Usage
-
-All seven commands are available inside Claude Code once the extension is running. Claude Code must be launched from the same workspace tree that VS Code has open (the MCP bridge discovers the extension via `.vscode/copilot-mcp.json` by walking up from the cwd).
-
-| Command | Purpose | Example |
-|---------|---------|---------|
-| `/copilot-list-models` | List available Copilot models with capabilities | `/copilot-list-models` |
-| `/copilot-ask <model> <prompt>` | One-shot stateless question to any model | `/copilot-ask gpt-5.4 Explain tail call optimization` |
-| `/copilot-review [model] [target]` | Code review on a file or diff | `/copilot-review claude-sonnet-4.6 src/auth.py` |
-| `/copilot-audit [skill] [model] [target]` | Adversarial audit using a chosen skill | `/copilot-audit security gpt-5.4 src/api/` |
-| `/copilot-agent [model] [session:name] <task>` | Autonomous agent loop with workspace tools | `/copilot-agent claude-opus-4.6 "Add retry logic to the HTTP client and run tests"` |
-| `/copilot-multi [models:list] <task>` | Fan-out a task to multiple models in parallel | `/copilot-multi claude-opus-4.6,gpt-5.4,gemini-3.1 "Review this design doc"` |
-| `/copilot-job [start\|status\|list] <args>` | Manage long-running background jobs | `/copilot-job start opus "Refactor the billing module"` |
-
-**Model names** are whatever `/copilot-list-models` returns for your subscription. Typical options: `claude-opus-4.6`, `claude-sonnet-4.6`, `gpt-5.4`, `gpt-4.1`, `gemini-3.1`, `grok-code-fast-1`.
-
-**When to use the agent vs. job modes:**
-- Sync `copilot-agent`: tasks under ~5 minutes. Blocks until done.
-- Background `copilot-job`: long tasks (refactors, audits). MCP tool call returns immediately; a bash watcher polls for completion and notifies Claude Code. Don't have the model poll `copilot-job status` in a loop — use the watcher.
-
-**When to use `copilot-multi`:** when you want independent perspectives on the same question. Opus tends to find architectural/subtle issues; GPT-5.4 tends to find operational issues; Grok is fast and blunt. Feeding all three reports back to Opus for meta-analysis is an effective pattern.
-
-### Updating
-
-When you run `/update-foundry` in Claude Code (or `setup.py init` non-interactively), the updater:
-
-1. Downloads the latest foundry tarball (which includes both `vscode-copilot-mcp/` source AND the pre-built `vscode-copilot-mcp-*.vsix`)
-2. Redeploys skills and re-writes `.claude.json`
-3. **Auto-installs the pre-built extension** if `copilot-mcp` is in your manifest AND all prereqs (`code`, `node`, `npm`, etc.) are present on PATH. The install script detects the pre-built .vsix, skips the build chain, and runs `code --install-extension --force`. Keeps the installed extension in sync with the foundry release without a manual step.
-
-If a prereq is missing (e.g. running updates from a headless CI machine with no VS Code), the updater prints a skip message and the manual command to run later — the update itself still succeeds.
-
-Your per-workspace `.vscode/settings.json` with `copilot-mcp.autoStart: true` is **not touched** by updates — your enable state persists across foundry releases.
-
-Restart Claude Code after any update that reinstalled the extension so the MCP server picks up the new bridge.
-
-### Troubleshooting
-
-| Problem | Fix |
-|---------|-----|
-| `/copilot-list-models` says "extension not reachable" | Check the 4 runtime requirements (top of this section). Most common cause: `.vscode/settings.json` missing `copilot-mcp.autoStart: true`, so the extension is idle. Second most common: VS Code has a *different* folder open than the one Claude Code is running from. |
-| Extension installed but server doesn't start | `copilot-mcp.autoStart` is `false` (the default). Add `{ "copilot-mcp.autoStart": true }` to the workspace's `.vscode/settings.json`, then reload VS Code (`Ctrl+Shift+P` → "Developer: Reload Window"). |
-| 401 Unauthorized | Stale token from extension restart — restart Claude Code so the MCP bridge re-reads the token. |
-| Empty response from a model | Should not happen; extension forces `vendor: 'copilot'`. If it does, check the VS Code output channel for `[copilot-mcp]`. |
-| Port collision / `EADDRINUSE` | Someone set `copilot-mcp.port` to a fixed value. Set it back to `0` in VS Code settings (auto-assign). |
-| Extension not built after update | Check prereqs with `command -v code node npm`. Run `bash tools/install-copilot-mcp.sh` manually once the missing tool is installed. |
-
-
-### Testing
-
-The extension ships with 58 unit tests (`src/pure.test.ts`) using Node's built-in test runner:
+The `copilot-cli` skill (auto-installed, like `review-process`) documents the
+one canonical call:
 
 ```bash
-cd vscode-copilot-mcp
-npm install
-npm test                # 58 tests, ~60ms
-npm run test:coverage   # 100% line coverage on pure.ts
+copilot -p "<prompt>" --model <model> --allow-all-tools -s
 ```
 
-The extension tests run as a dedicated GitHub Actions job (`vscode-copilot-mcp-tests` in `.github/workflows/pr-check.yml`) on every PR — independent from the Python pytest job so a TS failure gives a clear, separately-labeled signal in the PR UI.
+- **Prerequisite:** the `copilot` GitHub Copilot CLI on `PATH`, authenticated
+  (`copilot` once interactively to sign in). Verify with `copilot --version`.
+- **Token cost:** spends your GitHub Copilot subscription, not Anthropic tokens.
+- **Primary consumer:** `review-process` references it to run a second,
+  cross-model reviewer (e.g. `gpt-5.4`) under the `DIVERSE_STANDARD` strategy.
+  If `copilot` is not installed, review-process falls back to a second Claude
+  run automatically — the CLI is an enhancement, never a hard dependency.
+
+See `skills/copilot-cli/SKILL.md` for the full invocation contract and model
+notes. There is no installer, no MCP server, and nothing to enable per
+workspace — if `copilot` runs in your shell, it works.
 
 ## Project Management
 
