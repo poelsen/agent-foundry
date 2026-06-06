@@ -1,4 +1,4 @@
-# Claude Code Foundry
+# Agent Foundry
 
 > **Early alpha.** Under active development. The current rule set is most mature for **Python** and **PySide6/Qt** projects. Other languages (C, C++, Rust, Go, TypeScript) have base rules but are less battle-tested. Expect breaking changes.
 
@@ -10,19 +10,19 @@ Requires Python 3.11+. No external dependencies.
 
 ### Option A: Download a release
 
-Download the latest tarball from the [Releases page](https://github.com/poelsen/claude-foundry/releases) and extract it:
+Download the latest tarball from the [Releases page](https://github.com/poelsen/agent-foundry/releases) and extract it:
 
 ```bash
-tar xzf claude-foundry-*.tar.gz
-cd claude-foundry-*
+tar xzf agent-foundry-*.tar.gz
+cd agent-foundry-*
 python3 tools/setup.py init /path/to/your/project
 ```
 
 ### Option B: Clone the repo
 
 ```bash
-git clone https://github.com/poelsen/claude-foundry.git
-cd claude-foundry
+git clone https://github.com/poelsen/agent-foundry.git
+cd agent-foundry
 python3 tools/setup.py init /path/to/your/project
 ```
 
@@ -89,7 +89,7 @@ When `setup.py init` runs, it handles `CLAUDE.md` intelligently:
 
 ### For new projects (no CLAUDE.md)
 
-Creates a minimal `CLAUDE.md` with a **claude-foundry header** containing:
+Creates a minimal `CLAUDE.md` with a **agent-foundry header** containing:
 - List of deployed rules with descriptions
 - Environment commands for detected languages (setup, test, lint)
 - Pointers to `codemaps/INDEX.md` for architecture
@@ -102,12 +102,12 @@ If `CLAUDE.md` already exists, setup.py offers three options:
 | Option | Behavior |
 |--------|----------|
 | **Replace** | Generate new CLAUDE.md, save original as `CLAUDE.md.old` |
-| **Merge** | Prepend claude-foundry header to existing, save original as `CLAUDE.md.old` |
+| **Merge** | Prepend agent-foundry header to existing, save original as `CLAUDE.md.old` |
 | **Quit** | Abort setup entirely |
 
 ### Header updates
 
-The claude-foundry header is wrapped in marker comments (`<!-- claude-foundry -->` ... `<!-- /claude-foundry -->`). On subsequent runs:
+The agent-foundry header is wrapped in marker comments (`<!-- agent-foundry -->` ... `<!-- /agent-foundry -->`). On subsequent runs:
 - If the marker exists, the header is **updated silently** with current rules/languages
 - If no marker exists, setup.py asks before modifying (interactive) or skips (non-interactive)
 
@@ -122,13 +122,13 @@ Claude-foundry recommends a three-tier documentation approach:
 
 | Location | Purpose | Maintained by |
 |----------|---------|---------------|
-| `CLAUDE.md` | Pointers and environment setup | claude-foundry (auto-updated) |
+| `CLAUDE.md` | Pointers and environment setup | agent-foundry (auto-updated) |
 | `codemaps/` | Architecture overview per module | `/update-codemaps` (auto-generated) |
 | `docs/` | Detailed project documentation | You (manual) |
 
 ### CLAUDE.md
 
-Keep minimal. The claude-foundry header provides:
+Keep minimal. The agent-foundry header provides:
 - Links to `.claude/rules/` for coding standards
 - Environment commands (setup, test, lint)
 - Pointer to `codemaps/INDEX.md`
@@ -301,11 +301,11 @@ The `skills/learned/` directory starts empty. Categories are created as you lear
 
 ## Private Sources
 
-Private sources let you add company-specific or team-specific rules, commands, skills, agents, and hooks alongside the public claude-foundry config. Register once, and they're automatically re-applied on every `/update-foundry`.
+Private sources let you add company-specific or team-specific rules, commands, skills, agents, and hooks alongside the public agent-foundry config. Register once, and they're automatically re-applied on every `/update-foundry`.
 
 ### Directory structure
 
-A private source follows the same layout as claude-foundry:
+A private source follows the same layout as agent-foundry:
 
 ```
 my-company-config/
@@ -360,12 +360,12 @@ Every merge to `master` triggers a GitHub Actions workflow that:
 1. Computes a [CalVer](https://calver.org/) version (`YYYY.MM.DD`, with `.N` suffix for same-day releases)
 2. Creates a git tag
 3. Builds a release tarball containing all deployable files
-4. Publishes a [GitHub Release](https://github.com/poelsen/claude-foundry/releases) with the tarball attached
+4. Publishes a [GitHub Release](https://github.com/poelsen/agent-foundry/releases) with the tarball attached
 
 ## Project Structure
 
 ```
-claude-foundry/
+agent-foundry/
 ├── rules/                    # Base rules (selected during init)
 ├── rule-library/             # Modular rules by category
 │   ├── lang/                 # Language tooling rules

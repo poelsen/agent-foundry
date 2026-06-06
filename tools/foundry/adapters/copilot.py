@@ -13,13 +13,13 @@ from pathlib import Path
 
 from ..deploy import write_mcp_servers
 from ..instructions import (
-    has_claude_foundry_header,
-    prepend_claude_foundry_header,
-    update_claude_foundry_header,
+    has_agent_foundry_header,
+    prepend_agent_foundry_header,
+    update_agent_foundry_header,
 )
 from ..paths import (
-    CLAUDE_FOUNDRY_MARKER_END,
-    CLAUDE_FOUNDRY_MARKER_START,
+    AGENT_FOUNDRY_MARKER_END,
+    AGENT_FOUNDRY_MARKER_START,
     REPO_ROOT,
 )
 from ..registry import ENVIRONMENT_SNIPPETS
@@ -48,7 +48,7 @@ def _env_block(langs: set[str]) -> str:
 
 def render_agents_header(sel: Selections) -> str:
     """Build the marker-wrapped agent-foundry block embedding rule bodies."""
-    sections = [CLAUDE_FOUNDRY_MARKER_START,
+    sections = [AGENT_FOUNDRY_MARKER_START,
                 "## Coding Standards (agent-foundry)",
                 "",
                 "These standards are managed by agent-foundry and apply to any "
@@ -68,7 +68,7 @@ def render_agents_header(sel: Selections) -> str:
         sections.append(f"<!-- rule: {rule} -->")
         sections.append(body)
         sections.append("")
-    sections.append(CLAUDE_FOUNDRY_MARKER_END)
+    sections.append(AGENT_FOUNDRY_MARKER_END)
     return "\n".join(sections)
 
 
@@ -88,15 +88,15 @@ class CopilotAdapter(CliAdapter):
 
         if agents_md.exists():
             existing = agents_md.read_text(encoding="utf-8")
-            if has_claude_foundry_header(existing):
+            if has_agent_foundry_header(existing):
                 agents_md.write_text(
-                    update_claude_foundry_header(existing, header), encoding="utf-8")
+                    update_agent_foundry_header(existing, header), encoding="utf-8")
                 print("  Updated agent-foundry block in AGENTS.md")
             else:
                 backup = project / "AGENTS.md.old"
                 backup.write_text(existing, encoding="utf-8")
                 agents_md.write_text(
-                    prepend_claude_foundry_header(header, existing), encoding="utf-8")
+                    prepend_agent_foundry_header(header, existing), encoding="utf-8")
                 print("  Merged agent-foundry block into AGENTS.md (original saved to AGENTS.md.old)")
         else:
             agents_md.write_text(f"# {sel.project_name}\n\n{header}\n", encoding="utf-8")

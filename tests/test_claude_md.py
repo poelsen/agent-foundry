@@ -4,90 +4,87 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from unittest.mock import patch
-
-import pytest
 
 # Add tools directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "tools"))
 
 from setup import (
-    CLAUDE_FOUNDRY_MARKER_END,
-    CLAUDE_FOUNDRY_MARKER_START,
-    generate_claude_foundry_header,
+    AGENT_FOUNDRY_MARKER_END,
+    AGENT_FOUNDRY_MARKER_START,
+    generate_agent_foundry_header,
     generate_claude_md,
-    has_claude_foundry_header,
-    prepend_claude_foundry_header,
-    update_claude_foundry_header,
+    has_agent_foundry_header,
+    prepend_agent_foundry_header,
+    update_agent_foundry_header,
 )
 
 
 class TestHasClaudeFoundryHeader:
-    """Tests for has_claude_foundry_header function."""
+    """Tests for has_agent_foundry_header function."""
 
     def test_detects_marker_at_start(self):
-        content = f"{CLAUDE_FOUNDRY_MARKER_START}\nsome content\n{CLAUDE_FOUNDRY_MARKER_END}"
-        assert has_claude_foundry_header(content) is True
+        content = f"{AGENT_FOUNDRY_MARKER_START}\nsome content\n{AGENT_FOUNDRY_MARKER_END}"
+        assert has_agent_foundry_header(content) is True
 
     def test_detects_marker_in_middle(self):
-        content = f"# Project\n\n{CLAUDE_FOUNDRY_MARKER_START}\nheader\n{CLAUDE_FOUNDRY_MARKER_END}\n\nMore content"
-        assert has_claude_foundry_header(content) is True
+        content = f"# Project\n\n{AGENT_FOUNDRY_MARKER_START}\nheader\n{AGENT_FOUNDRY_MARKER_END}\n\nMore content"
+        assert has_agent_foundry_header(content) is True
 
     def test_no_marker_returns_false(self):
         content = "# Project\n\n## Rules\nSome rules here"
-        assert has_claude_foundry_header(content) is False
+        assert has_agent_foundry_header(content) is False
 
     def test_empty_content_returns_false(self):
-        assert has_claude_foundry_header("") is False
+        assert has_agent_foundry_header("") is False
 
     def test_partial_marker_returns_false(self):
         content = "<!-- claude -->\nNot the right marker"
-        assert has_claude_foundry_header(content) is False
+        assert has_agent_foundry_header(content) is False
 
 
 class TestGenerateClaudeFoundryHeader:
-    """Tests for generate_claude_foundry_header function."""
+    """Tests for generate_agent_foundry_header function."""
 
     def test_includes_markers(self):
-        header = generate_claude_foundry_header(["python.md"], {"python.md"})
-        assert CLAUDE_FOUNDRY_MARKER_START in header
-        assert CLAUDE_FOUNDRY_MARKER_END in header
+        header = generate_agent_foundry_header(["python.md"], {"python.md"})
+        assert AGENT_FOUNDRY_MARKER_START in header
+        assert AGENT_FOUNDRY_MARKER_END in header
 
     def test_lists_deployed_rules(self):
         rules = ["python.md", "coding-style.md", "security.md"]
-        header = generate_claude_foundry_header(rules, {"python.md"})
+        header = generate_agent_foundry_header(rules, {"python.md"})
         assert "`python.md`" in header
         assert "`coding-style.md`" in header
         assert "`security.md`" in header
 
     def test_includes_rule_descriptions(self):
-        header = generate_claude_foundry_header(["python.md"], {"python.md"})
+        header = generate_agent_foundry_header(["python.md"], {"python.md"})
         assert "Python tooling" in header or "uv" in header
 
     def test_includes_python_env_commands(self):
-        header = generate_claude_foundry_header(["python.md"], {"python.md"})
+        header = generate_agent_foundry_header(["python.md"], {"python.md"})
         assert "uv sync --extra dev" in header
         assert "uv run pytest" in header
 
     def test_includes_rust_env_commands(self):
-        header = generate_claude_foundry_header(["rust.md"], {"rust.md"})
+        header = generate_agent_foundry_header(["rust.md"], {"rust.md"})
         assert "cargo build" in header
         assert "cargo test" in header
 
     def test_includes_go_env_commands(self):
-        header = generate_claude_foundry_header(["go.md"], {"go.md"})
+        header = generate_agent_foundry_header(["go.md"], {"go.md"})
         assert "go mod download" in header
         assert "go test" in header
 
     def test_nodejs_has_no_env_commands(self):
         """Node.js has fragmented tooling — no default snippets."""
-        header = generate_claude_foundry_header(["nodejs.md"], {"nodejs.md"})
+        header = generate_agent_foundry_header(["nodejs.md"], {"nodejs.md"})
         assert "npm install" not in header
         assert "npm test" not in header
         assert "No language-specific commands" in header
 
     def test_multiple_languages(self):
-        header = generate_claude_foundry_header(
+        header = generate_agent_foundry_header(
             ["python.md", "rust.md"],
             {"python.md", "rust.md"},
         )
@@ -95,35 +92,35 @@ class TestGenerateClaudeFoundryHeader:
         assert "cargo" in header
 
     def test_empty_rules_list(self):
-        header = generate_claude_foundry_header([], set())
-        assert CLAUDE_FOUNDRY_MARKER_START in header
+        header = generate_agent_foundry_header([], set())
+        assert AGENT_FOUNDRY_MARKER_START in header
         assert "(none deployed)" in header
 
     def test_no_matching_env_snippets(self):
-        header = generate_claude_foundry_header(["custom-rule.md"], set())
+        header = generate_agent_foundry_header(["custom-rule.md"], set())
         assert "No language-specific commands" in header
 
     def test_includes_architecture_section(self):
-        header = generate_claude_foundry_header(["python.md"], {"python.md"})
+        header = generate_agent_foundry_header(["python.md"], {"python.md"})
         assert "codemaps/INDEX.md" in header
         assert "/update-codemaps" in header
 
     def test_includes_documentation_section(self):
-        header = generate_claude_foundry_header(["python.md"], {"python.md"})
+        header = generate_agent_foundry_header(["python.md"], {"python.md"})
         assert "docs/" in header
         assert "docs/ARCHITECTURE.md" in header
         assert "docs/DEVELOPMENT.md" in header
 
 
 class TestUpdateClaudeFoundryHeader:
-    """Tests for update_claude_foundry_header function."""
+    """Tests for update_agent_foundry_header function."""
 
     def test_replaces_existing_header(self):
-        old_header = f"{CLAUDE_FOUNDRY_MARKER_START}\nold content\n{CLAUDE_FOUNDRY_MARKER_END}"
-        new_header = f"{CLAUDE_FOUNDRY_MARKER_START}\nnew content\n{CLAUDE_FOUNDRY_MARKER_END}"
+        old_header = f"{AGENT_FOUNDRY_MARKER_START}\nold content\n{AGENT_FOUNDRY_MARKER_END}"
+        new_header = f"{AGENT_FOUNDRY_MARKER_START}\nnew content\n{AGENT_FOUNDRY_MARKER_END}"
         content = f"# Project\n\n{old_header}\n\n## More stuff"
 
-        result = update_claude_foundry_header(content, new_header)
+        result = update_agent_foundry_header(content, new_header)
 
         assert "old content" not in result
         assert "new content" in result
@@ -131,71 +128,71 @@ class TestUpdateClaudeFoundryHeader:
         assert "## More stuff" in result
 
     def test_preserves_content_before_header(self):
-        old_header = f"{CLAUDE_FOUNDRY_MARKER_START}\nold\n{CLAUDE_FOUNDRY_MARKER_END}"
-        new_header = f"{CLAUDE_FOUNDRY_MARKER_START}\nnew\n{CLAUDE_FOUNDRY_MARKER_END}"
+        old_header = f"{AGENT_FOUNDRY_MARKER_START}\nold\n{AGENT_FOUNDRY_MARKER_END}"
+        new_header = f"{AGENT_FOUNDRY_MARKER_START}\nnew\n{AGENT_FOUNDRY_MARKER_END}"
         content = f"# My Project\n\nSome intro text\n\n{old_header}\n\nMore content"
 
-        result = update_claude_foundry_header(content, new_header)
+        result = update_agent_foundry_header(content, new_header)
 
         assert result.startswith("# My Project\n\nSome intro text\n\n")
 
     def test_preserves_content_after_header(self):
-        old_header = f"{CLAUDE_FOUNDRY_MARKER_START}\nold\n{CLAUDE_FOUNDRY_MARKER_END}"
-        new_header = f"{CLAUDE_FOUNDRY_MARKER_START}\nnew\n{CLAUDE_FOUNDRY_MARKER_END}"
+        old_header = f"{AGENT_FOUNDRY_MARKER_START}\nold\n{AGENT_FOUNDRY_MARKER_END}"
+        new_header = f"{AGENT_FOUNDRY_MARKER_START}\nnew\n{AGENT_FOUNDRY_MARKER_END}"
         content = f"{old_header}\n\n## Custom Section\n\nCustom content here"
 
-        result = update_claude_foundry_header(content, new_header)
+        result = update_agent_foundry_header(content, new_header)
 
         assert "## Custom Section" in result
         assert "Custom content here" in result
 
     def test_returns_unchanged_if_no_markers(self):
         content = "# Project\n\nNo markers here"
-        new_header = f"{CLAUDE_FOUNDRY_MARKER_START}\nnew\n{CLAUDE_FOUNDRY_MARKER_END}"
+        new_header = f"{AGENT_FOUNDRY_MARKER_START}\nnew\n{AGENT_FOUNDRY_MARKER_END}"
 
-        result = update_claude_foundry_header(content, new_header)
+        result = update_agent_foundry_header(content, new_header)
 
         assert result == content
 
     def test_handles_header_at_start_of_file(self):
-        old_header = f"{CLAUDE_FOUNDRY_MARKER_START}\nold\n{CLAUDE_FOUNDRY_MARKER_END}"
-        new_header = f"{CLAUDE_FOUNDRY_MARKER_START}\nnew\n{CLAUDE_FOUNDRY_MARKER_END}"
+        old_header = f"{AGENT_FOUNDRY_MARKER_START}\nold\n{AGENT_FOUNDRY_MARKER_END}"
+        new_header = f"{AGENT_FOUNDRY_MARKER_START}\nnew\n{AGENT_FOUNDRY_MARKER_END}"
         content = f"{old_header}\n\nRest of file"
 
-        result = update_claude_foundry_header(content, new_header)
+        result = update_agent_foundry_header(content, new_header)
 
-        assert result.startswith(CLAUDE_FOUNDRY_MARKER_START)
+        assert result.startswith(AGENT_FOUNDRY_MARKER_START)
         assert "new" in result
 
 
 class TestPrependClaudeFoundryHeader:
-    """Tests for prepend_claude_foundry_header function."""
+    """Tests for prepend_agent_foundry_header function."""
 
     def test_prepends_header(self):
-        header = f"{CLAUDE_FOUNDRY_MARKER_START}\nheader content\n{CLAUDE_FOUNDRY_MARKER_END}"
+        header = f"{AGENT_FOUNDRY_MARKER_START}\nheader content\n{AGENT_FOUNDRY_MARKER_END}"
         content = "# Existing Project\n\nExisting content"
 
-        result = prepend_claude_foundry_header(content, header)
+        result = prepend_agent_foundry_header(content, header)
 
-        assert result.startswith(CLAUDE_FOUNDRY_MARKER_START)
+        assert result.startswith(AGENT_FOUNDRY_MARKER_START)
         assert "# Existing Project" in result
         assert "Existing content" in result
 
     def test_adds_newline_separator(self):
-        header = f"{CLAUDE_FOUNDRY_MARKER_START}\nheader\n{CLAUDE_FOUNDRY_MARKER_END}"
+        header = f"{AGENT_FOUNDRY_MARKER_START}\nheader\n{AGENT_FOUNDRY_MARKER_END}"
         content = "# Project"
 
-        result = prepend_claude_foundry_header(content, header)
+        result = prepend_agent_foundry_header(content, header)
 
         # Should have newline between header and content
-        assert f"{CLAUDE_FOUNDRY_MARKER_END}\n\n# Project" in result or \
-               f"{CLAUDE_FOUNDRY_MARKER_END}\n# Project" in result
+        assert f"{AGENT_FOUNDRY_MARKER_END}\n\n# Project" in result or \
+               f"{AGENT_FOUNDRY_MARKER_END}\n# Project" in result
 
     def test_preserves_original_content_exactly(self):
         header = "header"
         content = "line1\nline2\nline3"
 
-        result = prepend_claude_foundry_header(content, header)
+        result = prepend_agent_foundry_header(content, header)
 
         assert "line1\nline2\nline3" in result
 
@@ -209,8 +206,8 @@ class TestGenerateClaudeMd:
 
     def test_includes_header(self):
         result = generate_claude_md("test", ["python.md"], {"python.md"})
-        assert CLAUDE_FOUNDRY_MARKER_START in result
-        assert CLAUDE_FOUNDRY_MARKER_END in result
+        assert AGENT_FOUNDRY_MARKER_START in result
+        assert AGENT_FOUNDRY_MARKER_END in result
 
     def test_includes_deployed_rules(self):
         result = generate_claude_md(
@@ -225,15 +222,15 @@ class TestGenerateClaudeMd:
         """New CLAUDE.md has user Environment section above the foundry marker."""
         result = generate_claude_md("test", ["python.md"], {"python.md"})
         env_pos = result.find("## Environment")
-        marker_pos = result.find(CLAUDE_FOUNDRY_MARKER_START)
+        marker_pos = result.find(AGENT_FOUNDRY_MARKER_START)
         assert env_pos < marker_pos
         assert "Add your project" in result
 
     def test_foundry_defaults_inside_marker(self):
         """Foundry Defaults section is inside the marker."""
         result = generate_claude_md("test", ["python.md"], {"python.md"})
-        marker_start = result.find(CLAUDE_FOUNDRY_MARKER_START)
-        marker_end = result.find(CLAUDE_FOUNDRY_MARKER_END)
+        marker_start = result.find(AGENT_FOUNDRY_MARKER_START)
+        marker_end = result.find(AGENT_FOUNDRY_MARKER_END)
         foundry_pos = result.find("## Foundry Defaults")
         assert marker_start < foundry_pos < marker_end
 
@@ -295,7 +292,7 @@ class TestContextLoad:
 
     def test_header_alone_is_compact(self):
         """The header itself should be compact."""
-        header = generate_claude_foundry_header(["python.md"], {"python.md"})
+        header = generate_agent_foundry_header(["python.md"], {"python.md"})
 
         # Header should be under 1000 chars
         assert len(header) < 1000
@@ -308,9 +305,9 @@ class TestContextLoad:
         rules_10 = [f"rule{i}.md" for i in range(10)]
         rules_20 = [f"rule{i}.md" for i in range(20)]
 
-        header_5 = generate_claude_foundry_header(rules_5, set())
-        header_10 = generate_claude_foundry_header(rules_10, set())
-        header_20 = generate_claude_foundry_header(rules_20, set())
+        header_5 = generate_agent_foundry_header(rules_5, set())
+        header_10 = generate_agent_foundry_header(rules_10, set())
+        header_20 = generate_agent_foundry_header(rules_20, set())
 
         # Size should roughly double when rules double
         ratio_10_5 = len(header_10) / len(header_5)
@@ -327,7 +324,7 @@ class TestRulesOrdering:
     def test_language_rules_come_first(self):
         """Language rules should appear before other rules."""
         rules = ["coding-style.md", "python.md", "security.md", "rust.md"]
-        header = generate_claude_foundry_header(rules, {"python.md", "rust.md"})
+        header = generate_agent_foundry_header(rules, {"python.md", "rust.md"})
 
         # Find positions of rules in the header
         python_pos = header.find("`python.md`")
@@ -344,7 +341,7 @@ class TestRulesOrdering:
     def test_platform_rules_come_first(self):
         """Platform rules (github.md) should appear before non-tooling rules."""
         rules = ["coding-style.md", "github.md", "security.md"]
-        header = generate_claude_foundry_header(rules, set())
+        header = generate_agent_foundry_header(rules, set())
 
         github_pos = header.find("`github.md`")
         coding_pos = header.find("`coding-style.md`")
@@ -357,7 +354,7 @@ class TestRulesOrdering:
     def test_tooling_rules_grouped_together(self):
         """Language and platform rules should both come before other rules."""
         rules = ["python.md", "github.md", "coding-style.md", "security.md"]
-        header = generate_claude_foundry_header(rules, {"python.md"})
+        header = generate_agent_foundry_header(rules, {"python.md"})
 
         python_pos = header.find("`python.md`")
         github_pos = header.find("`github.md`")
@@ -373,7 +370,7 @@ class TestRulesOrdering:
     def test_tooling_rules_sorted_alphabetically(self):
         """Tooling rules should be sorted alphabetically among themselves."""
         rules = ["rust.md", "python.md", "go.md", "github.md"]
-        header = generate_claude_foundry_header(rules, {"python.md", "rust.md", "go.md"})
+        header = generate_agent_foundry_header(rules, {"python.md", "rust.md", "go.md"})
 
         github_pos = header.find("`github.md`")
         go_pos = header.find("`go.md`")
@@ -386,7 +383,7 @@ class TestRulesOrdering:
     def test_other_rules_sorted_alphabetically(self):
         """Non-tooling rules should be sorted alphabetically."""
         rules = ["testing.md", "coding-style.md", "security.md"]
-        header = generate_claude_foundry_header(rules, set())
+        header = generate_agent_foundry_header(rules, set())
 
         coding_pos = header.find("`coding-style.md`")
         security_pos = header.find("`security.md`")
@@ -401,17 +398,17 @@ class TestEdgeCases:
 
     def test_unicode_content_preserved(self):
         """Unicode content should be preserved correctly."""
-        header = generate_claude_foundry_header(["python.md"], {"python.md"})
+        header = generate_agent_foundry_header(["python.md"], {"python.md"})
         content = "# Projekt\n\nDokumentation auf Deutsch: äöü ß\n日本語テスト"
 
-        result = prepend_claude_foundry_header(content, header)
+        result = prepend_agent_foundry_header(content, header)
 
         assert "äöü ß" in result
         assert "日本語テスト" in result
 
     def test_special_markdown_preserved(self):
         """Special markdown syntax should be preserved."""
-        header = generate_claude_foundry_header(["python.md"], {"python.md"})
+        header = generate_agent_foundry_header(["python.md"], {"python.md"})
         content = """# Project
 
 ```python
@@ -425,7 +422,7 @@ def foo():
 
 > Blockquote here
 """
-        result = prepend_claude_foundry_header(content, header)
+        result = prepend_agent_foundry_header(content, header)
 
         assert "```python" in result
         assert "| Header | Value |" in result
@@ -433,24 +430,24 @@ def foo():
 
     def test_empty_content_handling(self):
         """Empty content should still get header."""
-        header = generate_claude_foundry_header(["python.md"], {"python.md"})
-        result = prepend_claude_foundry_header("", header)
+        header = generate_agent_foundry_header(["python.md"], {"python.md"})
+        result = prepend_agent_foundry_header("", header)
 
-        assert CLAUDE_FOUNDRY_MARKER_START in result
+        assert AGENT_FOUNDRY_MARKER_START in result
 
     def test_whitespace_only_content(self):
         """Whitespace-only content should be handled."""
-        header = generate_claude_foundry_header(["python.md"], {"python.md"})
-        result = prepend_claude_foundry_header("   \n\n   ", header)
+        header = generate_agent_foundry_header(["python.md"], {"python.md"})
+        result = prepend_agent_foundry_header("   \n\n   ", header)
 
-        assert CLAUDE_FOUNDRY_MARKER_START in result
+        assert AGENT_FOUNDRY_MARKER_START in result
 
     def test_existing_markdown_comments_preserved(self):
         """Existing markdown comments should not be confused with markers."""
-        header = generate_claude_foundry_header(["python.md"], {"python.md"})
+        header = generate_agent_foundry_header(["python.md"], {"python.md"})
         content = "# Project\n\n<!-- some other comment -->\n\nContent"
 
-        result = prepend_claude_foundry_header(content, header)
+        result = prepend_agent_foundry_header(content, header)
 
         assert "<!-- some other comment -->" in result
         assert result.count("<!--") == 3  # marker start, marker end, existing
@@ -458,10 +455,10 @@ def foo():
     def test_marker_detection_exact(self):
         """Marker detection should be exact, not partial."""
         # Similar but not exact markers should not be detected
-        content1 = "<!-- claude-foundry-old -->"
+        content1 = "<!-- agent-foundry-old -->"
         content2 = "<!-- CLAUDE-FOUNDRY -->"
-        content3 = "<!--claude-foundry-->"
+        content3 = "<!--agent-foundry-->"
 
-        assert has_claude_foundry_header(content1) is False
-        assert has_claude_foundry_header(content2) is False
-        assert has_claude_foundry_header(content3) is False
+        assert has_agent_foundry_header(content1) is False
+        assert has_agent_foundry_header(content2) is False
+        assert has_agent_foundry_header(content3) is False

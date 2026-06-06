@@ -28,7 +28,6 @@ sys.path.insert(0, str(REPO_ROOT / "tools"))
 
 import setup as setup_py  # noqa: E402
 
-
 # ── Issue #25: stale rule cleanup ─────────────────────────────────────
 
 

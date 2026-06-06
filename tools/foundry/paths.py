@@ -83,8 +83,8 @@ REPO_ROOT = _resolve_repo_root()
 
 # ── CLAUDE.md markers ───────────────────────────────────────────────────
 
-CLAUDE_FOUNDRY_MARKER_START = "<!-- claude-foundry -->"
-CLAUDE_FOUNDRY_MARKER_END = "<!-- /claude-foundry -->"
+AGENT_FOUNDRY_MARKER_START = "<!-- agent-foundry -->"
+AGENT_FOUNDRY_MARKER_END = "<!-- /agent-foundry -->"
 
 
 # ── Source-dir constants ────────────────────────────────────────────────

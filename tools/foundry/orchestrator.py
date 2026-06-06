@@ -42,7 +42,7 @@ from .registry import (
 __doc_usage__ = """Claude Code per-project setup tool.
 
 Configures a project's .claude/ directory with selected rules, hooks,
-agents, skills, plugins, and MCP servers from the claude-foundry repo.
+agents, skills, plugins, and MCP servers from the agent-foundry repo.
 Includes prj-* project management skills.
 
 Usage:
@@ -55,7 +55,7 @@ Usage:
 
 
 def cmd_version() -> None:
-    print(f"claude-foundry version: {read_version()}")
+    print(f"agent-foundry version: {read_version()}")
 
 
 def cmd_check() -> None:
@@ -125,7 +125,7 @@ def cmd_init(
     project = project.resolve()
     project_name = project.name
 
-    print(f"Claude Config Setup v{version}")
+    print(f"Agent Foundry Setup v{version}")
     print(f"Project: {project}")
     print()
 
@@ -607,7 +607,7 @@ def cmd_init(
     manifest_data: dict = {
         "version": version,
         "config_repo": str(REPO_ROOT),
-        "repo_url": "poelsen/claude-foundry",
+        "repo_url": "poelsen/agent-foundry",
         "clis": selected_clis,
         "base_rules": selected_base,
         "modular_rules": selected_modular,
@@ -624,7 +624,7 @@ def cmd_init(
     save_manifest(project, manifest_data)
 
     # Summary
-    print(f"\n✓ Project configured with claude-foundry v{version}")
+    print(f"\n✓ Project configured with agent-foundry v{version}")
     print(f"  Rules: {len(selected_base)} base + {sum(len(v) for v in selected_modular.values())} selected")
     print(f"  Hooks: {len(selected_hooks)}")
     cmd_count = len([f for f in (COMMANDS_DIR).iterdir() if f.suffix == ".md"]) if COMMANDS_DIR.is_dir() else 0

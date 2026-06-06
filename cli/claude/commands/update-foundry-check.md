@@ -1,6 +1,6 @@
 # /update-foundry-check - Check for Foundry Updates
 
-Check if a newer version of claude-foundry is available without applying changes.
+Check if a newer version of agent-foundry is available without applying changes.
 
 Read and follow the full skill instructions in `.claude/skills/update-foundry/SKILL.md`, but run with the `--check` flag:
 

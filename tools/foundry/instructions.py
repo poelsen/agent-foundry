@@ -2,19 +2,19 @@
 
 from __future__ import annotations
 
-from .paths import CLAUDE_FOUNDRY_MARKER_END, CLAUDE_FOUNDRY_MARKER_START
+from .paths import AGENT_FOUNDRY_MARKER_END, AGENT_FOUNDRY_MARKER_START
 from .registry import (
-    CLAUDE_FOUNDRY_HEADER_TEMPLATE,
+    AGENT_FOUNDRY_HEADER_TEMPLATE,
     ENVIRONMENT_SNIPPETS,
     MODULAR_RULES,
 )
 
 
-def generate_claude_foundry_header(
+def generate_agent_foundry_header(
     deployed_rules: list[str],
     selected_langs: set[str],
 ) -> str:
-    """Generate the claude-foundry header for CLAUDE.md."""
+    """Generate the agent-foundry header for CLAUDE.md."""
     # Build rules list
     rule_descriptions = {
         # Language/tooling rules
@@ -79,34 +79,34 @@ def generate_claude_foundry_header(
                 env_lines.append(f"{snippets['test']}  # Tests")
     env_commands = "\n".join(env_lines) if env_lines else "# No language-specific commands configured"
 
-    return CLAUDE_FOUNDRY_HEADER_TEMPLATE.format(
-        marker_start=CLAUDE_FOUNDRY_MARKER_START,
-        marker_end=CLAUDE_FOUNDRY_MARKER_END,
+    return AGENT_FOUNDRY_HEADER_TEMPLATE.format(
+        marker_start=AGENT_FOUNDRY_MARKER_START,
+        marker_end=AGENT_FOUNDRY_MARKER_END,
         rules_list=rules_list,
         env_commands=env_commands,
     )
 
 
-def has_claude_foundry_header(content: str) -> bool:
-    """Check if content has claude-foundry marker."""
-    return CLAUDE_FOUNDRY_MARKER_START in content
+def has_agent_foundry_header(content: str) -> bool:
+    """Check if content has agent-foundry marker."""
+    return AGENT_FOUNDRY_MARKER_START in content
 
 
-def update_claude_foundry_header(content: str, new_header: str) -> str:
-    """Replace existing claude-foundry header with new one."""
-    start_idx = content.find(CLAUDE_FOUNDRY_MARKER_START)
-    end_idx = content.find(CLAUDE_FOUNDRY_MARKER_END)
+def update_agent_foundry_header(content: str, new_header: str) -> str:
+    """Replace existing agent-foundry header with new one."""
+    start_idx = content.find(AGENT_FOUNDRY_MARKER_START)
+    end_idx = content.find(AGENT_FOUNDRY_MARKER_END)
 
     if start_idx == -1 or end_idx == -1:
         return content
 
     # Include the end marker in the replacement
-    end_idx += len(CLAUDE_FOUNDRY_MARKER_END)
+    end_idx += len(AGENT_FOUNDRY_MARKER_END)
 
     return content[:start_idx] + new_header.strip() + content[end_idx:]
 
 
-def prepend_claude_foundry_header(content: str, header: str) -> str:
+def prepend_agent_foundry_header(content: str, header: str) -> str:
     """Prepend header to content with blank line separator."""
     return header + "\n" + content
 
@@ -116,13 +116,13 @@ def generate_claude_md(
     deployed_rules: list[str],
     selected_langs: set[str],
 ) -> str:
-    """Generate a new CLAUDE.md with claude-foundry header.
+    """Generate a new CLAUDE.md with agent-foundry header.
 
     Includes a user-editable Environment section above the marker for
     project-specific build/test/lint commands. This section is never
     overwritten by setup.py on subsequent runs.
     """
-    header = generate_claude_foundry_header(deployed_rules, selected_langs)
+    header = generate_agent_foundry_header(deployed_rules, selected_langs)
     return f"""# {project_name}
 
 ## Environment

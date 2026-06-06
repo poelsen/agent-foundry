@@ -29,7 +29,7 @@ _PAYLOAD_SKIP_TOPLEVEL = {
 # Combined set kept for backward compatibility with any external reference.
 _PAYLOAD_SKIP_NAMES = _PAYLOAD_SKIP_ANYWHERE | _PAYLOAD_SKIP_TOPLEVEL
 
-_GITIGNORE_HEADER = "# claude-foundry payload"
+_GITIGNORE_HEADER = "# agent-foundry payload"
 
 
 def _repo_root() -> Path:
@@ -173,7 +173,7 @@ def _build_foundry_tarball(
 
     Excludes caches/build artifacts, the maintainer's local `.claude/`
     dev install, and any feature-gated paths the user didn't opt into.
-    The tarball uses a top-level wrapper directory `claude-foundry-<ver>/`
+    The tarball uses a top-level wrapper directory `agent-foundry-<ver>/`
     matching the GitHub release tarball convention.
 
     Writes to a `.tmp` sibling first and atomically renames into place
@@ -189,7 +189,7 @@ def _build_foundry_tarball(
         for rel in feature_paths:
             excluded_abs.add(str((src_root / rel).resolve()))
 
-    arc_root = f"claude-foundry-{read_version()}"
+    arc_root = f"agent-foundry-{read_version()}"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
     if tmp_path.exists():
@@ -235,7 +235,7 @@ def _ensure_gitignore_entry(gitignore: Path, entry: str) -> None:
     """Append `entry` to `gitignore` if not already present.
 
     Matches both `.foundry/` and `.foundry` style entries to avoid duplicates.
-    The `# claude-foundry payload` comment is emitted only on the first
+    The `# agent-foundry payload` comment is emitted only on the first
     foundry entry; subsequent entries append directly to the same block.
     """
     needle = entry.rstrip("/")

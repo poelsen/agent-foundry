@@ -27,7 +27,7 @@
   "_comments": {
     "usage": "Copy the servers you need to your ~/.claude.json mcpServers section",
     "env_vars": "Replace YOUR_*_HERE placeholders with actual values",
-    "placeholders": "{FOUNDRY_ROOT} is substituted by setup.py at deploy time with the absolute path to the claude-foundry repo",
+    "placeholders": "{FOUNDRY_ROOT} is substituted by setup.py at deploy time with the absolute path to the agent-foundry repo",
     "adding_mcps": "Search npmjs.com for mcp-server or visit github.com/modelcontextprotocol/servers"
   }
 }

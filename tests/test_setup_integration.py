@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from io import StringIO
 
 import pytest
 
@@ -12,13 +11,13 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent / "tools"))
 
 from setup import (
-    CLAUDE_FOUNDRY_MARKER_START,
-    CLAUDE_FOUNDRY_MARKER_END,
+    AGENT_FOUNDRY_MARKER_END,
+    AGENT_FOUNDRY_MARKER_START,
     GoBack,
     QuitSetup,
     cmd_init,
     detect_templates,
-    has_claude_foundry_header,
+    has_agent_foundry_header,
     load_manifest,
     migrate_manifest,
     save_manifest,
@@ -45,7 +44,7 @@ class TestNewProject:
         claude_md = temp_project / "CLAUDE.md"
         assert claude_md.exists()
         content = claude_md.read_text()
-        assert has_claude_foundry_header(content)
+        assert has_agent_foundry_header(content)
         assert "test-project" in content
 
     def test_claude_md_has_rules_section(self, temp_project):
@@ -80,10 +79,10 @@ class TestExistingClaudeMdWithMarker:
         # Create existing CLAUDE.md with marker
         old_content = f"""# test-project
 
-{CLAUDE_FOUNDRY_MARKER_START}
+{AGENT_FOUNDRY_MARKER_START}
 ## Rules
 Old rules list
-{CLAUDE_FOUNDRY_MARKER_END}
+{AGENT_FOUNDRY_MARKER_END}
 
 ## Custom Section
 My custom content
@@ -109,9 +108,9 @@ My custom content
 
 Some intro text here.
 
-{CLAUDE_FOUNDRY_MARKER_START}
+{AGENT_FOUNDRY_MARKER_START}
 Old header content
-{CLAUDE_FOUNDRY_MARKER_END}
+{AGENT_FOUNDRY_MARKER_END}
 
 After header
 """
@@ -282,9 +281,9 @@ class TestEdgeCases:
         """Unicode in existing CLAUDE.md should be preserved."""
         old_content = f"""# Projekt
 
-{CLAUDE_FOUNDRY_MARKER_START}
+{AGENT_FOUNDRY_MARKER_START}
 header
-{CLAUDE_FOUNDRY_MARKER_END}
+{AGENT_FOUNDRY_MARKER_END}
 
 ## Über das Projekt
 
@@ -303,9 +302,9 @@ header
         # Create a large CLAUDE.md (10KB)
         large_content = f"""# Large Project
 
-{CLAUDE_FOUNDRY_MARKER_START}
+{AGENT_FOUNDRY_MARKER_START}
 header
-{CLAUDE_FOUNDRY_MARKER_END}
+{AGENT_FOUNDRY_MARKER_END}
 
 """ + "A" * 10000 + "\n## End"
         (temp_project / "CLAUDE.md").write_text(large_content)
