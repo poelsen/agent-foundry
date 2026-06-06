@@ -89,8 +89,8 @@ jobs:
           mkdir -p dist
           tar czf "dist/agent-foundry-${version}.tar.gz" \
             --transform "s,^,agent-foundry-${version}/," \
-            VERSION rules/ rule-library/ agents/ commands/ skills/ \
-            hooks/ mcp-configs/ tools/setup.py
+            --exclude '__pycache__' --exclude '*.pyc' \
+            VERSION common/ cli/ tools/setup.py tools/foundry/
 
       - name: Validate tarball
         run: |

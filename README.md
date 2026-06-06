@@ -2,7 +2,21 @@
 
 > **Early alpha.** Under active development. The current rule set is most mature for **Python** and **PySide6/Qt** projects. Other languages (C, C++, Rust, Go, TypeScript) have base rules but are less battle-tested. Expect breaking changes.
 
-A framework for configuring [Claude Code](https://docs.anthropic.com/en/docs/claude-code) across different project types and programming languages. Provides modular rules, specialized agents, reusable skills, tool hooks, and slash commands — all selected per-project based on what you're building.
+A framework for configuring **coding-agent CLIs** across different project types and programming languages. It provides modular rules, specialized agents, reusable skills, tool hooks, slash commands, and MCP servers — selected per-project based on what you're building, and deployed into each target CLI's native layout.
+
+**Multi-CLI by design.** Artifacts are split by portability:
+
+- **`common/`** — cross-CLI content (coding-standard rules, MCP servers).
+- **`cli/<name>/`** — CLI-specific artifacts (e.g. Claude Code's subagents, skills, slash-commands, hooks).
+
+A per-CLI **adapter** renders the selected artifacts into that CLI's conventions. Supported targets today:
+
+| Target | Reads | Gets |
+|--------|-------|------|
+| **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)** (`claude`) | `.claude/` + `CLAUDE.md` | full fidelity — rules, agents, skills, commands, hooks, settings, MCP |
+| **[GitHub Copilot CLI](https://github.com/github/copilot-cli)** (`copilot`) | `AGENTS.md` | coding-standard rules (embedded) + MCP — the cross-tool [`AGENTS.md`](https://agents.md) standard, also read by Codex, Cursor, etc. |
+
+Pick targets with `--clis claude,copilot` (or the interactive menu). Artifact types a CLI can't consume (Copilot has no subagent/hook equivalent) are reported as not-applicable, never silently dropped.
 
 ## Bootstrap
 
@@ -30,14 +44,17 @@ python3 tools/setup.py init /path/to/your/project
 
 1. Scans your project for languages (file extensions, config files like `pyproject.toml`, `package.json`, `Cargo.toml`)
 2. Presents interactive toggle menus for each component category:
+   - **Target CLI(s)** — which coding-agent CLIs to deploy for (Claude Code, Copilot CLI, …)
    - **Base rules** — coding style, security, testing, git workflow, etc.
    - **Modular rules** — language tooling, project templates, platform, security
    - **Hooks** — language-specific formatters and type checkers
    - **Agents** — specialized sub-agents matched to your languages
    - **Skills** — domain knowledge modules
    - **Plugins** — LSP servers, workflow plugins
-3. Copies selected files into your project's `.claude/` directory
-4. Saves selections to `.claude/setup-manifest.json` for future updates
+3. Hands the selections to each chosen CLI's adapter, which deploys them into that CLI's layout (`.claude/` for Claude Code, `AGENTS.md` for Copilot, …)
+4. Saves selections — including the chosen `clis` — to `.claude/setup-manifest.json` for future updates
+
+Non-interactive: `python3 tools/setup.py init /path/to/project --non-interactive --clis claude,copilot`
 
 ## Updating
 
@@ -366,20 +383,27 @@ Every merge to `master` triggers a GitHub Actions workflow that:
 
 ```
 agent-foundry/
-├── rules/                    # Base rules (selected during init)
-├── rule-library/             # Modular rules by category
-│   ├── lang/                 # Language tooling rules
-│   ├── templates/            # Project type templates
-│   ├── platform/             # Platform rules (GitHub)
-│   └── security/             # Security level rules
-├── agents/                   # Sub-agent definitions
-├── commands/                 # Slash commands
-├── skills/                   # Domain skills
-│   └── learned/              # Patterns extracted via /learn
-├── hooks/
-│   └── library/              # Per-language hook scripts (deployed by setup.py)
-├── mcp-configs/              # MCP server configurations
-└── tools/setup.py            # Setup and deployment tool
+├── common/                       # Cross-CLI portable artifacts
+│   ├── rules/                    # Base rules (selected during init)
+│   ├── rule-library/             # Modular rules by category
+│   │   ├── lang/                 # Language tooling rules
+│   │   ├── templates/            # Project type templates
+│   │   ├── platform/             # Platform rules (GitHub)
+│   │   └── security/             # Security level rules
+│   └── mcp/                      # MCP server configurations
+├── cli/                          # CLI-specific artifacts
+│   └── claude/                   # Claude Code only
+│       ├── agents/               # Sub-agent definitions
+│       ├── commands/             # Slash commands
+│       ├── skills/               # Domain skills (incl. learned/ via /learn)
+│       └── hooks/library/        # Per-language hook scripts
+└── tools/
+    ├── setup.py                  # Bootstrap shim (source + tarball modes)
+    └── foundry/                  # The deployment package
+        ├── orchestrator.py       # Selects artifacts, dispatches to adapters
+        ├── adapters/             # One per CLI: base, claude, copilot
+        ├── registry.py  detect.py  manifest.py  …
+        └── …
 ```
 
 ## Megamind Skills
