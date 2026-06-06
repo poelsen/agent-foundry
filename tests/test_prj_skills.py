@@ -332,10 +332,10 @@ class TestPrjSetupRegistration:
     """Verify prj-* skills are registered in setup.py."""
 
     def test_skills_registered(self):
-        setup_content = (REPO_ROOT / "tools" / "setup.py").read_text(encoding="utf-8")
+        registry_content = (REPO_ROOT / "tools" / "foundry" / "registry.py").read_text(encoding="utf-8")
         for skill in ["prj-new", "prj-list", "prj-pause", "prj-resume", "prj-done", "prj-delete"]:
-            assert f'"{skill}"' in setup_content, f"{skill} not registered in setup.py SKILLS"
+            assert f'"{skill}"' in registry_content, f"{skill} not registered in foundry SKILLS"
 
     def test_lib_copy_in_setup(self):
-        setup_content = (REPO_ROOT / "tools" / "setup.py").read_text(encoding="utf-8")
-        assert "_lib" in setup_content, "setup.py doesn't copy _lib/ directory"
+        deploy_content = (REPO_ROOT / "tools" / "foundry" / "deploy.py").read_text(encoding="utf-8")
+        assert "_lib" in deploy_content, "foundry deploy doesn't copy _lib/ directory"

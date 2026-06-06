@@ -118,15 +118,15 @@ class TestCrossReferences:
             )
 
     def test_registered_in_setup(self, skill: ParsedSkill):
-        """Skills should be registered in setup.py SKILLS list."""
-        setup_path = REPO_ROOT / "tools" / "setup.py"
-        if not setup_path.exists():
-            pytest.skip("setup.py not found")
+        """Skills should be registered in the foundry SKILLS list."""
+        registry_path = REPO_ROOT / "tools" / "foundry" / "registry.py"
+        if not registry_path.exists():
+            pytest.skip("foundry registry not found")
 
-        setup_content = setup_path.read_text(encoding="utf-8")
-        # Check the skill name appears in SKILLS list
-        assert f'"{skill.name}"' in setup_content, (
-            f"{skill.path}: skill '{skill.name}' not registered in setup.py SKILLS list"
+        registry_content = registry_path.read_text(encoding="utf-8")
+        # Check the skill name appears in the SKILLS list
+        assert f'"{skill.name}"' in registry_content, (
+            f"{skill.path}: skill '{skill.name}' not registered in foundry SKILLS list"
         )
 
 
