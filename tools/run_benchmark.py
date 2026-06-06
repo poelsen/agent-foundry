@@ -39,7 +39,7 @@ from eval_runner import (
 from skill_parser import parse_skill
 
 REPO_ROOT = Path(__file__).parent.parent
-SKILLS_DIR = REPO_ROOT / "skills"
+SKILLS_DIR = REPO_ROOT / "cli" / "claude" / "skills"
 CHALLENGES_DIR = REPO_ROOT / "tests" / "challenges"
 
 SUBJECT_MODEL = "claude-opus-4-6-20250929"

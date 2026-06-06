@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "tools"))
 from skill_parser import ParsedSkill, discover_skills
 
 REPO_ROOT = Path(__file__).parent.parent
-SKILLS_DIR = REPO_ROOT / "skills"
+SKILLS_DIR = REPO_ROOT / "cli" / "claude" / "skills"
 
 # ── Discover all skills for parametrized tests ──
 

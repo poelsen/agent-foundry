@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).parent.parent
-SKILLS_DIR = REPO_ROOT / "skills"
+SKILLS_DIR = REPO_ROOT / "cli" / "claude" / "skills"
 
 
 def _install_skills(tmp_path: Path) -> None:
@@ -75,7 +75,7 @@ class TestPrjSkillStructure:
 class TestPrjCommandFiles:
     """Verify command files exist and reference correct skills."""
 
-    COMMANDS_DIR = REPO_ROOT / "commands"
+    COMMANDS_DIR = REPO_ROOT / "cli" / "claude" / "commands"
     PRJ_COMMANDS = ["prj-new", "prj-list", "prj-pause", "prj-resume", "prj-done", "prj-delete"]
 
     @pytest.mark.parametrize("cmd", PRJ_COMMANDS)

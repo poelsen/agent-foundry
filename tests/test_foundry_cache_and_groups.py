@@ -100,8 +100,8 @@ class TestFoundryPayloadInstall:
             names = tf.getnames()
         # Tarball uses a top-level wrapper directory
         assert any(n.endswith("/tools/setup.py") for n in names)
-        assert any("/skills/" in n for n in names)
-        assert any(n.endswith("/mcp-configs/mcp-servers.json") for n in names)
+        assert any("/cli/claude/skills/" in n for n in names)
+        assert any(n.endswith("/common/mcp/mcp-servers.json") for n in names)
 
     def test_tarball_excludes_build_artifacts(self, tmp_path: Path):
         setup_py._install_foundry_payload(tmp_path)
@@ -295,7 +295,7 @@ class TestFeatureRequiredSkills:
 class TestUpdateFoundryScript:
     """Verify update-foundry.sh targets the new <project>/.foundry/ payload layout."""
 
-    SCRIPT = REPO_ROOT / "skills" / "update-foundry" / "scripts" / "update-foundry.sh"
+    SCRIPT = REPO_ROOT / "cli" / "claude" / "skills" / "update-foundry" / "scripts" / "update-foundry.sh"
 
     def test_script_exists_and_parses(self):
         assert self.SCRIPT.is_file()
