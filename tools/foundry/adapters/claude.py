@@ -22,11 +22,11 @@ from ..deploy import (
     write_mcp_servers,
 )
 from ..instructions import (
-    generate_claude_foundry_header,
+    generate_agent_foundry_header,
     generate_claude_md,
-    has_claude_foundry_header,
-    prepend_claude_foundry_header,
-    update_claude_foundry_header,
+    has_agent_foundry_header,
+    prepend_agent_foundry_header,
+    update_agent_foundry_header,
 )
 from ..private import (
     clean_private_files,
@@ -54,10 +54,10 @@ class ClaudeAdapter(CliAdapter):
         force_merge = False
         if not ctx.interactive and claude_md.exists():
             existing_content = claude_md.read_text(encoding='utf-8')
-            if not has_claude_foundry_header(existing_content):
+            if not has_agent_foundry_header(existing_content):
                 if ctx.force:
                     # Force flag — ask for confirmation before proceeding
-                    print("\n  WARNING: CLAUDE.md exists without claude-foundry marker.")
+                    print("\n  WARNING: CLAUDE.md exists without agent-foundry marker.")
                     print("  Force will merge the header into your existing CLAUDE.md.")
                     if not confirm("  Proceed with force merge?", default=False):
                         print("  Aborted.")
@@ -65,7 +65,7 @@ class ClaudeAdapter(CliAdapter):
                     force_merge = True
                 else:
                     # Non-interactive and no marker — skip entire project
-                    print("\n  CLAUDE.md exists without claude-foundry marker — skipping project")
+                    print("\n  CLAUDE.md exists without agent-foundry marker — skipping project")
                     print("")
                     print("  To add the marker, run setup.py init interactively:")
                     print(f"    python3 <agent-foundry>/tools/setup.py init {project}")
@@ -148,27 +148,27 @@ class ClaudeAdapter(CliAdapter):
 
         # ── CLAUDE.md ──
         deployed_rules = sel.deployed_rules
-        header = generate_claude_foundry_header(deployed_rules, sel.langs)
+        header = generate_agent_foundry_header(deployed_rules, sel.langs)
 
         if claude_md.exists():
             existing_content = claude_md.read_text(encoding='utf-8')
             lines = existing_content.count("\n")
             chars = len(existing_content)
 
-            if has_claude_foundry_header(existing_content):
+            if has_agent_foundry_header(existing_content):
                 # Has marker — update header silently
-                updated_content = update_claude_foundry_header(existing_content, header)
+                updated_content = update_agent_foundry_header(existing_content, header)
                 claude_md.write_text(updated_content, encoding='utf-8')
-                print("  Updated claude-foundry header in CLAUDE.md")
+                print("  Updated agent-foundry header in CLAUDE.md")
             elif ctx.interactive:
                 # No marker — offer options
                 print(f"\n  CLAUDE.md exists ({lines} lines, {chars} chars)")
                 print("  Options:")
                 print("    [R] Replace — Generate new CLAUDE.md (saves original as .old)")
-                print("    [M] Merge — Prepend claude-foundry header (saves original as .old)")
+                print("    [M] Merge — Prepend agent-foundry header (saves original as .old)")
                 print("    [Q] Quit — Abort setup entirely")
                 print()
-                print("  Note: claude-foundry recommends keeping CLAUDE.md minimal.")
+                print("  Note: agent-foundry recommends keeping CLAUDE.md minimal.")
                 print("  Move detailed project documentation to docs/ARCHITECTURE.md.")
                 print("  The docs/ directory is preferred for project documentation.")
                 print()
@@ -188,16 +188,16 @@ class ClaudeAdapter(CliAdapter):
                     # Save original and prepend header
                     backup = project / "CLAUDE.md.old"
                     backup.write_text(existing_content, encoding='utf-8')
-                    merged = prepend_claude_foundry_header(existing_content, header)
+                    merged = prepend_agent_foundry_header(existing_content, header)
                     claude_md.write_text(merged, encoding='utf-8')
-                    print("  Merged claude-foundry header into CLAUDE.md (original saved to CLAUDE.md.old)")
+                    print("  Merged agent-foundry header into CLAUDE.md (original saved to CLAUDE.md.old)")
             elif force_merge:
                 # Force merge — prepend header (confirmed earlier)
                 backup = project / "CLAUDE.md.old"
                 backup.write_text(existing_content, encoding='utf-8')
-                merged = prepend_claude_foundry_header(existing_content, header)
+                merged = prepend_agent_foundry_header(existing_content, header)
                 claude_md.write_text(merged, encoding='utf-8')
-                print("  Force-merged claude-foundry header into CLAUDE.md (original saved to CLAUDE.md.old)")
+                print("  Force-merged agent-foundry header into CLAUDE.md (original saved to CLAUDE.md.old)")
             # Note: non-interactive + no marker without force is handled above (skips project)
         else:
             claude_md.write_text(

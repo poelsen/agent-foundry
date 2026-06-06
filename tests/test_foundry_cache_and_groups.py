@@ -15,8 +15,6 @@ import sys
 import tarfile
 from pathlib import Path
 
-import pytest
-
 REPO_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(REPO_ROOT / "tools"))
 
@@ -69,7 +67,7 @@ class TestHiddenSkills:
         assert isinstance(setup_py.HIDDEN_SKILLS, set)
 
     def test_hidden_skills_is_empty(self):
-        assert setup_py.HIDDEN_SKILLS == set()
+        assert set() == setup_py.HIDDEN_SKILLS
 
     def test_no_copilot_mcp_skill_constant(self):
         """The COPILOT_SKILLS gating list was removed; nothing should
@@ -124,13 +122,13 @@ class TestFoundryPayloadInstall:
         assert content.count(".foundry/") == 1
 
     def test_gitignore_header_not_duplicated_across_entries(self, tmp_path: Path):
-        """The `# claude-foundry payload` comment appears only once even when
+        """The `# agent-foundry payload` comment appears only once even when
         multiple entries (.foundry/, .delegate/, …) are added."""
         setup_py._install_foundry_payload(
             tmp_path, selected_features=["minimax-delegate"]
         )
         content = (tmp_path / ".gitignore").read_text(encoding="utf-8")
-        assert content.count("# claude-foundry payload") == 1
+        assert content.count("# agent-foundry payload") == 1
 
     def test_idempotent(self, tmp_path: Path):
         """Running twice yields the same payload structure."""

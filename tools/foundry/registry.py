@@ -7,7 +7,7 @@ snippets live here too since they are static data.
 
 from __future__ import annotations
 
-CLAUDE_FOUNDRY_HEADER_TEMPLATE = """{marker_start}
+AGENT_FOUNDRY_HEADER_TEMPLATE = """{marker_start}
 ## Rules
 
 Read rules in `.claude/rules/` before making changes:
@@ -35,7 +35,7 @@ Read `docs/` for detailed project documentation (if it exists).
 # Only languages with near-universal toolchains get default commands.
 # Languages with fragmented build systems (C, C++, Node.js, React) are
 # omitted — users add their own commands in the ## Environment section
-# above the claude-foundry marker.
+# above the agent-foundry marker.
 ENVIRONMENT_SNIPPETS = {
     "python.md": {
         "setup": "uv sync --extra dev",

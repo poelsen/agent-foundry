@@ -1,6 +1,6 @@
-# claude-foundry
+# agent-foundry
 
-<!-- claude-foundry -->
+<!-- agent-foundry -->
 ## Rules
 
 Read rules in `.claude/rules/` before making changes:
@@ -35,5 +35,5 @@ Run `/update-codemaps` after significant structural changes.
 Read `docs/` for detailed project documentation (if it exists).
 - `docs/ARCHITECTURE.md` — design decisions and patterns
 - `docs/DEVELOPMENT.md` — setup and workflow guides
-<!-- /claude-foundry -->
+<!-- /agent-foundry -->
 

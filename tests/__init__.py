@@ -1,1 +1,1 @@
-# Tests for claude-foundry
+# Tests for agent-foundry

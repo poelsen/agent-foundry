@@ -87,14 +87,14 @@ jobs:
           echo "$version" > VERSION
 
           mkdir -p dist
-          tar czf "dist/claude-foundry-${version}.tar.gz" \
-            --transform "s,^,claude-foundry-${version}/," \
+          tar czf "dist/agent-foundry-${version}.tar.gz" \
+            --transform "s,^,agent-foundry-${version}/," \
             VERSION rules/ rule-library/ agents/ commands/ skills/ \
             hooks/ mcp-configs/ tools/setup.py
 
       - name: Validate tarball
         run: |
-          python3 tools/validate.py --tarball "dist/claude-foundry-${{ steps.version.outputs.version }}.tar.gz"
+          python3 tools/validate.py --tarball "dist/agent-foundry-${{ steps.version.outputs.version }}.tar.gz"
 
       - name: Create GitHub Release
         env:
@@ -102,9 +102,9 @@ jobs:
         run: |
           version="${{ steps.version.outputs.version }}"
           # Create a stable "latest" filename alongside the versioned one
-          cp "dist/claude-foundry-${version}.tar.gz" "dist/claude-foundry-latest.tar.gz"
+          cp "dist/agent-foundry-${version}.tar.gz" "dist/agent-foundry-latest.tar.gz"
           gh release create "$version" \
-            "dist/claude-foundry-${version}.tar.gz" \
-            "dist/claude-foundry-latest.tar.gz" \
+            "dist/agent-foundry-${version}.tar.gz" \
+            "dist/agent-foundry-latest.tar.gz" \
             --title "v${version}" \
             --generate-notes

@@ -13,7 +13,7 @@ Repeatable process for iterating on megamind skills. Follow these steps exactly.
 
 - `claude` CLI authenticated and in PATH
 - `uv run pytest` passes
-- Working directory: `claude-foundry/`
+- Working directory: `agent-foundry/`
 
 ## Step 1: Update Tax Data (if DK financial, annual in January)
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate claude-foundry repo integrity.
+"""Validate agent-foundry repo integrity.
 
 Usage:
     python3 tools/validate.py              # Static checks + smoke test
@@ -256,7 +256,7 @@ class Validator:
 
     def check_smoke_test(self) -> None:
         self.check("Smoke test: setup.py init --non-interactive")
-        tmpdir = Path(tempfile.mkdtemp(prefix="claude-foundry-test-"))
+        tmpdir = Path(tempfile.mkdtemp(prefix="agent-foundry-test-"))
         try:
             result = subprocess.run(
                 [sys.executable, str(self.root / "tools" / "setup.py"),
@@ -349,12 +349,12 @@ class Validator:
             self.error(f"Tarball not found: {tarball_path}")
             return
 
-        tmpdir = Path(tempfile.mkdtemp(prefix="claude-foundry-tarball-"))
+        tmpdir = Path(tempfile.mkdtemp(prefix="agent-foundry-tarball-"))
         try:
             with tarfile.open(tarball_path, "r:gz") as tf:
                 tf.extractall(tmpdir)
 
-            # Find the extracted directory (should be claude-foundry-<version>/)
+            # Find the extracted directory (should be agent-foundry-<version>/)
             extracted = list(tmpdir.iterdir())
             if len(extracted) != 1 or not extracted[0].is_dir():
                 self.error("Tarball should contain exactly one top-level directory")
@@ -379,7 +379,7 @@ class Validator:
 
             # Smoke test from tarball
             self.check("Tarball smoke test")
-            project_dir = Path(tempfile.mkdtemp(prefix="claude-foundry-tarball-proj-"))
+            project_dir = Path(tempfile.mkdtemp(prefix="agent-foundry-tarball-proj-"))
             try:
                 result = subprocess.run(
                     [sys.executable, str(root / "tools" / "setup.py"),
@@ -426,7 +426,7 @@ class Validator:
         # Summary
         print(f"\n{'=' * 40}")
         if self.errors:
-            print(f"FAILED: {len(self.errors)} error(s), {self.warnings and len(self.warnings) or 0} warning(s)")
+            print(f"FAILED: {len(self.errors)} error(s), {(self.warnings and len(self.warnings)) or 0} warning(s)")
             for e in self.errors:
                 print(f"  ERROR: {e}")
             for w in self.warnings:

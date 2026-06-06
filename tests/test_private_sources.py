@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import json
-import shutil
 import sys
 from pathlib import Path
 
@@ -22,7 +20,6 @@ from setup import (
     redeploy_private_sources,
     validate_prefix,
 )
-
 
 # ── Fixtures ──────────────────────────────────────────────────────────
 
@@ -225,13 +222,13 @@ class TestDeployPrivateSource:
 
     def test_deploys_agents_with_prefix(self, project, private_source):
         selections = {"rules": [], "commands": [], "skills": [], "agents": ["custom-reviewer.md"], "hooks": []}
-        deployed = deploy_private_source(project, private_source, "company", selections)
+        deploy_private_source(project, private_source, "company", selections)
 
         assert (project / ".claude" / "agents" / "company-custom-reviewer.md").exists()
 
     def test_deploys_hooks_with_prefix(self, project, private_source):
         selections = {"rules": [], "commands": [], "skills": [], "agents": [], "hooks": ["custom-lint.sh"]}
-        deployed = deploy_private_source(project, private_source, "company", selections)
+        deploy_private_source(project, private_source, "company", selections)
 
         hook = project / ".claude" / "hooks" / "library" / "company-custom-lint.sh"
         assert hook.exists()

@@ -49,7 +49,7 @@ def _bootstrap_root() -> Path:
                 # Python < 3.12 lacks the filter kwarg
                 tf.extractall(tmpdir)
         # Strip a single top-level wrapper dir if present (matches GitHub
-        # release tarball convention: `claude-foundry-vX.Y.Z/...`).
+        # release tarball convention: `agent-foundry-vX.Y.Z/...`).
         entries = [p for p in tmpdir.iterdir() if not p.name.startswith(".")]
         root = entries[0] if (len(entries) == 1 and entries[0].is_dir()) else tmpdir
         return root / "tools"

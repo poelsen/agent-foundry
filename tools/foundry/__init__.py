@@ -31,11 +31,11 @@ from .detect import (
     scan_extensions,
 )
 from .instructions import (
-    generate_claude_foundry_header,
+    generate_agent_foundry_header,
     generate_claude_md,
-    has_claude_foundry_header,
-    prepend_claude_foundry_header,
-    update_claude_foundry_header,
+    has_agent_foundry_header,
+    prepend_agent_foundry_header,
+    update_agent_foundry_header,
 )
 from .manifest import (
     discover_projects,
@@ -53,9 +53,9 @@ from .orchestrator import (
     main,
 )
 from .paths import (
+    AGENT_FOUNDRY_MARKER_END,
+    AGENT_FOUNDRY_MARKER_START,
     AGENTS_DIR,
-    CLAUDE_FOUNDRY_MARKER_END,
-    CLAUDE_FOUNDRY_MARKER_START,
     COMMANDS_DIR,
     LEARNED_SKILLS_DIR,
     MCP_SERVERS_FILE,
@@ -96,10 +96,10 @@ from .registry import (
 __all__ = [
     # paths
     "AGENTS_DIR",
+    "AGENT_FOUNDRY_MARKER_END",
+    "AGENT_FOUNDRY_MARKER_START",
     # registry
     "BASE_RULES",
-    "CLAUDE_FOUNDRY_MARKER_END",
-    "CLAUDE_FOUNDRY_MARKER_START",
     "COMMANDS_DIR",
     "ENVIRONMENT_SNIPPETS",
     "FEATURE_PATHS",
@@ -156,21 +156,21 @@ __all__ = [
     # manifest
     "discover_projects",
     # instructions
-    "generate_claude_foundry_header",
+    "generate_agent_foundry_header",
     "generate_claude_md",
     "generate_settings_json",
-    "has_claude_foundry_header",
+    "has_agent_foundry_header",
     "load_manifest",
     "main",
     "migrate_manifest",
-    "prepend_claude_foundry_header",
+    "prepend_agent_foundry_header",
     "read_version",
     "redeploy_private_sources",
     "resolve_project_path",
     "save_manifest",
     "scan_extensions",
     "toggle_menu",
-    "update_claude_foundry_header",
+    "update_agent_foundry_header",
     "validate_prefix",
     "write_mcp_servers",
 ]

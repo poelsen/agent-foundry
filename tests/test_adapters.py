@@ -99,7 +99,7 @@ def test_copilot_creates_agents_md(tmp_path: Path):
     assert agents_md.exists()
     text = agents_md.read_text()
     assert "# demo" in text
-    assert "<!-- claude-foundry -->" in text
+    assert "<!-- agent-foundry -->" in text
     assert "<!-- rule: coding-style.md -->" in text  # rule body embedded
     assert "uv sync" in text  # python env command rendered
     # No Claude-only artifacts
@@ -110,8 +110,8 @@ def test_copilot_update_is_idempotent(tmp_path: Path):
     for _ in range(2):
         CopilotAdapter().deploy(tmp_path, _selections(), _ctx())
     text = (tmp_path / "AGENTS.md").read_text()
-    assert text.count("<!-- claude-foundry -->") == 1
-    assert text.count("<!-- /claude-foundry -->") == 1
+    assert text.count("<!-- agent-foundry -->") == 1
+    assert text.count("<!-- /agent-foundry -->") == 1
     assert not (tmp_path / "AGENTS.md.old").exists()
 
 
@@ -121,7 +121,7 @@ def test_copilot_preserves_user_content(tmp_path: Path):
     CopilotAdapter().deploy(tmp_path, _selections(), _ctx())
     text = agents_md.read_text()
     assert "Hand-written guidance." in text  # user content kept
-    assert "<!-- claude-foundry -->" in text  # foundry block prepended
+    assert "<!-- agent-foundry -->" in text  # foundry block prepended
     assert (tmp_path / "AGENTS.md.old").exists()  # original backed up
 
 

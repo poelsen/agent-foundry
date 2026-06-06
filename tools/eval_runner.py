@@ -12,7 +12,14 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from eval_rubric import Challenge, DepthScore, ElementScore, EvalResult, OutcomeScore, score_response
+from eval_rubric import (
+    Challenge,
+    DepthScore,
+    ElementScore,
+    EvalResult,
+    OutcomeScore,
+    score_response,
+)
 from skill_parser import parse_skill
 
 JUDGE_MODEL = "opus"

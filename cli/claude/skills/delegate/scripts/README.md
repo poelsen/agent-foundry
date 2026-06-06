@@ -50,7 +50,7 @@ Output is a JSON object on stdout:
   "exit_code": 0,
   "duration_s": 143,
   "files_changed": 2,
-  "worktree": "/home/you/git/claude-foundry-delegate-scrape",
+  "worktree": "/home/you/git/agent-foundry-delegate-scrape",
   "summary": "..."
 }
 ```
