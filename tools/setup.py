@@ -230,9 +230,9 @@ HOOK_SCRIPTS = {
     "cargo-check.sh": {"langs": ["rust.md"], "desc": "Rust type checking (cargo check)"},
 }
 
-AGENTS_DIR = REPO_ROOT / "agents"
-COMMANDS_DIR = REPO_ROOT / "commands"
-LEARNED_SKILLS_DIR = REPO_ROOT / "skills" / "learned"
+AGENTS_DIR = REPO_ROOT / "cli" / "claude" / "agents"
+COMMANDS_DIR = REPO_ROOT / "cli" / "claude" / "commands"
+LEARNED_SKILLS_DIR = REPO_ROOT / "cli" / "claude" / "skills" / "learned"
 
 SKILLS = [
     "clickhouse-io", "gui-threading", "python-qt-gui",
@@ -275,8 +275,8 @@ OPTIONAL_FEATURES: list[tuple[str, str, str]] = [
 # the matching feature key is NOT selected.
 FEATURE_PATHS: dict[str, list[str]] = {
     "minimax-delegate": [
-        "commands/delegate.md",
-        "skills/delegate",
+        "cli/claude/commands/delegate.md",
+        "cli/claude/skills/delegate",
     ],
 }
 
@@ -313,7 +313,7 @@ WORKFLOW_PLUGINS = [
     ("code-simplifier", "Autonomous refactoring"),
 ]
 
-MCP_SERVERS_FILE = REPO_ROOT / "mcp-configs" / "mcp-servers.json"
+MCP_SERVERS_FILE = REPO_ROOT / "common" / "mcp" / "mcp-servers.json"
 
 # ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -973,7 +973,7 @@ def copy_rules(
 
     # Base rules
     for rule in base:
-        src = REPO_ROOT / "rules" / rule
+        src = REPO_ROOT / "common" / "rules" / rule
         if src.exists():
             shutil.copy2(src, rules_dir / rule)
             deployed.add(rule)
@@ -982,7 +982,7 @@ def copy_rules(
     # on name collision with a base rule we just copied).
     for category, rules in modular.items():
         for rule in rules:
-            src = REPO_ROOT / "rule-library" / category / rule
+            src = REPO_ROOT / "common" / "rule-library" / category / rule
             if not src.exists():
                 continue
             collision = rule in base and (rules_dir / rule).exists()
@@ -1132,14 +1132,14 @@ def copy_skills(
             shutil.rmtree(existing)
     # Copy selected skills
     for skill in skills:
-        src = REPO_ROOT / "skills" / skill
+        src = REPO_ROOT / "cli" / "claude" / "skills" / skill
         dest = skills_dir / skill
         if src.is_dir():
             if dest.exists():
                 shutil.rmtree(dest)
             shutil.copytree(src, dest)
     # Copy shared libraries (e.g., _lib/session-id.sh used by prj-* skills)
-    lib_src = REPO_ROOT / "skills" / "_lib"
+    lib_src = REPO_ROOT / "cli" / "claude" / "skills" / "_lib"
     if lib_src.is_dir():
         lib_dest = skills_dir / "_lib"
         if lib_dest.exists():
@@ -1152,7 +1152,7 @@ def copy_hooks(project: Path, hooks: list[str]) -> None:
         lib_dest = project / ".claude" / "hooks" / "library"
         lib_dest.mkdir(parents=True, exist_ok=True)
         for script in hooks:
-            src = REPO_ROOT / "hooks" / "library" / script
+            src = REPO_ROOT / "cli" / "claude" / "hooks" / "library" / script
             if src.exists():
                 dest = lib_dest / script
                 shutil.copy2(src, dest)

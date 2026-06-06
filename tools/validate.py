@@ -61,7 +61,7 @@ class Validator:
 
     def check_json_files(self) -> None:
         self.check("JSON validity")
-        for rel in ["mcp-configs/mcp-servers.json"]:
+        for rel in ["common/mcp/mcp-servers.json"]:
             path = self.root / rel
             if not path.exists():
                 self.error(f"Missing JSON file: {rel}")
@@ -73,7 +73,7 @@ class Validator:
 
     def check_markdown_rules(self) -> None:
         self.check("Markdown: rules")
-        for d in [self.root / "rules", self.root / "rule-library"]:
+        for d in [self.root / "common" / "rules", self.root / "common" / "rule-library"]:
             for md in sorted(d.rglob("*.md")):
                 if md.name == "README.md":
                     continue
@@ -87,7 +87,7 @@ class Validator:
 
     def check_markdown_commands(self) -> None:
         self.check("Markdown: commands")
-        for md in sorted((self.root / "commands").glob("*.md")):
+        for md in sorted((self.root / "cli" / "claude" / "commands").glob("*.md")):
             text = md.read_text().strip()
             if not text:
                 self.error(f"Empty command file: {md.name}")
@@ -99,9 +99,9 @@ class Validator:
     def check_markdown_agents(self) -> None:
         self.check("Markdown: agents (frontmatter)")
         required_keys = {"name", "description", "tools", "model"}
-        agents_dir = self.root / "agents"
+        agents_dir = self.root / "cli" / "claude" / "agents"
         if not agents_dir.is_dir():
-            self.error("Missing agents/ directory")
+            self.error("Missing cli/claude/agents/ directory")
             return
         for md in sorted(agents_dir.glob("*.md")):
             text = md.read_text()
@@ -115,7 +115,7 @@ class Validator:
 
     def check_markdown_skills(self) -> None:
         self.check("Markdown: skills (frontmatter)")
-        skills_dir = self.root / "skills"
+        skills_dir = self.root / "cli" / "claude" / "skills"
         for skill_dir in sorted(skills_dir.iterdir()):
             if not skill_dir.is_dir() or skill_dir.name in ("learned", "learned-local"):
                 continue
@@ -133,33 +133,33 @@ class Validator:
     def check_registry_base_rules(self) -> None:
         self.check("Registry: BASE_RULES")
         for rule in setup_module.BASE_RULES:
-            path = self.root / "rules" / rule
+            path = self.root / "common" / "rules" / rule
             if not path.exists():
-                self.error(f"BASE_RULES references missing file: rules/{rule}")
+                self.error(f"BASE_RULES references missing file: common/rules/{rule}")
 
     def check_registry_modular_rules(self) -> None:
         self.check("Registry: MODULAR_RULES")
         for category, rules in setup_module.MODULAR_RULES.items():
             for rule in rules:
-                path = self.root / "rule-library" / category / rule
+                path = self.root / "common" / "rule-library" / category / rule
                 if not path.exists():
-                    self.error(f"MODULAR_RULES references missing file: rule-library/{category}/{rule}")
+                    self.error(f"MODULAR_RULES references missing file: common/rule-library/{category}/{rule}")
 
     def check_registry_hooks(self) -> None:
         self.check("Registry: HOOK_SCRIPTS")
         for script in setup_module.HOOK_SCRIPTS:
-            path = self.root / "hooks" / "library" / script
+            path = self.root / "cli" / "claude" / "hooks" / "library" / script
             if not path.exists():
-                self.error(f"HOOK_SCRIPTS references missing file: hooks/library/{script}")
+                self.error(f"HOOK_SCRIPTS references missing file: cli/claude/hooks/library/{script}")
             elif not os.access(path, os.X_OK):
-                self.error(f"Hook script not executable: hooks/library/{script}")
+                self.error(f"Hook script not executable: cli/claude/hooks/library/{script}")
 
     def check_registry_skills(self) -> None:
         self.check("Registry: SKILLS")
         for skill in setup_module.SKILLS:
-            skill_md = self.root / "skills" / skill / "SKILL.md"
+            skill_md = self.root / "cli" / "claude" / "skills" / skill / "SKILL.md"
             if not skill_md.exists():
-                self.error(f"SKILLS references missing: skills/{skill}/SKILL.md")
+                self.error(f"SKILLS references missing: cli/claude/skills/{skill}/SKILL.md")
 
     def check_review_process_reviewers(self) -> None:
         """Verify reviewer names in review-process skill resolve to real
@@ -167,7 +167,7 @@ class Validator:
         Skips wildcards (regex `[a-z0-9-]` cannot capture `*`).
         """
         self.check("Review-process reviewer references")
-        skill_dir = self.root / "skills" / "review-process"
+        skill_dir = self.root / "cli" / "claude" / "skills" / "review-process"
         if not skill_dir.is_dir():
             return
 
@@ -183,9 +183,9 @@ class Validator:
             "copilot-cli",
         }
 
-        existing_agents = {p.stem for p in (self.root / "agents").glob("*.md")}
+        existing_agents = {p.stem for p in (self.root / "cli" / "claude" / "agents").glob("*.md")}
         existing_skills = {
-            d.name for d in (self.root / "skills").iterdir()
+            d.name for d in (self.root / "cli" / "claude" / "skills").iterdir()
             if d.is_dir() and (d / "SKILL.md").exists()
         }
 
@@ -319,7 +319,7 @@ class Validator:
             if not commands_dir.is_dir():
                 self.error("Smoke: .claude/commands/ not created")
             else:
-                source_cmds = {f.name for f in (self.root / "commands").glob("*.md")}
+                source_cmds = {f.name for f in (self.root / "cli" / "claude" / "commands").glob("*.md")}
                 deployed_cmds = {f.name for f in commands_dir.glob("*.md")}
                 # Commands gated behind an OPTIONAL_FEATURES toggle (e.g.
                 # commands/delegate.md under "minimax-delegate") aren't
@@ -328,7 +328,7 @@ class Validator:
                 feature_paths = getattr(setup_module, "FEATURE_PATHS", {})
                 for paths in feature_paths.values():
                     for rel in paths:
-                        if rel.startswith("commands/") and rel.endswith(".md"):
+                        if rel.startswith("cli/claude/commands/") and rel.endswith(".md"):
                             gated_cmds.add(Path(rel).name)
                 missing_cmds = (source_cmds - deployed_cmds) - gated_cmds
                 if missing_cmds:
@@ -362,8 +362,9 @@ class Validator:
             root = extracted[0]
 
             # Check expected contents
-            expected = ["VERSION", "rules", "rule-library", "agents", "commands",
-                        "skills", "hooks", "mcp-configs", "tools/setup.py"]
+            expected = ["VERSION", "common/rules", "common/rule-library", "common/mcp",
+                        "cli/claude/agents", "cli/claude/commands", "cli/claude/skills",
+                        "cli/claude/hooks", "tools/setup.py"]
             for item in expected:
                 path = root / item
                 if not path.exists():

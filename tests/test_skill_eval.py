@@ -31,7 +31,7 @@ from eval_runner import (
 
 REPO_ROOT = Path(__file__).parent.parent
 CHALLENGES_DIR = Path(__file__).parent / "challenges"
-SKILLS_DIR = REPO_ROOT / "skills"
+SKILLS_DIR = REPO_ROOT / "cli" / "claude" / "skills"
 
 
 # ── Tier 2: Challenge structure validation ──
