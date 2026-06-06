@@ -131,4 +131,10 @@ def migrate_manifest(manifest: dict) -> dict:
 
     if changed:
         manifest["modular_rules"] = modular
+
+    # Pre-multi-CLI manifests have no `clis` key — every existing project
+    # was Claude Code-only, so default it there.
+    if "clis" not in manifest:
+        manifest["clis"] = ["claude"]
+
     return manifest

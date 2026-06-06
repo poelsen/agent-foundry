@@ -463,11 +463,12 @@ class TestMigrateManifest:
         }
 
     def test_empty_manifest(self):
-        """Manifest with no modular_rules should not crash."""
+        """Manifest with no modular_rules should not crash, and gains the
+        default `clis` target (pre-multi-CLI manifests were Claude-only)."""
         manifest = {"version": "1.0"}
         result = migrate_manifest(manifest)
 
-        assert result == {"version": "1.0"}
+        assert result == {"version": "1.0", "clis": ["claude"]}
 
     def test_full_migration_scenario(self):
         """Realistic manifest with multiple old categories."""
