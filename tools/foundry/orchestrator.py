@@ -39,14 +39,16 @@ from .registry import (
     WORKFLOW_PLUGINS,
 )
 
-__doc_usage__ = """Claude Code per-project setup tool.
+__doc_usage__ = """agent-foundry per-project setup tool.
 
-Configures a project's .claude/ directory with selected rules, hooks,
-agents, skills, plugins, and MCP servers from the agent-foundry repo.
-Includes prj-* project management skills.
+Configures a project for one or more coding-agent CLIs with selected
+rules, hooks, agents, skills, plugins, and MCP servers. Each chosen CLI's
+adapter deploys into its native layout (.claude/ for Claude Code,
+AGENTS.md for Copilot, ...).
 
 Usage:
     python3 tools/setup.py init [project_dir]
+    python3 tools/setup.py init [project_dir] --clis claude,copilot
     python3 tools/setup.py init [project_dir] --private /path/to/source --prefix name
     python3 tools/setup.py update-all
     python3 tools/setup.py check
