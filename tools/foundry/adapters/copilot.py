@@ -102,7 +102,10 @@ class CopilotAdapter(CliAdapter):
             agents_md.write_text(f"# {sel.project_name}\n\n{header}\n", encoding="utf-8")
             print("  Created AGENTS.md")
 
-        # MCP servers — the cross-vendor .mcp.json standard.
+        # MCP servers via project .mcp.json. Verified against Copilot CLI
+        # 1.0.58: `copilot mcp` loads servers from the workspace .mcp.json
+        # (alongside the user-level ~/.copilot/mcp-config.json), so this is
+        # Copilot's native per-project source — same file Claude Code reads.
         if sel.mcp_servers:
             write_mcp_servers(project, sel.mcp_servers)
 
