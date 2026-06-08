@@ -77,6 +77,10 @@ class EvalResult:
     depth_total: int = 0  # sum of depth scores (max = 3 * num_depth_elements)
     outcome_scores: tuple[OutcomeScore, ...] = ()
     outcome_met: int = 0  # count of outcome elements met
+    # Optional second-judge verdict (dual-judge mode). None in single-judge runs.
+    judge2_score: int | None = None
+    judge2_passed: bool | None = None
+    judges_agree: bool | None = None
 
 
 def load_challenge(path: Path) -> Challenge:
