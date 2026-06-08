@@ -120,14 +120,7 @@ class Copilot(BaseInstalledAgent):
         )
         await self.exec_as_agent(environment, command=setup, env=env)
 
-        # Encourage local TDD — writing/running your own tests is legitimate and
-        # helps; the official hidden verifier is applied separately at grading.
-        nudge = (
-            "Before finishing, write and run your own tests to verify your change "
-            "behaves correctly (you may add temporary test files). Do not modify "
-            "the project's existing/official test suite.\n\n"
-        )
-        escaped = shlex.quote(nudge + instruction)
+        escaped = shlex.quote(instruction)
         await self.exec_as_agent(
             environment,
             command=(
