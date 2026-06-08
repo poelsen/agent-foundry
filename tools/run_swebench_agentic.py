@@ -63,7 +63,8 @@ def make_prediction(inst: dict, model: str, skill: str | None) -> dict:
     model_name = f"{model}__{skill or 'baseline'}"
     with tempfile.TemporaryDirectory(prefix="sweb-") as td:
         work = Path(td) / "repo"
-        clone = _git(["clone", "--quiet", f"https://github.com/{repo}.git", str(work)], Path(td))
+        clone = _git(["clone", "--quiet", "--filter=blob:none",
+                      f"https://github.com/{repo}.git", str(work)], Path(td))
         if clone.returncode != 0:
             return {"instance_id": inst["instance_id"], "model_name_or_path": model_name,
                     "model_patch": "", "error": f"clone failed: {clone.stderr[:160]}"}
