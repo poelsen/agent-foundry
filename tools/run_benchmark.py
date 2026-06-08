@@ -18,6 +18,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -41,8 +42,13 @@ REPO_ROOT = Path(__file__).parent.parent
 SKILLS_DIR = REPO_ROOT / "cli" / "claude" / "skills"
 CHALLENGES_DIR = REPO_ROOT / "tests" / "challenges"
 
-SUBJECT_MODEL = "claude-opus-4-6-20250929"
-JUDGE_MODEL = "claude-opus-4-6-20250929"
+# Backend = which CLI runs the prompt: "claude" or "copilot". Model = the
+# model id for that CLI. Both subject (the skill under test) and judge are
+# independently configurable via CLI flags; defaults set in main().
+SUBJECT_BACKEND = "claude"
+SUBJECT_MODEL = "opus"
+JUDGE_BACKEND = "claude"
+JUDGE_MODEL = "opus"
 
 ALL_SKILL_MODES = [
     None, "megamind-deep", "megamind-creative", "megamind-adversarial", "megamind-financial",
@@ -106,15 +112,51 @@ def _claude_cli(prompt: str, model: str = "opus") -> str:
         return result.stdout.strip()
 
 
+def _copilot_cli(prompt: str, model: str) -> str:
+    """Run a prompt through the GitHub Copilot CLI, non-interactively.
+
+    No tools are enabled (pure text generation) and the call runs in a
+    throwaway temp cwd, so a benchmark prompt can never touch the repo.
+    """
+    copilot_bin = shutil.which("copilot")
+    if not copilot_bin:
+        raise RuntimeError("copilot CLI not found in PATH")
+
+    with tempfile.TemporaryDirectory(prefix="bench-copilot-") as td:
+        result = subprocess.run(
+            [copilot_bin, "-p", prompt, "--model", model, "-s", "--no-color"],
+            capture_output=True,
+            text=True,
+            timeout=1200,
+            cwd=td,
+        )
+
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip()
+        raise RuntimeError(f"copilot CLI failed ({model}): {detail}")
+    return result.stdout.strip()
+
+
+def _invoke(prompt: str, backend: str, model: str) -> str:
+    """Dispatch a prompt to the configured backend CLI."""
+    if backend == "copilot":
+        return _copilot_cli(prompt, model)
+    return _claude_cli(prompt, model)
+
+
 def run_one(challenge: Challenge, skill_name: str | None) -> EvalResult:
-    """Run a single challenge with a single skill mode via claude CLI."""
+    """Run a single challenge with a single skill mode.
+
+    Subject (the skill under test) and judge use independently configured
+    backends/models (see SUBJECT_* / JUDGE_* globals, set in main()).
+    """
     skill_content = load_skill_content(skill_name) if skill_name else None
     subject_prompt = _build_subject_prompt(challenge, skill_content)
 
-    response = _claude_cli(subject_prompt)
+    response = _invoke(subject_prompt, SUBJECT_BACKEND, SUBJECT_MODEL)
 
     judge_prompt = _build_judge_prompt(challenge, response)
-    judge_text = _claude_cli(judge_prompt)
+    judge_text = _invoke(judge_prompt, JUDGE_BACKEND, JUDGE_MODEL)
 
     element_scores, anti_scores = _parse_judge_response(challenge, judge_text)
 
@@ -122,14 +164,14 @@ def run_one(challenge: Challenge, skill_name: str | None) -> EvalResult:
     depth_scores = []
     if challenge.rubric.depth_elements:
         depth_prompt = _build_depth_judge_prompt(challenge, response)
-        depth_text = _claude_cli(depth_prompt)
+        depth_text = _invoke(depth_prompt, JUDGE_BACKEND, JUDGE_MODEL)
         depth_scores = _parse_depth_response(challenge, depth_text)
 
     # Separate outcome judge call (process-blind, tests decision quality)
     outcome_scores = []
     if challenge.rubric.outcome_elements:
         outcome_prompt = _build_outcome_judge_prompt(challenge, response)
-        outcome_text = _claude_cli(outcome_prompt)
+        outcome_text = _invoke(outcome_prompt, JUDGE_BACKEND, JUDGE_MODEL)
         outcome_scores = _parse_outcome_response(challenge, outcome_text)
 
     return score_response(
@@ -539,12 +581,28 @@ def main() -> None:
     parser.add_argument("--save", type=str, help="Save results to JSON file")
     parser.add_argument("--compare", type=str, help="Compare with saved baseline JSON")
     parser.add_argument("--workers", type=int, default=1, help="Parallel workers")
+    parser.add_argument("--subject-backend", choices=["claude", "copilot"], default="claude",
+                        help="CLI that runs the skill under test")
+    parser.add_argument("--subject-model", type=str, default=None,
+                        help="Model id for the subject backend (e.g. gpt-5.5, claude-opus-4.7)")
+    parser.add_argument("--judge-backend", choices=["claude", "copilot"], default="claude",
+                        help="CLI that runs the judge (keep fixed for fair cross-model scoring)")
+    parser.add_argument("--judge-model", type=str, default=None,
+                        help="Model id for the judge backend")
     args = parser.parse_args()
 
-    if not shutil.which("claude"):
-        print("ERROR: claude CLI not found in PATH")
-        sys.exit(1)
-    print("Backend: claude CLI")
+    global SUBJECT_BACKEND, SUBJECT_MODEL, JUDGE_BACKEND, JUDGE_MODEL
+    SUBJECT_BACKEND = args.subject_backend
+    SUBJECT_MODEL = args.subject_model or ("opus" if SUBJECT_BACKEND == "claude" else "gpt-5.5")
+    JUDGE_BACKEND = args.judge_backend
+    JUDGE_MODEL = args.judge_model or ("opus" if JUDGE_BACKEND == "claude" else "gpt-5.5")
+
+    bin_for = {"claude": "claude", "copilot": "copilot"}
+    for backend in {SUBJECT_BACKEND, JUDGE_BACKEND}:
+        if not shutil.which(bin_for[backend]):
+            print(f"ERROR: {bin_for[backend]} CLI not found in PATH (needed for {backend} backend)")
+            sys.exit(1)
+    print(f"Subject: {SUBJECT_BACKEND}:{SUBJECT_MODEL}  |  Judge: {JUDGE_BACKEND}:{JUDGE_MODEL}")
 
     challenges = load_challenges(CHALLENGES_DIR)
     if args.challenges:
