@@ -105,6 +105,7 @@ class Copilot(BaseInstalledAgent):
                 "COPILOT_CONFIG_B64=$(base64 -w0 ~/.copilot/config.json)"
             )
         model = (self.model_name or "auto").split("/")[-1]
+        effort = self._get_env("COPILOT_EFFORT") or "max"
         passthrough = {"COPILOT_CONFIG_B64": cfg}
         skill = self._get_env("COPILOT_SKILL_B64")
         if skill:
@@ -119,11 +120,19 @@ class Copilot(BaseInstalledAgent):
         )
         await self.exec_as_agent(environment, command=setup, env=env)
 
-        escaped = shlex.quote(instruction)
+        # Encourage local TDD — writing/running your own tests is legitimate and
+        # helps; the official hidden verifier is applied separately at grading.
+        nudge = (
+            "Before finishing, write and run your own tests to verify your change "
+            "behaves correctly (you may add temporary test files). Do not modify "
+            "the project's existing/official test suite.\n\n"
+        )
+        escaped = shlex.quote(nudge + instruction)
         await self.exec_as_agent(
             environment,
             command=(
                 f"{path_export}; copilot -p {escaped} --model {shlex.quote(model)} "
+                f"--effort {shlex.quote(effort)} "
                 "--allow-all --no-color 2>&1 | tee /logs/agent/copilot.txt"
             ),
             env=env,
