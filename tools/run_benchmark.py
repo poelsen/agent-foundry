@@ -2,7 +2,9 @@
 """Run comprehensive megamind skill benchmarks.
 
 Runs every challenge against every skill mode + baseline.
-Produces a detailed comparison report. Uses the claude CLI.
+Produces a detailed comparison report. Subject and judge each run via the
+claude or copilot CLI (configurable); supports a second judge for
+disagreement flagging.
 
 Usage:
     python3 tools/run_benchmark.py --runs 2
@@ -13,6 +15,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import json
 import os
 import shutil
@@ -49,6 +52,11 @@ SUBJECT_BACKEND = "claude"
 SUBJECT_MODEL = "opus"
 JUDGE_BACKEND = "claude"
 JUDGE_MODEL = "opus"
+# Optional second judge for dual-judge mode (None = single judge).
+JUDGE2_BACKEND: str | None = None
+JUDGE2_MODEL: str | None = None
+# Judges "disagree" if pass/fail differs or |scoreA - scoreB| exceeds this.
+JUDGE_DISAGREE_THRESHOLD = 2
 
 ALL_SKILL_MODES = [
     None, "megamind-deep", "megamind-creative", "megamind-adversarial", "megamind-financial",
@@ -144,34 +152,27 @@ def _invoke(prompt: str, backend: str, model: str) -> str:
     return _claude_cli(prompt, model)
 
 
-def run_one(challenge: Challenge, skill_name: str | None) -> EvalResult:
-    """Run a single challenge with a single skill mode.
-
-    Subject (the skill under test) and judge use independently configured
-    backends/models (see SUBJECT_* / JUDGE_* globals, set in main()).
-    """
-    skill_content = load_skill_content(skill_name) if skill_name else None
-    subject_prompt = _build_subject_prompt(challenge, skill_content)
-
-    response = _invoke(subject_prompt, SUBJECT_BACKEND, SUBJECT_MODEL)
-
+def _judge_response(
+    challenge: Challenge, response: str, skill_name: str | None,
+    backend: str, model: str,
+) -> EvalResult:
+    """Score a single subject response with one judge (backend/model)."""
     judge_prompt = _build_judge_prompt(challenge, response)
-    judge_text = _invoke(judge_prompt, JUDGE_BACKEND, JUDGE_MODEL)
-
+    judge_text = _invoke(judge_prompt, backend, model)
     element_scores, anti_scores = _parse_judge_response(challenge, judge_text)
 
     # Separate depth judge call (avoids halo effect from binary scoring)
     depth_scores = []
     if challenge.rubric.depth_elements:
         depth_prompt = _build_depth_judge_prompt(challenge, response)
-        depth_text = _invoke(depth_prompt, JUDGE_BACKEND, JUDGE_MODEL)
+        depth_text = _invoke(depth_prompt, backend, model)
         depth_scores = _parse_depth_response(challenge, depth_text)
 
     # Separate outcome judge call (process-blind, tests decision quality)
     outcome_scores = []
     if challenge.rubric.outcome_elements:
         outcome_prompt = _build_outcome_judge_prompt(challenge, response)
-        outcome_text = _invoke(outcome_prompt, JUDGE_BACKEND, JUDGE_MODEL)
+        outcome_text = _invoke(outcome_prompt, backend, model)
         outcome_scores = _parse_outcome_response(challenge, outcome_text)
 
     return score_response(
@@ -180,6 +181,30 @@ def run_one(challenge: Challenge, skill_name: str | None) -> EvalResult:
         depth_scores=depth_scores,
         outcome_scores=outcome_scores,
     )
+
+
+def run_one(challenge: Challenge, skill_name: str | None) -> EvalResult:
+    """Run a single challenge/skill combo.
+
+    Subject and judge use independently configured backends/models. When a
+    second judge is configured (JUDGE2_*), the same response is scored by both
+    and the result carries judge2_score/judge2_passed/judges_agree so
+    disagreements can be flagged for human review.
+    """
+    skill_content = load_skill_content(skill_name) if skill_name else None
+    subject_prompt = _build_subject_prompt(challenge, skill_content)
+    response = _invoke(subject_prompt, SUBJECT_BACKEND, SUBJECT_MODEL)
+
+    result = _judge_response(challenge, response, skill_name, JUDGE_BACKEND, JUDGE_MODEL)
+
+    if JUDGE2_BACKEND and JUDGE2_MODEL:
+        r2 = _judge_response(challenge, response, skill_name, JUDGE2_BACKEND, JUDGE2_MODEL)
+        agree = (result.passed == r2.passed
+                 and abs(result.total_score - r2.total_score) <= JUDGE_DISAGREE_THRESHOLD)
+        result = dataclasses.replace(
+            result, judge2_score=r2.total_score, judge2_passed=r2.passed, judges_agree=agree)
+
+    return result
 
 
 # ── Serialization ──
@@ -203,6 +228,11 @@ def results_to_json(
                 "elements": {},
                 "anti_patterns": {},
             }
+            # Dual-judge fields (present only when a second judge ran)
+            if any(r.judge2_score is not None for r in results):
+                mode_data["judge2_scores"] = [r.judge2_score for r in results]
+                mode_data["judge2_passed"] = [r.judge2_passed for r in results]
+                mode_data["judges_agree"] = [r.judges_agree for r in results]
             for eid in challenge.rubric.required_elements:
                 hits = sum(
                     1 for r in results
@@ -589,20 +619,36 @@ def main() -> None:
                         help="CLI that runs the judge (keep fixed for fair cross-model scoring)")
     parser.add_argument("--judge-model", type=str, default=None,
                         help="Model id for the judge backend")
+    parser.add_argument("--judge2-backend", choices=["claude", "copilot"], default=None,
+                        help="Second judge backend (enables dual-judge + disagreement flagging)")
+    parser.add_argument("--judge2-model", type=str, default=None,
+                        help="Model id for the second judge")
+    parser.add_argument("--judge-disagree-threshold", type=int, default=2,
+                        help="Judges disagree if pass/fail differs or score gap exceeds this")
     args = parser.parse_args()
 
     global SUBJECT_BACKEND, SUBJECT_MODEL, JUDGE_BACKEND, JUDGE_MODEL
+    global JUDGE2_BACKEND, JUDGE2_MODEL, JUDGE_DISAGREE_THRESHOLD
     SUBJECT_BACKEND = args.subject_backend
     SUBJECT_MODEL = args.subject_model or ("opus" if SUBJECT_BACKEND == "claude" else "gpt-5.5")
     JUDGE_BACKEND = args.judge_backend
     JUDGE_MODEL = args.judge_model or ("opus" if JUDGE_BACKEND == "claude" else "gpt-5.5")
+    JUDGE2_BACKEND = args.judge2_backend
+    JUDGE2_MODEL = args.judge2_model
+    JUDGE_DISAGREE_THRESHOLD = args.judge_disagree_threshold
 
     bin_for = {"claude": "claude", "copilot": "copilot"}
-    for backend in {SUBJECT_BACKEND, JUDGE_BACKEND}:
+    backends = {SUBJECT_BACKEND, JUDGE_BACKEND}
+    if JUDGE2_BACKEND:
+        backends.add(JUDGE2_BACKEND)
+    for backend in backends:
         if not shutil.which(bin_for[backend]):
             print(f"ERROR: {bin_for[backend]} CLI not found in PATH (needed for {backend} backend)")
             sys.exit(1)
-    print(f"Subject: {SUBJECT_BACKEND}:{SUBJECT_MODEL}  |  Judge: {JUDGE_BACKEND}:{JUDGE_MODEL}")
+    judges = f"{JUDGE_BACKEND}:{JUDGE_MODEL}"
+    if JUDGE2_BACKEND:
+        judges += f" + {JUDGE2_BACKEND}:{JUDGE2_MODEL} (dual, threshold={JUDGE_DISAGREE_THRESHOLD})"
+    print(f"Subject: {SUBJECT_BACKEND}:{SUBJECT_MODEL}  |  Judge: {judges}")
 
     challenges = load_challenges(CHALLENGES_DIR)
     if args.challenges:
