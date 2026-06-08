@@ -29,3 +29,8 @@ vscode-copilot-mcp/out/
 vscode-copilot-mcp/mcp/node_modules/
 vscode-copilot-mcp/*.vsix
 vscode-copilot-mcp/.vscode-test/
+
+# swebench eval reports written to CWD
+*.goldcheck.json
+*.agentic-*.json
+logs/
