@@ -61,9 +61,35 @@ def test_registry_has_claude_and_copilot():
 
 def test_supported_artifacts_differ():
     assert "agents" in ClaudeAdapter().supported_artifacts()
-    # Copilot has no subagent/skill/hook equivalent
-    assert CopilotAdapter().supported_artifacts() == {"rules", "mcp"}
+    # Copilot consumes rules, mcp, and portable skills — but not subagents/hooks
+    assert CopilotAdapter().supported_artifacts() == {"rules", "mcp", "skills"}
     assert "agents" not in CopilotAdapter().supported_artifacts()
+
+
+# ── CopilotAdapter: portable skills → .github/skills/ ──
+
+
+def test_copilot_deploys_portable_skill_sanitized(tmp_path: Path):
+    CopilotAdapter().deploy(tmp_path, _selections(skills=["megamind-deep"]), _ctx())
+    skill_md = tmp_path / ".github" / "skills" / "megamind-deep" / "SKILL.md"
+    assert skill_md.exists()
+    text = skill_md.read_text()
+    assert "name: megamind-deep" in text            # frontmatter preserved
+    assert "model:" not in text.split("---", 2)[1]  # model stripped from frontmatter
+
+
+def test_copilot_skips_non_portable_skill(tmp_path: Path):
+    # prj-new is Claude-coupled — must not land in Copilot's skill root
+    CopilotAdapter().deploy(tmp_path, _selections(skills=["prj-new"]), _ctx())
+    assert not (tmp_path / ".github" / "skills" / "prj-new").exists()
+
+
+def test_copilot_removes_deselected_skill(tmp_path: Path):
+    CopilotAdapter().deploy(tmp_path, _selections(skills=["megamind-deep"]), _ctx())
+    assert (tmp_path / ".github" / "skills" / "megamind-deep").exists()
+    # Re-run without it selected → foundry-managed copy is reconciled away
+    CopilotAdapter().deploy(tmp_path, _selections(skills=[]), _ctx())
+    assert not (tmp_path / ".github" / "skills" / "megamind-deep").exists()
 
 
 # ── _select_clis ──

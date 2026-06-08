@@ -136,6 +136,16 @@ SKILL_GROUPS: dict[str, list[str]] = {
     ],
 }
 
+# Skills portable to non-Claude CLIs that natively read SKILL.md (verified
+# against GitHub Copilot CLI 1.0.58, which loads skills from .github/skills/).
+# Limited to pure reasoning workflows — skills that wire into Claude-only
+# machinery (prj-*/snapshot/update-foundry/learn → .claude/, slash-commands,
+# session ids; review-process → Claude reviewer agents) are intentionally
+# excluded.
+COPILOT_PORTABLE_SKILLS: set[str] = {
+    "megamind-deep", "megamind-creative", "megamind-adversarial", "megamind-financial",
+}
+
 # Skills that are never shown in the interactive skill menu. None today —
 # kept as an explicit empty set so the menu-build logic stays uniform.
 HIDDEN_SKILLS: set[str] = set()

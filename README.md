@@ -14,7 +14,7 @@ A per-CLI **adapter** renders the selected artifacts into that CLI's conventions
 | Target | Reads | Gets |
 |--------|-------|------|
 | **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)** (`claude`) | `.claude/` + `CLAUDE.md` | full fidelity — rules, agents, skills, commands, hooks, settings, MCP |
-| **[GitHub Copilot CLI](https://github.com/github/copilot-cli)** (`copilot`) | `AGENTS.md` | coding-standard rules (embedded) + MCP — the cross-tool [`AGENTS.md`](https://agents.md) standard, also read by Codex, Cursor, etc. |
+| **[GitHub Copilot CLI](https://github.com/github/copilot-cli)** (`copilot`) | `AGENTS.md`, `.mcp.json`, `.github/skills/` | coding-standard rules (embedded in the cross-tool [`AGENTS.md`](https://agents.md)), MCP servers (workspace `.mcp.json`), and portable reasoning skills (megamind) as native Copilot `SKILL.md` skills |
 
 Pick targets with `--clis claude,copilot` (or the interactive menu). Artifact types a CLI can't consume (Copilot has no subagent/hook equivalent) are reported as not-applicable, never silently dropped.
 
