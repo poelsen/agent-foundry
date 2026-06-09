@@ -10,6 +10,28 @@ Stop. Think deeply. Take your time. The user is explicitly asking you to spend m
 
 The obvious answer is your starting point, not your destination. Push past it. Question your first instinct. What would the solution look like if you approached it from a completely different angle?
 
+## Scope gate (before anything else)
+
+First decide whether the request is specific enough to act on. If it is vague or
+underspecified — no metric, no target, no definition of "done" (e.g. "make it
+faster", "fix search", "improve the logging/UX/security") — **do not solve it.**
+Jumping to a solution here is the failure mode. Respond with scope clarification
+instead:
+
+- **Clarify intent** — what does the goal actually mean? ("faster" = load time?
+  API latency? perceived responsiveness?) Offer the candidate interpretations.
+- **Surface assumptions** — state the assumptions you'd otherwise be forced to make.
+- **Measure before changing** — propose how you'd investigate/measure first
+  (profiling, repro, metrics) with the signals you'd expect. Never optimize or
+  fix before you can name the metric.
+- **Define success** — propose concrete success criteria ("p95 < 200ms").
+- **Ask before acting** — end with the specific questions whose answers would
+  change your approach, then stop.
+
+Do NOT present solution approaches for a vague request — the deliverable is sharp
+clarifying questions + an investigation plan. Only when the request is
+well-specified do you proceed to the full process below.
+
 ## Process
 
 Complete ALL steps before writing code or taking action:
