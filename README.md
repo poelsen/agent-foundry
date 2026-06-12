@@ -196,19 +196,20 @@ Everything is copied into `<project>/.claude/`:
 
 | Component | Source | What it does |
 |-----------|--------|--------------|
-| **Rules** | `rules/` + `rule-library/` | Markdown files that instruct Claude on coding standards, security, git workflow, testing methodology |
-| **Agents** | `agents/` | Specialized sub-agents for TDD, code review, security analysis, architecture design |
-| **Commands** | `commands/` | Slash commands: `/snapshot`, `/learn`, `/learn-recall`, `/update-foundry`, `/update-codemaps` |
-| **Skills** | `skills/` | Domain knowledge modules (GUI threading patterns, ClickHouse, learned patterns) |
-| **Hooks** | `hooks/library/` | Shell scripts that run before/after Claude Code tool calls (formatters, type checkers) |
+| **Rules** | `common/rules/` + `common/rule-library/` | Markdown files that instruct the agent on coding standards, security, git workflow, testing methodology (cross-CLI) |
+| **Agents** | `cli/claude/agents/` | Specialized sub-agents for TDD, code review, security analysis, architecture design (Claude Code) |
+| **Commands** | `cli/claude/commands/` | Slash commands: `/snapshot`, `/learn`, `/learn-recall`, `/update-foundry`, `/update-codemaps` |
+| **Skills** | `cli/claude/skills/` | Domain knowledge modules (megamind reasoning, GUI threading, ClickHouse, learned patterns) |
+| **Hooks** | `cli/claude/hooks/library/` | Shell scripts that run before/after Claude Code tool calls (formatters, type checkers) |
+| **MCP servers** | `common/mcp/` | Cross-vendor MCP configs (deployed to `.mcp.json`) |
 | **Plugins** | configured in `settings.json` | LSP servers and workflow plugins (feature-dev, PR review toolkit) |
-| **Copilot CLI** | `skills/copilot-cli/` | Thin reference skill for the local GitHub Copilot CLI — lets review-process run non-Claude models (e.g. GPT-5.4). See [Copilot CLI](#copilot-cli). |
+| **Copilot CLI** | `cli/claude/skills/copilot-cli/` | Thin reference skill for the local GitHub Copilot CLI — lets review-process run non-Claude models. See [Copilot CLI](#copilot-cli). |
 
 ## Rules
 
 Rules are markdown files loaded by Claude Code at session start. They shape how Claude writes code, handles errors, makes commits, and reviews changes.
 
-**Base rules** (`rules/`) are recommended for all projects:
+**Base rules** (`common/rules/`) are recommended for all projects:
 
 - `coding-style.md` — KISS/YAGNI/DRY, small functions, minimal diffs
 - `git-workflow.md` — branch naming, commit message format, PR workflow
@@ -221,7 +222,7 @@ Rules are markdown files loaded by Claude Code at session start. They shape how 
 - `hooks.md` — documents available hooks
 - `skills.md` — points Claude to learned patterns when stuck
 
-**Modular rules** (`rule-library/`) are selected per-project:
+**Modular rules** (`common/rule-library/`) are selected per-project:
 
 | Category | Examples |
 |----------|----------|
@@ -276,7 +277,7 @@ Hooks are shell scripts that run automatically before or after Claude Code tool 
 
 ### What `setup.py` installs
 
-`setup.py` writes hook entries into your project's `.claude/settings.json` based on detected languages. Only language-specific hooks from `hooks/library/` are installed:
+`setup.py` writes hook entries into your project's `.claude/settings.json` based on detected languages. Only language-specific hooks from `cli/claude/hooks/library/` are installed:
 
 | Hook script | Trigger | Language |
 |-------------|---------|----------|
@@ -309,12 +310,12 @@ Claude Code sessions often produce solutions worth remembering. The `/learn` and
 1. After solving a non-trivial problem, run `/learn`
 2. Claude analyzes the session and drafts a skill file (problem → solution → example → when to use)
 3. You pick a **category** (e.g. `python`, `debugging`, `pyside6`) and a **save location**:
-   - **Claude-foundry repo** (default): `skills/learned/<category>/<name>.md` — commit and push to share across machines. Deployed to projects via `setup.py init`.
+   - **agent-foundry repo** (default): `cli/claude/skills/learned/<category>/<name>.md` — commit and push to share across machines. Deployed to projects via `setup.py init`.
    - **Project-local**: `.claude/skills/learned-local/<category>/<name>.md` — stays in this project only.
 4. When Claude gets stuck on a problem, it checks these directories automatically (via `rules/skills.md`)
 5. Run `/recall` to list all learned skills, or `/recall <keyword>` to search
 
-The `skills/learned/` directory starts empty. Categories are created as you learn patterns.
+The `cli/claude/skills/learned/` directory starts empty. Categories are created as you learn patterns.
 
 ## Private Sources
 
@@ -421,33 +422,45 @@ The megamind skills are reasoning enhancers that improve Claude's performance on
 
 `megamind-deep` and `megamind-creative` are auto-selected during `setup.py init`. The adversarial and financial variants are opt-in.
 
-The `megamind-financial` skill uses country-specific data files in `skills/megamind-financial/data/` (e.g., `dk-tax-2026.md`). See [skills/IMPROVEMENT-PROCESS.md](skills/IMPROVEMENT-PROCESS.md) for the annual DK tax data update procedure.
+The `megamind-financial` skill uses country-specific data files in `cli/claude/skills/megamind-financial/data/` (e.g., `dk-tax-2026.md`). See [cli/claude/skills/IMPROVEMENT-PROCESS.md](cli/claude/skills/IMPROVEMENT-PROCESS.md) for the annual DK tax data update procedure.
 
-### Benchmark (Opus 4.6, 30 challenges, 5 runs each)
+### Benchmarks — model × task performance
 
-Skills are evaluated using a Claude-as-judge benchmark. Each challenge has a rubric with required elements and anti-patterns. The judge scores each response and the benchmark reports hit rates, pass rates, and averages.
+> **Full data, methodology, and caveats: [docs/BENCHMARKS.md](docs/BENCHMARKS.md).**
 
-**Overall:**
+Skills are evaluated with a rubric-based judge (prose tasks) and with objective
+test-pass scoring (agentic coding). Subjects run across the model matrix —
+**gpt-5.5, gpt-5.4(-mini), claude-opus-4.7/4.6, claude-sonnet-4.6** — so you can
+pick the right model *and* skill per task. Headlines:
 
-| Mode | Avg Score | Pass Rate | Delta vs Baseline |
-|------|-----------|-----------|-------------------|
-| Baseline (no skill) | 5.0 | 62% | — |
-| megamind-deep | 6.7 | 82% | +1.7 |
-| megamind-creative | 6.4 | 78% | +1.4 |
-| megamind-adversarial | 6.5 | 80% | +1.5 |
+**Which skill for which task** (rubric score, avg across models; each skill wins its own category):
 
-**Per-category winners:**
+| Task | best skill | skilled score | baseline |
+|------|-----------|--------------|----------|
+| Deep reasoning (migration, refactor, API design) | **megamind-deep** | 8.4 | 5.0 |
+| Architecture under ambiguity | **megamind-deep** | 7.0 | 3.6 |
+| Open-ended / creative | **megamind-creative** | 7.8 | 4.8 |
+| Red-team / design review | **megamind-adversarial** | 7.1 | 5.4 |
+| Vague requests ("make it faster") | **megamind-deep** (scope gate) | ~6.0 | ~0 |
+| Financial (valuation, DK/DE tax) | **megamind-financial** | 7.5 | ~5 |
 
-| Category | Description | Best Mode | Score |
-|----------|-------------|-----------|-------|
-| adversarial | Red-team designs (auth, caching, pipelines, feature flags) | adversarial | 7.7 |
-| arch | Architecture under ambiguity (DR, build-vs-buy, event-driven, gateways) | deep | 7.3 |
-| creative | Creative problem-solving (alert fatigue, code review, onboarding, CLI) | creative | 8.0 |
-| cross | Cross-cutting (stakeholder conflicts, incidents, security breaches, tech debt) | deep | 9.5 |
-| deep | Deep reasoning (DB migration, refactoring, API design, testing, deploys) | deep | 7.0 |
-| scope | Scope clarification for vague requests ("make it faster", "fix search") | adversarial | 2.6 |
+**Which model.** On **reasoning/financial prose**, Claude (opus-4.7, sonnet-4.6)
+leads at baseline and skilled; the GPTs start lower but gain most from skills. On
+**agentic coding** the ranking flips — gpt-5.5 ≈ 74% on a representative
+SWE-bench Verified sample (our scaffold) and tops the harder DeepSWE benchmark,
+where Claude trails. Pick by task: **Claude for judgment/analysis, gpt-5.5 for
+large multi-file coding.**
 
-Each skill dominates its target category. Deep mode is the best all-rounder. Scope challenges expose a fundamental weakness — Opus jumps to solutions instead of asking clarifying questions for vague prompts, even with skills active.
+**The skill principle.** Skills help **in inverse proportion to model strength** —
+big lift on weaker models/baselines (scope +5–7 on lesser models; financial +2.3
+on Sonnet), little-to-none on frontier models on coding (gpt-5.5 agentic net-0).
+So: **always enable the megamind skills for reasoning/financial/scope** (clear
+win, every model, ~free); for **agentic coding, rely on a strong model** —
+reasoning skills are upside only on weaker ones.
+
+The **scope gate** (added after benchmarking found vague prompts were the one
+universal weakness) takes every model from cratering (~0, almost never passing)
+to the rubric ceiling (~6, ~100% pass) — see [docs/BENCHMARKS.md §3](docs/BENCHMARKS.md).
 
 ### Challenge Format
 
@@ -471,23 +484,36 @@ rubric:
 
 ### Running the Benchmark
 
-Requires the `claude` CLI authenticated and in PATH. Uses `--output-format json` and `--permission-mode bypassPermissions` for non-interactive / CI-compatible execution.
+Subject and judge each run via the **claude** CLI or the **GitHub Copilot** CLI
+(authenticated, in PATH). Defaults to claude; use the backend flags to pick the
+model matrix. See [docs/BENCHMARKS.md](docs/BENCHMARKS.md) for full methodology.
 
 ```bash
-# Full run (76 challenges x 5 modes x 5 runs)
-python3 tools/run_benchmark.py --workers 24 --runs 5 --save results/output.json
+# Default (claude CLI, all skills)
+python3 tools/run_benchmark.py --runs 3 --save results/out.json
 
-# Single challenge
-python3 tools/run_benchmark.py --runs 1 --challenges arch-001
-
-# Specific skill (always includes baseline for comparison)
+# Specific skill (baseline auto-included for comparison)
 python3 tools/run_benchmark.py --skill megamind-deep --runs 3
 
-# Financial skill only
-python3 tools/run_benchmark.py --skill megamind-financial --runs 2
+# Multi-model via Copilot, judged by opus-4.8 (claude)
+python3 tools/run_benchmark.py --challenges scope-001 scope-002 --skill megamind-deep --runs 3 \
+  --subject-backend copilot --subject-model gpt-5.5 \
+  --judge-backend claude --judge-model claude-opus-4-8
 
-# Compare against saved baseline
-python3 tools/run_benchmark.py --runs 5 --save results/new.json --compare results/old.json
+# Dual-judge (gpt-5.5 + opus-4.8) — flags disagreements for human review
+... --judge2-backend copilot --judge2-model gpt-5.5 --judge-disagree-threshold 2
+
+# Max reasoning effort (Copilot subjects)
+COPILOT_EFFORT=max python3 tools/run_benchmark.py ...
+```
+
+**Agentic coding** (objective, test-pass scored — no judge):
+
+```bash
+# SWE-bench Verified via Copilot + Docker eval
+python3 tools/run_swebench_agentic.py --model gpt-5.5 --instances pallets__flask-5014
+
+# DeepSWE via Copilot (no API keys) — setup in tools/deepswe/README.md
 ```
 
 ## Review Process
