@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# update-foundry.sh — Deterministic update script for claude-foundry configuration.
+# update-foundry.sh — Deterministic update script for agent-foundry configuration.
 # Usage: update-foundry.sh [--check] [--interactive] [project_dir]
 #
 # Per-project payload model: the foundry release is shipped as a tarball
