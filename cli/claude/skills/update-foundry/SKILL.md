@@ -1,11 +1,11 @@
 ---
 name: update-foundry
-description: Update Claude Foundry configuration to latest release
+description: Update agent-foundry configuration to latest release
 disable-model-invocation: true
 allowed-tools: Bash(bash *)
 ---
 
-# /update-foundry - Update Claude Foundry Configuration
+# /update-foundry - Update agent-foundry Configuration
 
 ## Usage
 
