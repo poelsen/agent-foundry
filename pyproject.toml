@@ -15,7 +15,11 @@ dev = [
     "ruff>=0.8",
 ]
 [tool.pytest.ini_options]
-addopts = "-q --cov=tools --cov-report=term-missing"
+# tests/swe_tasks holds the SWE benchmark's intentionally-broken fixture code
+# (inputs the agentic harness fixes and grades), not foundry unit tests. Exclude
+# it from the default suite so CI grades the foundry, not the benchmark inputs.
+# The harness runs pytest inside its own copied task dirs, so it is unaffected.
+addopts = "-q --cov=tools --cov-report=term-missing --ignore=tests/swe_tasks"
 testpaths = ["tests"]
 markers = [
     "eval: tests requiring claude CLI (deselect with '-m not eval')",
