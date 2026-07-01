@@ -399,3 +399,59 @@ class TestCopyCommandsPrefixAwareness:
 
         assert (cmd_dir / "company-deploy.md").exists()
         assert not (cmd_dir / "stale-command.md").exists()
+
+
+# ── copy_commands skill-twin de-duplication ──────────────────────────
+
+
+class TestCopyCommandsSkillTwins:
+    """Claude Code auto-exposes each skill as /name, so wrapper commands that
+    share a skill's exact name must never be deployed (they'd duplicate the
+    slash menu entry)."""
+
+    def test_skips_wrapper_matching_selected_skill(self, project, tmp_path, monkeypatch):
+        """A wrapper whose stem is a skill name is skipped even when selected;
+        a non-twin command in the same source dir still deploys."""
+        import foundry.deploy as deploy
+
+        fake_src = tmp_path / "commands-src"
+        fake_src.mkdir()
+        # prj-new is a real skill name → redundant wrapper, must be skipped.
+        (fake_src / "prj-new.md").write_text("# wrapper\n")
+        # standalone command with no skill twin → must deploy.
+        (fake_src / "standalone.md").write_text("# standalone\n")
+        monkeypatch.setattr(deploy, "COMMANDS_DIR", fake_src)
+
+        copy_commands(project, ["prj-new"])
+
+        cmd_dir = project / ".claude" / "commands"
+        assert not (cmd_dir / "prj-new.md").exists()
+        assert (cmd_dir / "standalone.md").exists()
+
+    def test_prunes_already_deployed_twin(self, project):
+        """Self-heal: a duplicate left by an older deploy is removed."""
+        cmd_dir = project / ".claude" / "commands"
+        (cmd_dir / "prj-new.md").write_text("# stale wrapper\n")
+
+        copy_commands(project, ["prj-new"])
+
+        assert not (cmd_dir / "prj-new.md").exists()
+
+    def test_deploys_command_only_file(self, project):
+        """A command with no skill twin (snapshot) is still deployed."""
+        cmd_dir = project / ".claude" / "commands"
+
+        copy_commands(project, [])
+
+        assert (cmd_dir / "snapshot.md").exists()
+
+    def test_deploys_subcommand_when_parent_skill_selected(self, project):
+        """A sub-command (update-foundry-check) is not a skill twin and deploys
+        when its parent skill is selected."""
+        cmd_dir = project / ".claude" / "commands"
+
+        copy_commands(project, ["update-foundry"])
+
+        assert (cmd_dir / "update-foundry-check.md").exists()
+        # ...but the parent skill name itself never deploys as a wrapper.
+        assert not (cmd_dir / "update-foundry.md").exists()
