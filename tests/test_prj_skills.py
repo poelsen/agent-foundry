@@ -73,21 +73,19 @@ class TestPrjSkillStructure:
 
 
 class TestPrjCommandFiles:
-    """Verify command files exist and reference correct skills."""
+    """prj-* are skills, invoked directly as /name — Claude Code auto-exposes
+    every skill as a slash command. There must be NO wrapper command file of the
+    same name, or the slash menu shows each prj-* twice."""
 
     COMMANDS_DIR = REPO_ROOT / "cli" / "claude" / "commands"
     PRJ_COMMANDS = ["prj-new", "prj-list", "prj-pause", "prj-resume", "prj-done", "prj-delete"]
 
     @pytest.mark.parametrize("cmd", PRJ_COMMANDS)
-    def test_command_file_exists(self, cmd: str):
+    def test_no_duplicate_wrapper_command(self, cmd: str):
         cmd_file = self.COMMANDS_DIR / f"{cmd}.md"
-        assert cmd_file.exists(), f"commands/{cmd}.md not found"
-
-    @pytest.mark.parametrize("cmd", PRJ_COMMANDS)
-    def test_command_references_skill(self, cmd: str):
-        content = (self.COMMANDS_DIR / f"{cmd}.md").read_text(encoding="utf-8")
-        assert f".claude/skills/{cmd}/SKILL.md" in content, (
-            f"commands/{cmd}.md doesn't reference the skill"
+        assert not cmd_file.exists(), (
+            f"commands/{cmd}.md duplicates the {cmd} skill in the slash menu; "
+            "prj-* skills are auto-exposed as /name and need no wrapper"
         )
 
 

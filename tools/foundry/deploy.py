@@ -170,6 +170,12 @@ def copy_commands(
     Skill-associated commands are only copied when the corresponding skill is
     selected. A command is skill-associated if its name matches a skill exactly
     or starts with a skill name (e.g., update-foundry-check → update-foundry).
+
+    Commands whose name matches a skill *exactly* are never deployed: Claude
+    Code already exposes every skill as a ``/name`` slash command, so shipping a
+    wrapper command of the same name produces a duplicate entry in the slash
+    menu. Only sub-commands (e.g. ``update-foundry-check``) and command-only
+    files (e.g. ``snapshot``) are deployed.
     """
     if not COMMANDS_DIR.is_dir():
         return
@@ -181,6 +187,9 @@ def copy_commands(
     eligible = set()
     for src in COMMANDS_DIR.iterdir():
         if src.suffix != ".md":
+            continue
+        # Skip wrappers that duplicate an auto-exposed skill of the same name.
+        if src.stem in SKILLS:
             continue
         parent_skill = _command_skill_parent(src.stem)
         # Skip skill-associated commands unless the parent skill is selected
