@@ -1,8 +1,8 @@
 # Voices, selectable presets
 
-Ten selectable voice presets, all sharing one integrity floor: no em dashes, no marketing adjectives, numbers stay exact and sourced, attributions verified. Pick one per document by matching the voice to the job, not the topic; a financial thesis or a technical post can be written in any of them. Start with the house blend, which is the recommended default, and reach for a named voice only when a piece would clearly land better in it.
+Ten selectable voice presets, all sharing one integrity floor: no em dashes, no marketing adjectives, numbers stay exact and sourced, attributions verified. Pick one per document by matching the voice to the job, not the topic; a financial thesis or a technical post can be written in any of them. Start with the house blend, the recommended default for the author's own writing, and reach for a named voice only when a piece would clearly land better in it.
 
-**How to use.** Match the voice to the job, not the topic. Read `voices/<slug>.md` for the full card, then draft in it. Default to `house-blend` for the author's own public and analytical writing; use `jens-andersen` for strict imitation of a supplied sample or private correspondence. A user-supplied sample always overrides a preset.
+**How to use.** Match the voice to the job, not the topic. Read `voices/<slug>.md` for the full card, then draft in it. Default to `house-blend` for the author's own public and analytical writing; use `jens-andersen` when the author wants his own voice unblended, as in private correspondence. A user-supplied sample always overrides a preset.
 
 | Voice | Best for | Card |
 |---|---|---|

@@ -1,13 +1,7 @@
 ---
 name: humanizer
 version: 2.5.1
-description: |
-  Remove signs of AI-generated writing from text. Use when editing or reviewing
-  text to make it sound more natural and human-written. Based on Wikipedia's
-  comprehensive "Signs of AI writing" guide. Detects and fixes patterns including:
-  inflated symbolism, promotional language, superficial -ing analyses, vague
-  attributions, em dash overuse, rule of three, AI vocabulary words, passive
-  voice, negative parallelisms, and filler phrases.
+description: "Remove signs of AI-generated writing from text. Use when editing or reviewing existing text to make it sound natural and human-written. Based on Wikipedia's Signs of AI writing guide."
 license: MIT
 compatibility: claude-code opencode
 allowed-tools:
@@ -408,13 +402,13 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 
 **Words to watch:** third-party, cross-functional, client-facing, data-driven, decision-making, well-known, high-quality, real-time, long-term, end-to-end
 
-**Problem:** AI hyphenates common word pairs with perfect consistency. Humans rarely hyphenate these uniformly, and when they do, it's inconsistent. Less common or technical compound modifiers are fine to hyphenate.
+**Problem:** AI hyphenates common word pairs with perfect consistency. Humans rarely hyphenate these uniformly, and when they do, it's inconsistent. Reword or vary rather than stripping hyphens mechanically, and keep the hyphens standard usage requires in a compound modifier before a noun. Less common or technical compound modifiers are fine to hyphenate.
 
 **Before:**
 > The cross-functional team delivered a high-quality, data-driven report on our client-facing tools. Their decision-making process was well-known for being thorough and detail-oriented.
 
 **After:**
-> The cross functional team delivered a high quality, data driven report on our client facing tools. Their decision making process was known for being thorough and detail oriented.
+> The team delivered a thorough, data-driven report on our client-facing tools. Everyone knew their decision making was careful.
 
 
 ### 27. Persuasive Authority Tropes

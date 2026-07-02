@@ -28,6 +28,8 @@ Classify the question before doing anything else:
 
 **Country matters.** Tax, pension, and mortgage rules are jurisdiction-specific. Identify the country early and flag when you're applying country-specific rules vs. general principles. If the country is unclear, ask.
 
+**Input gate.** The same applies to any input the analysis cannot proceed without — amounts, income level, time horizon, risk tolerance, loan terms. If a required input is missing, do NOT substitute an assumed value and analyze anyway: state what is missing, ask the specific questions whose answers would change the analysis, then stop. Sharp questions beat an analysis built on invented inputs.
+
 ---
 
 ## Section A: Investment / Valuation
@@ -87,11 +89,11 @@ What data do we have, and what's missing?
 | Metric | Strong | Adequate | Weak |
 |--------|--------|----------|------|
 | ROE | > 20% | 15-20% | < 15% |
-| Payout ratio | 30-50% (optimal) | 20-30% or 50-75% | > 100% (unsustainable) |
+| Payout ratio | 30-50% (optimal) | 20-30% or 50-75% | 75-100% (stretched) or > 100% (unsustainable) |
 | Earnings stability | Consistent growth | Moderate volatility | Erratic/declining |
 
 **Hard quality gates** (fail = investigate before proceeding):
-- ROE < 15% (< 10% for cyclicals: industrials, materials, energy)
+- ROE < 15% (< 10% for cyclicals: shipping, energy, industrials, materials)
 - P/E > 30
 - EV/EBITDA > 14 (exempt: financials, banks, insurance, biotech, pharma, marine shipping)
 - Payout > 100%
@@ -115,7 +117,7 @@ What data do we have, and what's missing?
 - **15th percentile** = LOW line (BUY ZONE boundary)
 - **50th percentile** = historical average
 - **85th percentile** = HIGH line (SELL ZONE boundary)
-- Use 20 years of monthly data with rolling 2-year centered window
+- Use 20 years of monthly data with rolling 2-year centered window (or the full listing history if shorter; flag reduced channel confidence below 10 years, consistent with A2's minimum)
 
 **Sell discipline:** No stock is sacred. When in SELL ZONE:
 - Trim 1/3 to 1/2 rather than all-or-nothing
@@ -141,7 +143,7 @@ Use at least 2: DCF, comparables, earnings power, asset-based, or pre-earnings f
 
 Tax rules are 100% country-specific. Identify the jurisdiction before any analysis. Common frameworks:
 
-**Denmark (DK):** Rates below are from `data/dk-tax-2026.md`. When updating, update BOTH the data file AND these inline values (see `skills/IMPROVEMENT-PROCESS.md`).
+**Denmark (DK):** Rates below are from `data/dk-tax-2026.md`. When updating, update BOTH the data file AND these inline values (see `IMPROVEMENT-PROCESS.md` at the skills root of the agent-foundry repo; not deployed to projects).
 - **2026 MAJOR CHANGE: 4-bracket system.** Bundskat 12.09% + Mellemskat 7.5% (above DKK 641,200) + Topskat 7.5% (above DKK 777,900) + Toptopskat 5% (above DKK 2,592,700). AM-bidrag 8%. Personfradrag DKK 54,100.
 - Aktieindkomst: 27% up to DKK 79,400 (2026), 42% above. Married couples: DKK 158,800 combined.
 - Pension: ratepension fradrag up to DKK 68,700/year. Aldersopsparing DKK 9,900/year (>7yr to retirement) / DKK 64,200 (<7yr). PAL-skat 15.3%.
@@ -150,7 +152,7 @@ Tax rules are 100% country-specific. Identify the jurisdiction before any analys
 - Lagerbeskatning vs realisationsbeskatning: ETFs/investment funds taxed on unrealized gains yearly (lager); individual stocks taxed on realization
 - Crypto/NFT: taxed as **personlig indkomst** under spekulationsbeskatning (statsskatteloven §5), NOT aktieindkomst or kapitalindkomst. AM-bidrag does NOT apply to speculative gains. Losses only offset same-category speculative gains in same year (no carry-forward). NFT treatment is evolving — flag uncertainty, recommend bindende svar for material amounts.
 - Cross-border dividend withholding: DK has dobbeltbeskatningsoverenskomster (DBO) with most countries. Treaty rate is typically 15%. Denmark gives credit (lempelse) for foreign tax paid.
-- VSO: opsparet overskud taxed at corporate rate (see data file), progressive personal tax on withdrawal
+- VSO: opsparet overskud taxed at corporate rate (22% — see `data/dk-tax-2025.md`; unchanged for 2026 per `data/dk-tax-2026.md`), progressive personal tax on withdrawal
 - Realkredit: unique Danish pass-through bond mortgage system with konvertering mechanics
 
 **Germany (DE):**
@@ -238,7 +240,7 @@ Most countries use a variant of:
 
 ### D2. Optimization Strategy
 
-1. **Maximize tax-advantaged space first** — pension contributions reduce taxable income at marginal rate, grow tax-deferred. **In multi-bracket systems (DK 2026: 4 brackets), calculate which bracket the contribution offsets before advising.** The marginal benefit varies: 7.5% for mellemskat-only, 15% for topskat, 20% for toptopskat.
+1. **Maximize tax-advantaged space first** — pension contributions reduce taxable income at marginal rate, grow tax-deferred. **In multi-bracket systems (DK 2026: 4 brackets), calculate which bracket the contribution offsets before advising.**
 2. **Employer match = free money** — always contribute enough to capture full match
 3. **Asset allocation by time horizon** — longer horizon = higher equity allocation
 4. **Fee sensitivity** — a 1% annual fee difference compounds to 25%+ difference over 30 years
@@ -254,11 +256,11 @@ Most countries use a variant of:
 - PAL-skat: 15.3% on pension investment returns annually
 - Nordnet/Saxo for self-directed pension — lowest fees, widest selection
 - Folkepension: full at 67 (rising), reduced by other income above thresholds
-- **2026 pension optimization note:** The new 4-bracket system (mellemskat 7.5% above DKK 641,200 + topskat 7.5% above DKK 777,900) changes the pension contribution calculus. The marginal tax saving from pension depends on which bracket you're in — mellemskat-only savers get 7.5% benefit, mellemskat+topskat savers get 15%, and toptopskat earners get 20%. Calculate the specific bracket before advising on contribution amounts.
+- **2026 pension optimization note:** The new 4-bracket system (mellemskat 7.5% above DKK 641,200 + topskat 7.5% above DKK 777,900) changes the pension contribution calculus. Deductions save at the full marginal rate (see D2.1); the component above bundskat+kommuneskat varies by bracket — +7.5% for mellemskat-only, +15% for mellemskat+topskat, +20% for toptopskat. Calculate the specific bracket before advising on contribution amounts.
 
 **Germany:**
 - Riester-Rente: state subsidies + tax deduction, complex product with high fees
-- Rürup/Basis-Rente: tax-deductible (increasing % through 2025), not inheritable
+- Rürup/Basis-Rente: contributions 100% tax-deductible (since 2023), not inheritable
 - Betriebliche Altersvorsorge (bAV): pre-tax contributions, employer may match
 - Gesetzliche Rente: 18.6% of gross salary (split employer/employee), Rentenpunkte system
 

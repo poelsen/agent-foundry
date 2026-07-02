@@ -28,9 +28,9 @@ Skills are reusable knowledge modules that provide domain-specific patterns, bes
 
 The `megamind-financial` skill uses country-specific data files in `data/` (e.g., `dk-tax-2026.md`). See [IMPROVEMENT-PROCESS.md](IMPROVEMENT-PROCESS.md) for the annual DK tax data update procedure.
 
-#### Benchmark Results (Opus 4.6, 30 challenges, 5 runs each)
+#### Benchmark Results (Opus 4.6, original 30-challenge suite, 5 runs each)
 
-The megamind skills are evaluated against a benchmark suite of 30 challenges across 6 categories. Each challenge has a rubric with required elements and anti-patterns, scored by a Claude-as-judge pipeline.
+The results below are from the original 30-challenge suite — the 6 categories in the per-category table, 5 challenges each (financial not yet included). The suite has since grown to 109 challenges (current counts under Challenge Categories); for current multi-model results see [docs/BENCHMARKS.md](../../../docs/BENCHMARKS.md). Each challenge has a rubric with required elements and anti-patterns, scored by a Claude-as-judge pipeline.
 
 **Overall Performance:**
 
@@ -61,7 +61,7 @@ The megamind skills are evaluated against a benchmark suite of 30 challenges acr
 **Running the benchmark** (requires `claude` CLI authenticated and in PATH):
 
 ```bash
-# Full run (76 challenges x 5 modes x 5 runs = 3800 combos)
+# Full run (109 challenges x 5 modes x 5 runs = 2725 combos)
 python3 tools/run_benchmark.py --workers 24 --runs 5 --save results/output.json
 
 # Single challenge smoke test
@@ -76,16 +76,16 @@ python3 tools/run_benchmark.py --runs 5 --save results/new.json --compare result
 
 #### Challenge Categories
 
-Challenges are YAML files in `tests/challenges/`. Each defines a prompt, required rubric elements, anti-patterns, and a passing score.
+Challenges are YAML files in `tests/challenges/`. Each defines a prompt, required rubric elements, anti-patterns, and a passing score. Counts are the current suite (109 total); the Elements / Anti-patterns / Passing columns show the original rubric shape, which varies for newer challenges.
 
 | Category | Count | Elements | Anti-patterns | Passing | Tests |
 |---|---|---|---|---|---|
-| adversarial | 5 | 8 | 3 | 6 | Red-teaming designs (caching, auth, feature flags, migrations, pipelines) |
+| adversarial | 12 | 8 | 3 | 6 | Red-teaming designs (caching, auth, feature flags, migrations, pipelines) |
 | arch | 5 | 8 | 3 | 6 | Architecture decisions under ambiguity (DR strategy, build vs buy, event-driven, API gateway) |
-| creative | 5 | 8 | 3 | 6 | Creative problem-solving (rate limiting, CLI redesign, onboarding, alert fatigue, code review) |
+| creative | 12 | 8 | 3 | 6 | Creative problem-solving (rate limiting, CLI redesign, onboarding, alert fatigue, code review) |
 | cross | 5 | 10 | 3 | 7 | Cross-cutting concerns (stakeholder conflicts, incidents, security breaches, tech debt) |
-| deep | 5 | 8 | 3 | 6 | Deep reasoning (DB migration, refactoring, API design, testing strategy, zero-downtime deploys) |
-| financial | 20 | 8 | 3 | 6 | Financial analysis (valuation, Thorleif scoring, data quality, cyclicals, REITs, portfolio construction) |
+| deep | 12 | 8 | 3 | 6 | Deep reasoning (DB migration, refactoring, API design, testing strategy, zero-downtime deploys) |
+| financial | 58 | 8 | 3 | 6 | Financial analysis (valuation, Thorleif scoring, data quality, cyclicals, REITs, portfolio construction) |
 | scope | 5 | 6 | 2 | 4 | Scope clarification for vague requests ("make it faster", "fix search", "improve UX") |
 
 ### Validation Methodology
@@ -101,6 +101,17 @@ The scores should NOT be interpreted as:
 - Proof that skill responses are "correct" in any absolute sense
 
 Real-world validation comes from usage by software engineers who report that the skills produce qualitatively better analysis, more thorough risk identification, and more actionable recommendations than unguided prompts. This is anecdotal and experience-based, not statistically measured.
+
+### Writing
+
+| Skill | Purpose | When to Use |
+|-------|---------|-------------|
+| [writer](writer/) | Proactive drafting in the author's voice — blog posts, emails, letters, applications, complaints, data-driven pieces | Writing fresh text from scratch |
+| [humanizer](humanizer/) | Reactive editor that strips AI-writing tells (29 pattern categories) and runs a "what makes this obviously AI?" audit | Editing or reviewing existing text |
+
+**Relationship:** the pair is one pipeline. `writer` drafts human-first (intake → voice card → outline → draft), then invokes `Skill(humanizer)` once as its automatic self-audit; user revisions afterwards are unlimited. They are grouped as **Writing** in the setup menu (opt-in, not auto-selected) and must deploy together — `writer`'s hand-off fails without `humanizer` present.
+
+`writer` keeps its core lean and loads sub-files on demand: an always-on craft core (`general-writing.md`), six genre files (blog, email, personal/formal letter, application, complaint), a verified exemplar canon (`exemplars.md` — techniques from Buffett, Marks, Damodaran, Levine, Feynman, Zinsser, Williams and others, with the quote-folklore stripped), and **ten selectable voice presets** under `voices/` (index: `voices.md`). The default preset is the `house-blend` (the author's documented voice elevated with a few borrowed moves); `jens-andersen` is the strict-imitation baseline; the other eight cover plain-authoritative, witty-explanatory, transparent-teacher, narrative-nonfiction, science-explainer, contrarian value-blogger, radical-brevity, and literary-clarity registers. Invoke naturally ("draft a complaint about X", "write this in the transparent-teacher voice") or via `/writer`.
 
 ### Specialized Domains
 

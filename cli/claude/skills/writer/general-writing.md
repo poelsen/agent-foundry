@@ -4,9 +4,9 @@ Read this for every draft, whatever the genre. The genre file layers structure a
 
 ## Build a voice card from the user's sample
 
-A real sample of the user's own writing is the strongest voice lever there is, stronger than any instruction. When you have 2–5 samples in the target register:
+A real sample of the user's own writing is the strongest voice lever there is, stronger than any instruction. When you have at least one sample in the target register (2–5 is the sweet spot):
 
-**First, sanity-check the sample.** Is it actually in the register you're about to write (a casual blog sample will not steer a formal complaint)? Does the sample itself read AI-generated, significance inflation, rule-of-three triads, bolded-header lists, "it's worth noting"? If it clashes with the genre or looks machine-written, say so and ask for a better sample or permission to proceed on a plain default. Do not blind-imitate a bad sample; you would just propagate the problem.
+**First, sanity-check the sample.** Is it actually in the register you're about to write (a casual blog sample will not steer a formal complaint)? Does the sample itself read AI-generated, significance inflation, rule-of-three triads, bolded-header lists, "it's worth noting"? If it clashes with the genre or carries those patterns, say so by naming the specific mismatch or patterns you would not carry over, and ask for a better sample or permission to proceed on a plain default. Never deliver a blanket "your writing looks AI" verdict; that judgment is unreliable and lands hardest on non-native writers. Do not blind-imitate a bad sample; you would just propagate the problem.
 
 **Then extract a voice card** and write to it:
 
@@ -15,6 +15,7 @@ A real sample of the user's own writing is the strongest voice lever there is, s
 - Punctuation habits (dashes, parentheticals, semicolons).
 - Vocabulary register (plain, technical, formal).
 - One or two recurring phrases or tics.
+- How they handle transitions (explicit connectors, or just starting the next point).
 
 These prompts mirror humanizer's own Voice Calibration step, so the two skills stay consistent; you do not need to open humanizer's file to run them. If no sample exists, do not block. Write in a plain, specific, genre-appropriate default and offer to match a sample next time.
 
@@ -25,7 +26,7 @@ The author may write fluent but non-native English. Two different things get con
 - **Fix** what impedes the reader: a wrong preposition that changes the meaning, subject–verb disagreement, a genuinely garbled sentence. Correct these in any register.
 - **Preserve** what is merely non-native but clear: an unusual-but-correct phrasing, a word a native speaker wouldn't pick that still reads fine. This is the author's voice. Leave it.
 
-Default when unspecified: fix what impedes, preserve the rest. If the user says "clean up my English," ask which they mean before you sand the voice flat, or before you leave a real error standing.
+Default when unspecified: fix what impedes, preserve the rest. If the user says "clean up my English," fix real errors either way, and ask whether they also want the merely non-native phrasing nativised before you sand the voice flat.
 
 ## Rhythm, the highest-leverage readability move
 
@@ -56,9 +57,9 @@ Default to British / EU conventions for this author, and switch to US only when 
 
 - Spelling: British `-ise`, `colour`, `centre` by default.
 - Dates: `6 July 2026`, not `July 6`.
-- Vocabulary: `CV` not `résumé`, `whilst` acceptable, `autumn` not `fall`.
+- Vocabulary: `CV` not `résumé`, `autumn` not `fall`.
 - Salutation punctuation differs by locale, see `formal-letter.md`.
-- Always write money with an explicit currency code (DKK, EUR, GBP); the audience may be cross-border.
+- Write money with an explicit currency code (DKK, EUR, GBP) whenever a cross-border reader could mistake the currency; a `$` figure for a US-listed stock is fine.
 
 One collision to flag at hand-off: humanizer forces straight quotes, but formal EU-published text uses typographic (curly) quotes. For EU-register documents, tell humanizer the quote style is intentional.
 
@@ -67,9 +68,9 @@ One collision to flag at hand-off: humanizer forces straight quotes, but formal 
 If the user doesn't specify, use these and proceed:
 
 - **Formality:** complaint and formal letter → formal; blog → conversational; email → match the thread or neutral; application → warm-professional; personal letter → casual.
-- **Length:** blog ~1000–2000 words (soft); email short; letters one page; complaint one page.
+- **Length:** blog ~1000–2000 words (soft); email short; letters, applications, and complaints one page.
 - **Audience/locale:** British/EU unless a US recipient is likely.
-- **English variant:** en-GB.
+- **English variant:** en-GB (en-US when the audience is US).
 - **Voice sample:** none, but worth asking for once.
 
 ## If humanizer is unavailable (fallback only)

@@ -36,7 +36,7 @@ Source: skat.dk, skm.dk
 | Product | Limit (2025) | Deduction | Withdrawal tax |
 |---------|-------------|-----------|----------------|
 | Ratepension | DKK 63,100/year | Full deduction at marginal rate | Personal income tax |
-| Aldersopsparing | DKK 5,600/year (>5yr to retirement); DKK 58,900 (<5yr) | None | Tax-free |
+| Aldersopsparing | DKK 5,600/year (>7yr to retirement); DKK 58,900 (<7yr) | None | Tax-free |
 | Livsvarig pension (livrente) | No cap (employer) | Full deduction | Personal income tax |
 | PAL-skat (pension return tax) | 15.3% | Annual on pension investment returns | — |
 

@@ -2,7 +2,7 @@
 
 A library of transferable moves mined from writers held in high regard for rigorous, readable, witty prose, plus value-investing bloggers and fiction stylists. Every quote is verified against a real source. Reach in here when a draft needs more rigor, flow, or wit than the genre file alone supplies. Take the technique; don't imitate anyone's surface style.
 
-The governing filter for wit, across every writer here: **if a joke can be deleted without losing information or vividness, it's charm-for-charm, cut it.** Wit must do explanatory work.
+The governing filter for wit, across every writer here: **if a joke can be deleted without losing information or vividness, it's charm for charm's sake, cut it.** Wit must do explanatory work.
 
 ## Pillar A, argument + data (rigor)
 
@@ -39,7 +39,7 @@ The governing filter for wit, across every writer here: **if a joke can be delet
 - **The running joke as a mnemonic** *(Levine)*: one named recurring bit that compresses a real structural truth ("everything is securities fraud"), reused so understanding accumulates. Ration the density.
 - **Deadpan definition to puncture jargon** *(Zweig)*: when a term obscures, restate what it really means in one flat sentence. Aim at claims and mechanisms, never at people.
 - **Microhumor, not jokes** *(Alexander)*: embed dry understatement or a subverted expectation inside otherwise serious sentences: "the tiniest ghost of a smile," frequent enough to keep the reader moving, subtle enough not to jar.
-- **Let the subject be the joke, never the author** *(Roach)*: derive humour from the true weirdness of the material, not your own cleverness. If the joke is about you being witty rather than the thing being strange, cut it.
+- **Let the subject be the joke, never the author's cleverness** *(Roach)*: derive humour from the true weirdness of the material, not your own cleverness. If the joke is about you being witty rather than the thing being strange, cut it. Flat self-deprecation about your own record (the Brooklyn Investor move below) stays fair game.
 - **The reframe that reveals a true connection** *(Sagan)*: find the true, non-sentimental fact that makes the mundane astonishing, state it flatly, let it detonate. Cap at roughly one per document; keep the fact-anchor, drop the incantation.
 - **Coin a durable concept handle** *(Alexander; Thompson; Sivers; Newport)*: give a recurring idea a short, plain, mechanism-describing name so the reader can carry it and you can reference it cheaply. ("Aggregation Theory," "Deep Work.")
 - **Quarantine the delightful tangent** *(Roach; Levine)*: park a good-but-tangential detail in a parenthetical or footnote so the main line stays tight while the curious reader is still rewarded.
@@ -53,13 +53,13 @@ The governing filter for wit, across every writer here: **if a joke can be delet
 - **Concrete detail carries the abstraction** *(Chekhov, real letter)*: "you'll have a moonlit night if you write that on the mill dam a piece of glass from a broken bottle glittered like a bright little star." The specific number *is* the glint of light.
 - **Wit lands at the end of the sentence** *(E.B. White)*: load the sentence so the surprising word arrives last.
 - **The unexpected concrete noun** *(Vonnegut)*: deflating specificity is where dry wit lives: not "investors behaved irrationally" but "investors bid a bankrupt company up 400% because it shared a ticker with a video-game shop."
-- **Genuine caring beats verbal games** *(Vonnegut, "How to Write with Style")*: "It is this genuine caring, and not your games with language, which will be… most compelling." Simplicity is the delivery system for depth, not the enemy of it.
+- **Cut the verbal games; keep what shows you care** *(Vonnegut, "How to Write with Style")*: when choosing between a clever construction and a plain sentence that shows why the subject matters, keep the plain one. "It is this genuine caring, and not your games with language, which will be… most compelling." Simplicity is the delivery system for depth, not the enemy of it.
 
 ## Value-blog patterns (from blogs the author admires)
 
 - **Value and Opportunity (memyselfandi007)**: compress who/what/how-big/at-what-price into the opening thesis sentence; convert a valuation gap into an annualised return benchmarked against the risk-free rate; be willing to end a piece with "I'll pass"; name your losers in reviews ("EVS, Wise… *once again*"). The wit is just honesty.
 - **The Brooklyn Investor**: open by naming the consensus you're about to push against, then plant a calm, specific disagreement; pin every "expensive/cheap" to a number and a historical comparison (28× P/E vs 1987's ~100% overvaluation); explain dynamics as a plain feedback loop; self-deprecation to build trust, not to hedge.
-- **Thorleif Jackson (Nordnet, the namesake)**: open with a dated personal milestone ("It's now 3½ years since…"); teach the method with an everyday analogy before any metric ("look at the grades and pick the ones that did best"); state the rule as an ordered two-step filter; report underperformance flatly, allow one human word of frustration, then diagnose it; exit a loser by naming the exact metric that invalidated the thesis. The transparent-teacher register.
+- **Thorleif Jackson (Nordnet)**: open with a dated personal milestone ("It's now 3½ years since…"); teach the method with an everyday analogy before any metric ("look at the grades and pick the ones that did best"); state the rule as an ordered two-step filter; report underperformance flatly, allow one human word of frustration, then diagnose it; exit a loser by naming the exact metric that invalidated the thesis. The transparent-teacher register.
 
 ## Myths and misattributions, never encode these as rules
 

@@ -1,17 +1,17 @@
 # Radical-brevity essayist
 
-**Feel:** A reader would say it landed one point and left, and that the writer sounds like a smart friend thinking out loud rather than performing. Nothing to skim past, because there is nothing extra. Where literary-clarity polishes any prose, this voice exists to win one argument fast.
+**Feel:** A reader would say it landed one point and left. It sounds like a smart friend talking rather than performing; nothing extra, nothing to skim. Literary-clarity polishes any prose; this voice wins one argument fast.
 
-**Mechanics:** Short sentences, spoken cadence, plenty of full stops. A three-word beat after a long clause does the emphasis. Plain diction, near-zero jargon, first person comfortable. One central idea per piece; every paragraph pays rent on it.
+**Mechanics:** Short sentences, spoken cadence, plenty of full stops. A three-word beat after a long clause does the emphasis. Plain diction, near-zero jargon, first person comfortable. One idea per piece; every paragraph pays rent.
 
 **Signature moves:**
-- Find the single idea that makes the subject cohere, coin one plain concept handle for it, and route the whole argument through that name (Thompson's "Aggregation Theory"; Newport's "Deep Work"; Yong).
-- Open a curiosity gap, a concrete puzzle, not a definition (Graham; Thompson).
-- Write it the way you would say it aloud to one smart friend (Graham, "Write Like You Talk").
-- Cut any word doing no new work (Zinsser; Orwell).
+- When a second idea appears, cut it and give it its own piece (Sivers).
+- Open on a concrete puzzle, not a definition (Graham; Thompson).
+- If you would not say the sentence aloud to one smart friend, rewrite it (Graham, "Write Like You Talk").
+- Edit cold in a second pass: first draft minus 10%, then cut again (King; Zinsser).
 
-**Borrow / leave behind:** Take Sivers's compression and Graham's spoken rhythm. On data-heavy pieces, compress the scaffolding but keep the numbers, sources, and caveats; brevity trims prose, not evidence.
+**Borrow / leave behind:** Take Sivers's compression and Graham's spoken rhythm. Leave Graham's rhetorical-question hooks and unsourced generalisations; every claim keeps its number. Compress scaffolding on data-heavy pieces, never numbers, sources, or caveats.
 
-**Use for:** Blog posts, position pieces, short letters, a single-thesis financial or scientific argument.
+**Use for:** Blog posts, position pieces, short letters, single-thesis financial or scientific arguments.
 
-**In one line:** The moat was never the product. It was the 40 million users [illustrative] who already had their card on file.
+**In one line:** The moat is 40 million saved cards [illustrative]. Nobody re-types a card number to save two dollars.

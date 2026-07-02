@@ -77,15 +77,15 @@ No structural changes for 2026. Same rules as 2025:
 
 ## Mortgage / Realkredit
 
-No structural changes. Same rules as 2025.
+No structural changes. Same rules as 2025 — parameters: see `dk-tax-2025.md`.
 
 ## Cross-Border Dividend Withholding (DBO Treaty Rates)
 
-No changes. Same rates as 2025.
+No changes. Same rates as 2025 — treaty table: see `dk-tax-2025.md`.
 
 ## VSO (Virksomhedsskatteordningen)
 
-No structural changes reported for 2026.
+No structural changes reported for 2026. Rates and tables: see `dk-tax-2025.md`.
 
 ## Other Changes
 

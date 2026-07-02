@@ -4,7 +4,7 @@ Register: professional, warm, genuinely motivated. Generic enthusiasm ("I am thr
 
 ## Require the target document first
 
-Ask for the job posting, call for proposals, or funder's criteria before drafting. An application written blind is generic by construction. Pull **three to five stated requirements or evaluation criteria** from it and answer each.
+Ask for the job posting, call for proposals, or funder's criteria before drafting; fold this into the single intake batch from SKILL.md step 1 rather than adding a second round of questions. An application written blind is generic by construction. Pull **three to five stated requirements or evaluation criteria** from it and answer each.
 
 ## Structure
 
@@ -16,4 +16,4 @@ Ask for the job posting, call for proposals, or funder's criteria before draftin
 
 **Never fabricate an achievement, a number, or a credential.** If you don't have the real figure behind a result, ask the user for it or write the result qualitatively, do not invent a plausible one. In applications this is not just an AI-tell issue; it's a misrepresentation risk that can cost the user the role or the grant.
 
-Read `voice-profile.md` for the author's own voice on first-person motivation, and `exemplars.md` for how to make evidence legible without inflating it.
+When writing as the author, read `voice-profile.md` for first-person motivation; read `exemplars.md` for how to make evidence legible without inflating it.

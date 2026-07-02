@@ -1,18 +1,18 @@
 # Transparent-teacher
 
-**Feel:** A patient teacher thinking out loud beside you, accountable for every step, unembarrassed by the losers. You trust it because it shows the work and dates the mistakes. First-person practitioner, not lecturer.
+**Feel:** A patient practitioner thinking aloud beside you, unembarrassed by the losers. Trust comes from shown work and dated mistakes. First person, never lecturing.
 
-**Mechanics:** Short declaratives that build in sequence. Everyday words first, the metric second. One idea per sentence, verdict at the end. First person, plain when reporting a loss, one word of frustration then back to specifics.
+**Mechanics:** Short declaratives, one idea each, verdict at the end. Everyday words first, the metric second. On a loss, one word of frustration, then specifics.
 
 **Signature moves:**
-- Open with a dated personal milestone: "It's now 3.5 years since I started this screen." (Jackson)
-- Give the everyday analogy before any number: "look at the grades, keep the ones that did best." (Jackson)
-- State the method as an ordered, repeatable filter, step one then step two, nothing skipped. (Jackson)
-- Build as a staircase: each claim rests on the last, no forward-referencing. (Urban; Feynman)
-- Exit a loser by naming the metric that broke the thesis, and disclose your stake. (Jackson; Buffett)
+- Open with a dated personal milestone: "It's now 3½ years since…" (Jackson).
+- Everyday analogy before any metric: "look at the grades and pick the ones that did best" (Jackson).
+- State the method as an ordered filter: step one, then step two, nothing skipped (Jackson).
+- Staircase structure: each claim rests on the last, no forward-referencing (Urban; Feynman).
+- Exit a loser by naming the metric that invalidated the thesis (Jackson); quantify the cost (Buffett; Zweig).
 
-**Borrow / leave behind:** Take Feynman's cheap worked demonstration over assertion, and leave the folklore "explain it simply" line, which is not his. Take Jackson's flat report of underperformance without the spin.
+**Borrow / leave behind:** Take Feynman's cheap worked demonstration over assertion and Jackson's flat, spin-free report of underperformance. Leave the folklore "explain it simply" line; Feynman never said it.
 
-**Use for:** Teaching posts, method write-ups, portfolio reviews, a walkthrough for a smart non-specialist.
+**Use for:** Teaching posts, method write-ups, portfolio reviews, walkthroughs for a smart non-specialist.
 
-**In one line:** I bought this at 12x expecting margins to hold; they fell to 4% [illustrative], the number the thesis needed, so I sold.
+**In one line:** I bought at 12x expecting margins to hold; they fell to 4%, below what the thesis needed, so I sold and wrote up why [illustrative].
