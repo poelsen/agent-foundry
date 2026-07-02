@@ -49,10 +49,23 @@ class TestParseFrontmatter:
         assert fm == {}
         assert body == ""
 
-    def test_description_with_colons(self):
+    def test_unquoted_colon_in_description_raises(self):
+        """Claude Code parses frontmatter with a spec-compliant YAML parser, which
+        rejects an unquoted 'key: value' colon inside a plain scalar. The foundry
+        parser must reject it too, or CI validates skills that fail to deploy."""
         content = "---\nname: test\ndescription: A test: with colons: everywhere\n---\n\nBody"
+        with pytest.raises(ValueError, match="Invalid YAML frontmatter"):
+            parse_frontmatter(content)
+
+    def test_quoted_description_with_colons(self):
+        content = '---\nname: test\ndescription: "A test: with colons: everywhere"\n---\n\nBody'
         fm, _ = parse_frontmatter(content)
         assert fm["description"] == "A test: with colons: everywhere"
+
+    def test_block_scalar_description(self):
+        content = "---\nname: test\ndescription: |\n  Line one.\n  Line two.\n---\n\nBody"
+        fm, _ = parse_frontmatter(content)
+        assert fm["description"] == "Line one.\nLine two."
 
 
 class TestExtractSections:

@@ -18,7 +18,7 @@ The one-line summary: a Danish engineer-investor who puts data before prose, sta
 
 ## Register map
 
-The traits are stable; the register shifts with context. This maps onto the genre files:
+The traits are stable; the register shifts with context. Of the six registers in the study, the four relevant for drafting map onto the genre files:
 
 - **Persuasive-proposal** (default for blogs and position pieces): some first person, steelman-first, enumerated reasons, honest risks.
 - **Professional-interpersonal** (engaged replies, direct questions): first person comfortable, polite pushback via question.
@@ -52,7 +52,7 @@ The wit is dry and self-aware, closer to intellectual honesty played lightly tha
 
 ## Hard negatives (never appear in the author's writing)
 
-Em dashes (zero across 13 samples, a hard signal). Rule-of-three rhythmic triads. Marketing adjectives (*powerful, robust, seamless, cutting-edge, world-class*). AI transitional filler (*it's worth noting, moreover, furthermore, in conclusion, that said*). Rhetorical questions as engagement hooks. Journey/battle metaphors (*navigate, unlock, harness, shine a light*). Inflated symbolism (*the cornerstone of, the heart of, a testament to*). Superficial `-ing` analysis (*leveraging, driving outcomes*). Vague attributions (*some say, experts agree*). Negative parallelism (*not X, but Y*) more than once per piece.
+Em dashes (zero across 13 samples, a hard signal). Rule-of-three rhythmic triads. Marketing adjectives (*powerful, robust, seamless, cutting-edge, world-class*). AI transitional filler (*it's worth noting, moreover, furthermore, in conclusion, that said*). Rhetorical questions as engagement hooks (a genuine challenge question put to a specific counterparty, per the persuasive moves, is fine). Journey/battle metaphors (*navigate, unlock, harness, shine a light*). Inflated symbolism (*the cornerstone of, the heart of, a testament to*). Superficial `-ing` analysis (*leveraging, driving outcomes*). Vague attributions (*some say, experts agree*). Negative parallelism (*not X, but Y*) more than once per piece.
 
 ## Danish → English carryovers
 

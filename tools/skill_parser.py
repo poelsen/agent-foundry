@@ -6,6 +6,8 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import yaml
+
 
 @dataclass(frozen=True)
 class ParsedSkill:
@@ -26,17 +28,31 @@ def parse_frontmatter(content: str) -> tuple[dict[str, str], str]:
     """Extract YAML frontmatter and body from SKILL.md content.
 
     Returns (frontmatter_dict, body_after_frontmatter).
+
+    The block is parsed with a spec-compliant YAML parser, matching what
+    Claude Code does at load time; a looser parse would let CI validate a
+    skill whose frontmatter fails to load when deployed.
+
+    Raises:
+        ValueError: If the frontmatter block is not valid YAML.
     """
     match = re.match(r"^---\s*\n(.*?)\n---\s*\n(.*)", content, re.DOTALL)
     if not match:
         return {}, content
 
     fm_text, body = match.group(1), match.group(2)
-    fm: dict[str, str] = {}
-    for line in fm_text.strip().splitlines():
-        if ":" in line:
-            key, _, value = line.partition(":")
-            fm[key.strip()] = value.strip()
+    try:
+        raw = yaml.safe_load(fm_text)
+    except yaml.YAMLError as e:
+        raise ValueError(f"Invalid YAML frontmatter: {e}") from e
+    if raw is None:
+        return {}, body
+    if not isinstance(raw, dict):
+        raise ValueError(f"Frontmatter must be a YAML mapping, got {type(raw).__name__}")
+    fm: dict[str, str] = {
+        str(key): "" if value is None else str(value).strip()
+        for key, value in raw.items()
+    }
     return fm, body
 
 
@@ -79,13 +95,16 @@ def parse_skill(path: Path) -> ParsedSkill:
 
     Raises:
         FileNotFoundError: If path does not exist.
-        ValueError: If required frontmatter fields are missing.
+        ValueError: If the frontmatter is invalid YAML or required fields are missing.
     """
     if not path.exists():
         raise FileNotFoundError(f"Skill file not found: {path}")
 
     content = path.read_text(encoding="utf-8")
-    fm, body = parse_frontmatter(content)
+    try:
+        fm, body = parse_frontmatter(content)
+    except ValueError as e:
+        raise ValueError(f"{path}: {e}") from e
 
     if "name" not in fm:
         raise ValueError(f"Missing required frontmatter field 'name' in {path}")

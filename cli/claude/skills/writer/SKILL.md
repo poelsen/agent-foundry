@@ -1,6 +1,6 @@
 ---
 name: writer
-description: Draft new documents from scratch in the user's voice: blog posts, emails, letters, applications, complaints, and data-driven pieces. For writing fresh text, not editing existing text.
+description: "Draft new documents from scratch in the user's voice: blog posts, emails, letters, applications, complaints, and data-driven pieces. For writing fresh text, not editing existing text."
 model: opus
 allowed-tools:
   - Read
@@ -37,13 +37,13 @@ Match the request to a genre, then **read the matching sub-file plus `general-wr
 | Anything financial or scientific (stock thesis, research summary, data argument) | `general-writing.md` + `exemplars.md` + the nearest genre: treat a piece meant for publication as a blog post, and an internal write-up or memo as a formal-letter body |
 | Something not listed (reference letter, apology, op-ed, resignation, RFP) | `general-writing.md` + the nearest row; adjust, don't block |
 
-Three more sub-files you draw on rather than pick from a menu. `voice-profile.md` is the author's own documented voice, the default for first-person content attributed to the author. `voices.md` is the index of ten selectable voice presets synthesised from the research (the author's own, a house blend, plain-authoritative, witty-explanatory, transparent-teacher, narrative-nonfiction, science-explainer, contrarian value-blogger, radical-brevity, and literary-clarity); read the index, then the chosen `voices/<slug>.md` for its full card. Default to the house blend for the author's own writing, and adopt another when the user names it or a piece would clearly land better in it. `exemplars.md` is a library of named, attributed techniques from writers held in high regard; reach for it when a draft needs more rigor, flow, or wit than the genre file alone supplies.
+Three more sub-files you draw on rather than pick from a menu. `voice-profile.md` is the author's own documented voice, the raw material behind the `jens-andersen` and `house-blend` presets; read it whenever a draft is first-person content attributed to the author. `voices.md` is the index of ten selectable voice presets synthesised from the research (the author's own, a house blend, plain-authoritative, witty-explanatory, transparent-teacher, narrative-nonfiction, science-explainer, contrarian value-blogger, radical-brevity, and literary-clarity); read the index, then the chosen `voices/<slug>.md` for its full card. Default to the house blend for the author's own writing, and adopt another when the user names it or a piece would clearly land better in it. `exemplars.md` is a library of named, attributed techniques from writers held in high regard; reach for it when a draft needs more rigor, flow, or wit than the genre file alone supplies.
 
 ## How to draft: the rules that carry most of the weight
 
 Each rule has a one-clause reason, because the reason generalises to cases the rule never spells out.
 
-- **Imitate a real writing sample when you have one, because a genuine sample steers voice better than any adjective.** If the user gives you 2–5 samples of their own prior writing in the same register, match their sentence length, openings, and vocabulary. Sanity-check the sample first (see `general-writing.md`); do not blind-imitate a sample that is itself AI-flavoured or in the wrong register.
+- **Imitate a real writing sample when you have one, because a genuine sample steers voice better than any adjective.** If the user gives you samples of their own prior writing in the same register (2–5 is ideal, one still helps), match their sentence length, openings, and vocabulary. Sanity-check the sample first (see `general-writing.md`); do not blind-imitate a sample that is itself AI-flavoured or in the wrong register.
 - **Fix the reader, the purpose, and the stance in one sentence before drafting, because concrete framing is what actually sets the register.** Who reads this, what it must achieve, what attitude you take. Name a real person or role, never "an AI assistant."
 - **Open on the point, because a reader decides in the first two sentences whether to keep going.** No "In today's world," no restating the task, no "I hope this finds you well."
 - **Prefer a specific concrete detail over an abstraction, because particulars are the strongest signal a human wrote it, but never invent one.** If you need a real number, name, or date you don't have, ask the user. A fabricated detail is worse than a missing one.
@@ -91,15 +91,17 @@ These instruction files are written in a neutral editorial register, not in the 
 
 Mirror humanizer's format so the two skills feel like one:
 
-1. **The final draft**, the headline deliverable, presented first.
-2. **"What makes this read as AI?"**: the audit bullets, matching humanizer's own "what makes the below so obviously AI generated?" step so the two skills read as one product.
-3. **The revised final**, after the audit.
+1. **The draft**, presented first.
+2. **"What makes the below so obviously AI generated?"**: the audit bullets, in humanizer's own wording so the two skills read as one product.
+3. **The final draft**, the headline deliverable, revised after the audit.
 4. **Change notes**, optional, only if they help.
+
+If the audit changes nothing, or the piece is only a few lines, collapse the shape: present the text once, give the audit bullets (or "no tells found"), and skip the duplicate final.
 
 ## Non-goals, do not do these
 
 - **Do not write for an AI detector.** Detectors are unreliable and biased against non-native English writers, they flag plain, direct prose as "machine-like." Optimise for a real human reader. Never tell the user their genuine writing "looks AI," and never nativise their voice to dodge a tool.
-- **Do not ban em dashes, or keep a banned-word list at draft time.** Em-dash panic is a myth; a "don't" list invites rebound and synonym-cycling. Use punctuation and vocabulary normally; humanizer handles genuine overuse.
+- **Do not keep a detector-driven banned-word list at draft time.** Em-dash panic is a myth; a "don't" list invites rebound and synonym-cycling. Use punctuation and vocabulary normally; humanizer handles genuine overuse. The zero-em-dash floor in `voice-profile.md` and the voice presets is different: it is fidelity to a corpus that contains none, not detector avoidance, and it binds at draft time like any other voice trait.
 - **Do not fabricate facts, numbers, or quotes, and never leave a `[placeholder]` in a final draft.** These are the only true absolutes. Ask instead.
 - **Do not save drafts to disk.** Return prose in the conversation. (This skill has no Write access by design.)
 - **Do not shout.** Reserve strong words for the two absolutes above; calm instructions land better than `CRITICAL`/`MUST`/`NEVER`.

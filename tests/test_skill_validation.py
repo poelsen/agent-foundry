@@ -158,6 +158,28 @@ class TestRegistryConsistency:
                 "hand-off would fail in deployed projects"
             )
 
+    def test_skill_group_members_are_registered(self):
+        """A group member missing from SKILLS would silently deploy nothing."""
+        from foundry.registry import SKILL_GROUPS, SKILLS
+
+        for group, members in SKILL_GROUPS.items():
+            for name in members:
+                assert name in SKILLS, (
+                    f"SKILL_GROUPS[{group!r}] lists {name!r} which is not in SKILLS"
+                )
+
+    def test_writer_and_humanizer_grouped_together(self):
+        """The 'Writing' group is what deploys the pair together; registration
+        alone does not guarantee co-deployment."""
+        from foundry.registry import SKILL_GROUPS
+
+        writing = SKILL_GROUPS.get("Writing", [])
+        assert "writer" in writing, "writer must be in SKILL_GROUPS['Writing']"
+        assert "humanizer" in writing, (
+            "humanizer must be in SKILL_GROUPS['Writing']; writer's Skill(humanizer) "
+            "hand-off only resolves if the pair deploys together"
+        )
+
 
 # ── Megamind family-specific tests ──
 

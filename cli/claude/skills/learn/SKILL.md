@@ -1,6 +1,6 @@
 ---
 name: learn
-description: Capture cross-project technical patterns. TRIGGER: just solved a non-obvious bug whose root cause would generalize (library quirk, framework gotcha, workaround). SKIP: trivial fixes, user preferences.
+description: "Capture cross-project technical patterns. TRIGGER: just solved a non-obvious bug whose root cause would generalize (library quirk, framework gotcha, workaround). SKIP: trivial fixes, user preferences."
 ---
 
 # /learn - Extract Reusable Patterns
