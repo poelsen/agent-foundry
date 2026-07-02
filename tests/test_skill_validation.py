@@ -130,6 +130,35 @@ class TestCrossReferences:
         )
 
 
+# ── Registry ↔ skill-directory consistency ──
+
+
+class TestRegistryConsistency:
+    """Every skill named in the foundry SKILLS list must have a real SKILL.md on
+    disk. A registered-but-missing skill would deploy nothing and silently break
+    dependents (e.g. writer's Skill(humanizer) hand-off)."""
+
+    def test_every_registered_skill_has_skill_md(self):
+        from foundry.registry import SKILLS
+
+        for name in SKILLS:
+            skill_md = SKILLS_DIR / name / "SKILL.md"
+            assert skill_md.exists(), (
+                f"registry.SKILLS lists '{name}' but {skill_md} does not exist"
+            )
+
+    def test_writer_and_humanizer_registered_together(self):
+        """writer invokes Skill(humanizer); both must be registered so the group
+        deploys the pair together."""
+        from foundry.registry import SKILLS
+
+        if "writer" in SKILLS:
+            assert "humanizer" in SKILLS, (
+                "writer is registered but humanizer is not; writer's Skill(humanizer) "
+                "hand-off would fail in deployed projects"
+            )
+
+
 # ── Megamind family-specific tests ──
 
 

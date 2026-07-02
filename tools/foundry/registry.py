@@ -121,6 +121,7 @@ SKILLS = [
     "private-list", "private-remove",
     "prj-new", "prj-list", "prj-pause", "prj-resume", "prj-done", "prj-delete",
     "copilot-cli",
+    "writer", "humanizer",
 ]
 
 # Skill groups — presented in the skill selection menu as a single toggle.
@@ -133,6 +134,12 @@ SKILL_GROUPS: dict[str, list[str]] = {
     ],
     "Project Management": [
         "prj-new", "prj-list", "prj-pause", "prj-resume", "prj-done", "prj-delete",
+    ],
+    # writer drafts in the user's voice, then invokes humanizer via Skill(humanizer)
+    # for the reactive anti-AI audit. Grouped so the pair always deploys together —
+    # the invocation only resolves if humanizer is present in the target project.
+    "Writing": [
+        "writer", "humanizer",
     ],
 }
 
