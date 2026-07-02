@@ -55,7 +55,7 @@ def resolve_project_path(encoded_name: str) -> Path | None:
     parts = encoded_name.lstrip("-").split("-")
     if len(parts) < 2:
         return None
-    base = Path("/") / parts[0] / parts[1]  # /home/rudm
+    base = Path("/") / parts[0] / parts[1]  # /home/jens
     remaining = parts[2:]
 
     def _find(base: Path, remaining: list[str]) -> Path | None:

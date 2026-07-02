@@ -8,7 +8,7 @@
 SESSION_ID=""
 PROJECTS_BASE="$HOME/.claude/projects"
 if [[ -d "$PROJECTS_BASE" ]]; then
-    # Claude's encoding: /home/rudm/my_project → -home-rudm-my-project
+    # Claude's encoding: /home/jens/my_project → -home-jens-my-project
     CWD_ENCODED=$(pwd | sed 's|/|-|g; s|_|-|g')
     SESSION_DIR="$PROJECTS_BASE/$CWD_ENCODED"
     if [[ -d "$SESSION_DIR" ]]; then
