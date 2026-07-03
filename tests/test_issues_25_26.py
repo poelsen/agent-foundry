@@ -123,14 +123,15 @@ class TestStaleRuleCleanup:
         rules_dir = tmp_path / ".claude" / "rules"
         (rules_dir / "nested").mkdir(parents=True)
         (rules_dir / "nested" / "sub.md").write_text("# nested\n", encoding="utf-8")
-        (rules_dir / "stale.md").write_text("# stale\n", encoding="utf-8")
+        # A deselected foundry rule — stale, prunable.
+        (rules_dir / "python.md").write_text("# stale\n", encoding="utf-8")
 
         setup_py.copy_rules(
             tmp_path,
             base=["security.md"],
             modular={},
         )
-        assert not (rules_dir / "stale.md").exists(), "flat .md file should be removed"
+        assert not (rules_dir / "python.md").exists(), "stale foundry rule should be removed"
         assert (rules_dir / "nested" / "sub.md").is_file(), (
             "subdirectory contents must be preserved — cleanup is not recursive"
         )

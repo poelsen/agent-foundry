@@ -13,7 +13,116 @@ from .paths import (
     MCP_SERVERS_FILE,
     REPO_ROOT,
 )
-from .registry import HOOK_SCRIPTS, SKILLS
+from .registry import (
+    BASE_RULES,
+    HOOK_SCRIPTS,
+    MANIFEST_MIGRATION,
+    MODULAR_RULES,
+    RETIRED_AGENTS,
+    RETIRED_COMMANDS,
+    RETIRED_SKILLS,
+    SKILLS,
+)
+
+# ── Prune safety ────────────────────────────────────────────────────────
+#
+# Every prune pass below may only delete names it can prove are
+# foundry-owned: present in the current catalog (registry + shipped
+# files) or explicitly retired. Anything else in .claude/ — a project's
+# own skills, commands, rules, or agents — is not the foundry's to
+# remove: it stays, and gets reported so the user sees what was left
+# alone. Every deletion is printed; nothing is ever removed silently.
+
+
+def _owned_rule_names() -> set[str]:
+    """All rule filenames the foundry ships or ever shipped.
+
+    Modular rules deploy flat as ``<rule>`` or ``<category>-<rule>`` on
+    collision, so both forms are owned. Retired names come from
+    MANIFEST_MIGRATION keys. common/rules/README.md documents the catalog
+    and never deploys, so it is excluded — a project's own README.md in
+    .claude/rules/ is not ours.
+    """
+    owned = set(BASE_RULES)
+    base_dir = REPO_ROOT / "common" / "rules"
+    if base_dir.is_dir():
+        owned |= {
+            f.name for f in base_dir.iterdir()
+            if f.suffix == ".md" and f.name != "README.md"
+        }
+    lib_dir = REPO_ROOT / "common" / "rule-library"
+    if lib_dir.is_dir():
+        for cat_dir in lib_dir.iterdir():
+            if not cat_dir.is_dir():
+                continue
+            for f in cat_dir.iterdir():
+                if f.suffix == ".md":
+                    owned.add(f.name)
+                    owned.add(f"{cat_dir.name}-{f.name}")
+    for category, rules in MODULAR_RULES.items():
+        for rule in rules:
+            owned.add(rule)
+            owned.add(f"{category}-{rule}")
+    for old_cat, old_rule in MANIFEST_MIGRATION:
+        owned.add(old_rule)
+        owned.add(f"{old_cat}-{old_rule}")
+    return owned
+
+
+def _owned_agent_names() -> set[str]:
+    owned = set(RETIRED_AGENTS)
+    if AGENTS_DIR.is_dir():
+        owned |= {f.name for f in AGENTS_DIR.iterdir() if f.suffix == ".md"}
+    return owned
+
+
+def _owned_command_names() -> set[str]:
+    # <skill>.md wrappers no longer ship (skills auto-register as slash
+    # commands) but were deployed by older versions — still ours to prune.
+    owned = {f"{skill}.md" for skill in SKILLS} | set(RETIRED_COMMANDS)
+    if COMMANDS_DIR.is_dir():
+        owned |= {f.name for f in COMMANDS_DIR.iterdir() if f.suffix == ".md"}
+    return owned
+
+
+def _owned_skill_names() -> set[str]:
+    owned = set(SKILLS) | set(RETIRED_SKILLS)
+    skills_src = REPO_ROOT / "cli" / "claude" / "skills"
+    if skills_src.is_dir():
+        owned |= {d.name for d in skills_src.iterdir() if d.is_dir()}
+    return owned
+
+
+def _prune_stale_files(
+    directory: Path,
+    owned: set[str],
+    keep: set[str],
+    private_prefixes: list[str],
+    kind: str,
+) -> None:
+    """Remove stale foundry-owned .md files from ``directory``.
+
+    A file is deleted only when its name is foundry-owned (``owned``) and
+    not part of the current deployment (``keep``). Private-prefixed files
+    and anything the foundry can't account for are left in place.
+    """
+    if not directory.is_dir():
+        return
+    foreign: list[str] = []
+    for existing in sorted(directory.iterdir()):
+        if not existing.is_file() or existing.suffix != ".md":
+            continue
+        if existing.name in keep:
+            continue
+        if any(existing.name.startswith(f"{p}-") for p in private_prefixes):
+            continue
+        if existing.name in owned:
+            existing.unlink()
+            print(f"  Removed stale foundry {kind}: {existing.name}")
+        else:
+            foreign.append(existing.name)
+    if foreign:
+        print(f"  Left non-foundry {kind}s untouched: {', '.join(foreign)}")
 
 
 def generate_settings_json(
@@ -77,11 +186,11 @@ def copy_rules(
     removed files that fell out of the selection. The result was Claude
     loading duplicate/conflicting instructions.
 
-    After deploying the current selection, we now iterate the rules dir
-    and remove any .md file that is (a) not in the current selection
-    and (b) not prefixed with a private source prefix. Private-prefixed
-    files are preserved so private config sources aren't clobbered by
-    foundry updates.
+    After deploying the current selection, we iterate the rules dir and
+    remove stale foundry rules: .md files that are (a) foundry-owned per
+    _owned_rule_names(), (b) not in the current selection, and (c) not
+    prefixed with a private source prefix. Rules the foundry never
+    shipped are project-owned and are never deleted.
     """
     private_prefixes = private_prefixes or []
     rules_dir = project / ".claude" / "rules"
@@ -111,16 +220,10 @@ def copy_rules(
             shutil.copy2(src, rules_dir / dest_name)
             deployed.add(dest_name)
 
-    # Cleanup pass: remove any .md rule file that isn't in the current
-    # deployment and isn't owned by a private source prefix.
-    for existing in rules_dir.iterdir():
-        if not existing.is_file() or existing.suffix != ".md":
-            continue
-        if existing.name in deployed:
-            continue
-        if any(existing.name.startswith(f"{p}-") for p in private_prefixes):
-            continue
-        existing.unlink()
+    # Cleanup pass: remove stale foundry rules that fell out of the
+    # selection. Project-owned rules are never touched.
+    _prune_stale_files(rules_dir, _owned_rule_names(), deployed,
+                       private_prefixes, "rule")
 
 
 def copy_agents(
@@ -131,13 +234,10 @@ def copy_agents(
     private_prefixes = private_prefixes or []
     dest = project / ".claude" / "agents"
     dest.mkdir(parents=True, exist_ok=True)
-    # Remove stale agents not in current selection (skip private-prefixed files)
-    wanted = set(agents)
-    for existing in dest.iterdir():
-        if existing.suffix == ".md" and existing.name not in wanted:
-            if any(existing.name.startswith(f"{p}-") for p in private_prefixes):
-                continue
-            existing.unlink()
+    # Remove stale foundry agents not in current selection. Project-owned
+    # agents and private-prefixed files are never touched.
+    _prune_stale_files(dest, _owned_agent_names(), set(agents),
+                       private_prefixes, "agent")
     for agent in agents:
         src = AGENTS_DIR / agent
         if src.exists():
@@ -196,12 +296,10 @@ def copy_commands(
         if parent_skill and parent_skill not in selected_skills:
             continue
         eligible.add(src.name)
-    # Remove stale commands not in eligible set (skip private-prefixed files)
-    for existing in dest.iterdir():
-        if existing.suffix == ".md" and existing.name not in eligible:
-            if any(existing.name.startswith(f"{p}-") for p in private_prefixes):
-                continue
-            existing.unlink()
+    # Remove stale foundry commands not in the eligible set. Project-owned
+    # commands and private-prefixed files are never touched.
+    _prune_stale_files(dest, _owned_command_names(), eligible,
+                       private_prefixes, "command")
     # Copy eligible commands
     for name in eligible:
         shutil.copy2(COMMANDS_DIR / name, dest / name)
@@ -248,18 +346,27 @@ def copy_skills(
     skills_dir = project / ".claude" / "skills"
     skills_dir.mkdir(parents=True, exist_ok=True)
     wanted = set(skills)
-    # Remove stale foundry skills not in current selection.
-    # Skip: learned/, learned-local/, and private-prefixed dirs.
+    # Remove stale foundry skills not in current selection. Skip:
+    # learned/, learned-local/, _lib/, private-prefixed dirs — and any
+    # skill the foundry never shipped, which is project-owned and not
+    # ours to delete.
     protected = {"learned", "learned-local", "_lib"}
-    for existing in skills_dir.iterdir():
+    owned = _owned_skill_names()
+    foreign: list[str] = []
+    for existing in sorted(skills_dir.iterdir()):
         if not existing.is_dir():
             continue
-        if existing.name in protected:
+        if existing.name in protected or existing.name in wanted:
             continue
         if any(existing.name.startswith(f"{p}-") for p in private_prefixes):
             continue
-        if existing.name not in wanted:
+        if existing.name in owned:
             shutil.rmtree(existing)
+            print(f"  Removed stale foundry skill: {existing.name}")
+        else:
+            foreign.append(existing.name)
+    if foreign:
+        print(f"  Left non-foundry skills untouched: {', '.join(foreign)}")
     # Copy selected skills
     for skill in skills:
         src = REPO_ROOT / "cli" / "claude" / "skills" / skill

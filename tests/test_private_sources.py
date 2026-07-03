@@ -315,15 +315,26 @@ class TestRedeployPrivateSources:
 
 class TestCopySkillsCleanup:
     def test_removes_deselected_skills(self, project, tmp_path):
-        # Simulate a skill that was previously deployed
-        old_skill = project / ".claude" / "skills" / "old-skill"
+        # Simulate a foundry skill that was previously deployed
+        old_skill = project / ".claude" / "skills" / "megamind-deep"
         old_skill.mkdir(parents=True)
         (old_skill / "SKILL.md").write_text("old")
 
-        # copy_skills with empty list should remove old-skill
+        # copy_skills with empty list should remove the deselected skill
         copy_skills(project, [])
 
         assert not old_skill.exists()
+
+    def test_preserves_project_owned_skills(self, project, tmp_path):
+        """A skill dir the foundry never shipped is project-owned — the
+        prune must not delete it (2026-07 thorleif incident)."""
+        own_skill = project / ".claude" / "skills" / "portfolio-update"
+        own_skill.mkdir(parents=True)
+        (own_skill / "SKILL.md").write_text("project-owned")
+
+        copy_skills(project, [])
+
+        assert own_skill.exists()
 
     def test_preserves_learned_directory(self, project, tmp_path):
         learned = project / ".claude" / "skills" / "learned"
@@ -356,7 +367,7 @@ class TestCopySkillsCleanup:
 
     def test_removes_non_private_non_protected(self, project, tmp_path):
         # Old foundry skill (not in current selection, not protected)
-        stale = project / ".claude" / "skills" / "some-old-foundry-skill"
+        stale = project / ".claude" / "skills" / "clickhouse-io"
         stale.mkdir(parents=True)
         (stale / "SKILL.md").write_text("stale")
 
@@ -378,12 +389,12 @@ class TestCopyAgentsPrefixAwareness:
     def test_skips_private_agents_during_cleanup(self, project, tmp_path):
         agents_dir = project / ".claude" / "agents"
         (agents_dir / "company-reviewer.md").write_text("private")
-        (agents_dir / "stale-agent.md").write_text("stale")
+        (agents_dir / "doc-updater.md").write_text("stale foundry agent")
 
         copy_agents(project, [], private_prefixes=["company"])
 
         assert (agents_dir / "company-reviewer.md").exists()
-        assert not (agents_dir / "stale-agent.md").exists()
+        assert not (agents_dir / "doc-updater.md").exists()
 
 
 # ── copy_commands prefix awareness ───────────────────────────────────
@@ -393,12 +404,13 @@ class TestCopyCommandsPrefixAwareness:
     def test_skips_private_commands_during_cleanup(self, project, tmp_path):
         cmd_dir = project / ".claude" / "commands"
         (cmd_dir / "company-deploy.md").write_text("private")
-        (cmd_dir / "stale-command.md").write_text("stale")
+        # Stale foundry command: catalog name whose parent skill is deselected
+        (cmd_dir / "update-foundry-check.md").write_text("stale")
 
         copy_commands(project, [], private_prefixes=["company"])
 
         assert (cmd_dir / "company-deploy.md").exists()
-        assert not (cmd_dir / "stale-command.md").exists()
+        assert not (cmd_dir / "update-foundry-check.md").exists()
 
 
 # ── copy_commands skill-twin de-duplication ──────────────────────────
