@@ -85,6 +85,16 @@ MODULAR_RULES = {
     },
 }
 
+# Names the foundry once shipped but no longer does. The deploy prunes
+# only ever delete names they can prove are foundry-owned — the current
+# catalog or these sets — never content the foundry didn't ship. So when
+# a skill/command/agent is renamed or removed, its old name must be
+# listed here to keep being cleaned out of projects. Rules don't need a
+# set: MANIFEST_MIGRATION below already records retired rule names.
+RETIRED_SKILLS: set[str] = set()
+RETIRED_COMMANDS: set[str] = set()
+RETIRED_AGENTS: set[str] = set()
+
 # Migration map: (old_category, old_rule) -> (new_category, new_rule) or None
 MANIFEST_MIGRATION = {
     ("domain", "embedded.md"): ("templates", "embedded-c.md"),
