@@ -51,6 +51,12 @@ Flow comes from information order, not from "Furthermore" and "Moreover." Open e
 
 Commit to a view and defend it. Drop the sycophancy ("Great question," "You're absolutely right") and the reflexive hedging ("it could potentially be argued that it may perhaps"). Opinions framed as opinions read as human; assertions dressed as neutral fact read as machine. "I don't think the price reflects the risk" beats "It is clear that the price is wrong."
 
+## Calibrate, don't eliminate (every rule is a dial, not a switch)
+
+The most common failure when editing to a style is over-correction: told a passage has *some* of a fault, the editor removes *all* of it and swaps one fault for its opposite. Strip every "I" and the prose goes dead; flatten every edge and it reads like a press release; cut for length and it becomes a skeleton. The fix a piece needs is almost never "eliminate X"; it is "calibrate X to the level this passage wants." Ask *how much, and where*, not *on or off*. A little self-reference marks judgment; a lot performs virtue. One earned aside lands; ten is noise; zero is sterile.
+
+The one exception: a **corpus-fidelity floor**, a trait that appears *zero* times across the author's samples (for many authors, em dashes; marketing adjectives), is a switch, not a dial, because the author genuinely never does it. Everything else is a dial.
+
 ## Locale, write for the right side of the Atlantic
 
 Default to British / EU conventions for this author, and switch to US only when the audience is US:
