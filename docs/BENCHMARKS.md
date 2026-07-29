@@ -20,7 +20,7 @@ decide **which model and which skill to reach for on which kind of task.**
 - **Judge** (prose tasks only): a fixed model scores each response against the
   challenge's rubric (required elements, anti-patterns, depth). Reasoning/financial
   used **opus-4.7**; the scope re-test used **opus-4.8**. Dual-judge
-  (gpt-5.5 + opus-4.8, flag disagreements) is supported via `--judge2-*`.
+  (gpt-5.5 + opus, flag disagreements) is supported via `--judge2-*`.
 - **Effort:** reasoning/financial were run at the CLI default; scope and the
   agentic runs at **max** reasoning effort (`--effort max`).
 - **Challenges:** YAML in `tests/challenges/` (rubric per challenge). Categories:
@@ -172,10 +172,10 @@ model); skills are upside only on weaker/cheaper models.
 python3 tools/run_benchmark.py --challenges scope-001 scope-002 scope-003 scope-004 scope-005 \
   --skill megamind-deep --runs 3 \
   --subject-backend copilot --subject-model gpt-5.5 \
-  --judge-backend claude --judge-model claude-opus-4-8
+  --judge-backend claude --judge-model opus
 
 # Dual-judge (flag disagreements)
-... --judge-backend claude --judge-model claude-opus-4-8 \
+... --judge-backend claude --judge-model opus \
     --judge2-backend copilot --judge2-model gpt-5.5
 
 # Agentic SWE-bench Verified (objective, Docker) — see tools/run_swebench_agentic.py

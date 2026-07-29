@@ -496,12 +496,12 @@ python3 tools/run_benchmark.py --runs 3 --save results/out.json
 # Specific skill (baseline auto-included for comparison)
 python3 tools/run_benchmark.py --skill megamind-deep --runs 3
 
-# Multi-model via Copilot, judged by opus-4.8 (claude)
+# Multi-model via Copilot, judged by latest opus (claude)
 python3 tools/run_benchmark.py --challenges scope-001 scope-002 --skill megamind-deep --runs 3 \
   --subject-backend copilot --subject-model gpt-5.5 \
-  --judge-backend claude --judge-model claude-opus-4-8
+  --judge-backend claude --judge-model opus
 
-# Dual-judge (gpt-5.5 + opus-4.8) — flags disagreements for human review
+# Dual-judge (gpt-5.5 + latest opus) — flags disagreements for human review
 ... --judge2-backend copilot --judge2-model gpt-5.5 --judge-disagree-threshold 2
 
 # Max reasoning effort (Copilot subjects)
