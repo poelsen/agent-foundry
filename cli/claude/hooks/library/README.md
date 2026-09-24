@@ -25,7 +25,7 @@ Add a hook entry to your project's `.claude/settings.json`:
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": "tool == \"Edit\" && tool_input.file_path matches \"\\\\.py$\"",
+        "matcher": "Edit|MultiEdit|Write",
         "hooks": [
           {
             "type": "command",
@@ -39,7 +39,9 @@ Add a hook entry to your project's `.claude/settings.json`:
 }
 ```
 
-Each script has a comment header with the recommended matcher pattern.
+Claude Code matches hooks on the tool name only, so every script is
+registered for `Edit|MultiEdit|Write` and filters the edited file's
+extension itself (e.g. `ruff-format.sh` ignores anything but `*.py`).
 
 ## Context cost note
 
