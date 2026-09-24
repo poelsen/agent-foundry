@@ -25,12 +25,13 @@ __doc_usage__ = """agent-foundry per-project setup tool.
 
 Configures a project for one or more coding-agent CLIs with selected
 rules, hooks, agents, skills, plugins, and MCP servers. Each chosen CLI's
-adapter deploys into its native layout (.claude/ for Claude Code,
-AGENTS.md for Copilot, ...).
+adapter deploys into its native layout (.claude/ for Claude Code, .codex/
+for Codex); files several CLIs read (AGENTS.md, .agents/skills/, .mcp.json)
+are written once for all of them.
 
 Usage:
     python3 tools/setup.py init [project_dir]
-    python3 tools/setup.py init [project_dir] --clis claude,copilot
+    python3 tools/setup.py init [project_dir] --clis claude,copilot,codex
     python3 tools/setup.py init [project_dir] --private /path/to/source --prefix name
     python3 tools/setup.py update-all
     python3 tools/setup.py check
@@ -112,7 +113,8 @@ def _deploy_to_clis(
             private_sources = result.private_sources
 
     outputs = set().union(*(a.shared_outputs for a in adapters))
-    deploy_shared_outputs(project, sel, outputs)
+    limits = {a.display_name: a.agents_md_limit for a in adapters if a.agents_md_limit}
+    deploy_shared_outputs(project, sel, outputs, limits)
     _report_skipped(adapters, sel, ctx)
     return True, private_sources
 

@@ -8,11 +8,13 @@ from __future__ import annotations
 
 from .base import CliAdapter, DeployContext, DeployResult, Selections
 from .claude import ClaudeAdapter
+from .codex import CodexAdapter
 from .copilot import CopilotAdapter
 
 ADAPTERS: dict[str, type[CliAdapter]] = {
     ClaudeAdapter.id: ClaudeAdapter,
     CopilotAdapter.id: CopilotAdapter,
+    CodexAdapter.id: CodexAdapter,
 }
 
 # Default target when a project/manifest predates multi-CLI support.
@@ -23,6 +25,7 @@ __all__ = [
     "DEFAULT_CLIS",
     "ClaudeAdapter",
     "CliAdapter",
+    "CodexAdapter",
     "CopilotAdapter",
     "DeployContext",
     "DeployResult",

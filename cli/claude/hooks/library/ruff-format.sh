@@ -1,20 +1,15 @@
 #!/bin/bash
 # Auto-format Python files with ruff after edits
-# Usage: Add as PostToolUse hook in project .claude/settings.json
-# Matcher: "Edit|MultiEdit|Write"; the script itself filters *.py
-input=$(cat)
-file_path=$(echo "$input" | jq -r '.tool_input.file_path // ""')
-case "$file_path" in
-  *.py) ;;
-  *) echo "$input"; exit 0 ;;
-esac
+# PostToolUse hook for Claude Code (.claude/settings.json) and Codex
+# (.codex/hooks.json). Registered for every edit tool; acts on *.py only.
+source "$(dirname "$0")/_edited-files.sh"
 
-if [ -n "$file_path" ] && [ -f "$file_path" ]; then
+edited_files | while IFS= read -r file_path; do
+  case "$file_path" in *.py) ;; *) continue ;; esac
+  [ -f "$file_path" ] || continue
   if command -v ruff >/dev/null 2>&1; then
     ruff format "$file_path" 2>&1 | head -5 >&2
   else
     echo "[Hook] ruff not found — install with: uv pip install ruff" >&2
   fi
-fi
-
-echo "$input"
+done

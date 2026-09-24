@@ -207,6 +207,12 @@ PORTABLE_SKILLS: set[str] = {
     "megamind-deep", "megamind-creative", "megamind-adversarial", "megamind-financial",
 }
 
+# Claude slash commands that work on any CLI. Copilot, Codex and Antigravity
+# have no command files (Codex removed custom prompts in 0.117), so these are
+# converted to skills in .agents/skills/. The rest touch .claude/ state
+# (snapshots) or wrap Claude-only skills (update-foundry-*).
+PORTABLE_COMMANDS: set[str] = {"update-codemaps.md"}
+
 # Skills that are never shown in the interactive skill menu. None today —
 # kept as an explicit empty set so the menu-build logic stays uniform.
 HIDDEN_SKILLS: set[str] = set()

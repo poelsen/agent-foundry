@@ -41,34 +41,101 @@ def test_cases_cover_every_shipped_hook():
     assert set(CASES) == set(HOOK_SCRIPTS)
 
 
-def _run_hook(script: str, file_path: Path, stub_dir: Path) -> subprocess.CompletedProcess:
-    payload = json.dumps({"tool_name": "Edit", "tool_input": {"file_path": str(file_path)}})
-    env = {**os.environ, "PATH": f"{stub_dir}{os.pathsep}{os.environ['PATH']}"}
-    return subprocess.run(["bash", str(HOOK_LIB / script)], input=payload, text=True,
-                          capture_output=True, env=env, cwd=file_path.parent, timeout=30)
-
-
-@pytest.mark.skipif(shutil.which("jq") is None, reason="hook scripts need jq")
-@pytest.mark.parametrize("script", sorted(CASES))
-def test_hook_filters_by_extension(script: str, tmp_path: Path):
-    tool, match, ignore = CASES[script]
+def _stub_tool(tmp_path: Path, tool: str) -> tuple[Path, Path]:
+    """A fake `tool` on PATH that logs its arguments. Returns (bin dir, log)."""
     log = tmp_path / "calls.log"
     stub_dir = tmp_path / "bin"
     stub_dir.mkdir()
     stub = stub_dir / tool
     stub.write_text(f'#!/bin/bash\necho "$@" >> "{log}"\n')
     stub.chmod(0o755)
+    return stub_dir, log
+
+
+def _run_hook(script: str, payload: dict, cwd: Path, stub_dir: Path) -> subprocess.CompletedProcess:
+    env = {**os.environ, "PATH": f"{stub_dir}{os.pathsep}{os.environ['PATH']}"}
+    return subprocess.run(["bash", str(HOOK_LIB / script)], input=json.dumps(payload), text=True,
+                          capture_output=True, env=env, cwd=cwd, timeout=30)
+
+
+def _claude_payload(path: Path) -> dict:
+    return {"tool_name": "Edit", "cwd": str(path.parent),
+            "tool_input": {"file_path": str(path)}}
+
+
+def _codex_payload(cwd: Path, patch_lines: list[str]) -> dict:
+    patch = "\n".join(["*** Begin Patch", *patch_lines, "*** End Patch", ""])
+    return {"tool_name": "apply_patch", "cwd": str(cwd), "tool_input": {"command": patch}}
+
+
+needs_jq = pytest.mark.skipif(shutil.which("jq") is None, reason="hook scripts need jq")
+
+
+@needs_jq
+@pytest.mark.parametrize("script", sorted(CASES))
+def test_hook_filters_by_extension(script: str, tmp_path: Path):
+    tool, match, ignore = CASES[script]
+    stub_dir, log = _stub_tool(tmp_path, tool)
     # tsc-check only runs inside a TypeScript project
     (tmp_path / "package.json").write_text("{}")
     (tmp_path / "tsconfig.json").write_text("{}")
     for name in (match, ignore):
         (tmp_path / name).write_text("")
 
-    ignored = _run_hook(script, tmp_path / ignore, stub_dir)
+    ignored = _run_hook(script, _claude_payload(tmp_path / ignore), tmp_path, stub_dir)
     assert ignored.returncode == 0
     assert not log.exists(), f"{script} ran {tool} on {ignore}"
-    assert json.loads(ignored.stdout)["tool_input"]["file_path"].endswith(ignore)
+    # Nothing on stdout: Codex fails any hook whose stdout is non-hook JSON
+    assert ignored.stdout == ""
 
-    matched = _run_hook(script, tmp_path / match, stub_dir)
+    matched = _run_hook(script, _claude_payload(tmp_path / match), tmp_path, stub_dir)
     assert matched.returncode == 0
     assert log.exists(), f"{script} did not run {tool} on {match}"
+    assert matched.stdout == ""
+
+
+@needs_jq
+def test_codex_patch_files_resolved_from_cwd(tmp_path: Path):
+    stub_dir, log = _stub_tool(tmp_path, "ruff")
+    (tmp_path / "src").mkdir()
+    for name in ("src/new.py", "edited.py", "moved.py", "notes.md"):
+        (tmp_path / name).write_text("")
+    payload = _codex_payload(tmp_path, [
+        "*** Add File: src/new.py", "+x = 1",
+        "*** Update File: edited.py", "@@", "-a", "+b",
+        "*** Update File: old.py", "*** Move to: moved.py",
+        "*** Update File: notes.md",
+        "*** Delete File: gone.py",
+    ])
+    result = _run_hook("ruff-format.sh", payload, tmp_path / "src", stub_dir)  # cwd from payload
+    assert result.returncode == 0 and result.stdout == ""
+    calls = log.read_text().splitlines()
+    assert calls == ["format src/new.py", "format edited.py", "format moved.py"]
+
+
+@needs_jq
+def test_cargo_check_runs_once_per_patch(tmp_path: Path):
+    stub_dir, log = _stub_tool(tmp_path, "cargo")
+    for name in ("a.rs", "b.rs"):
+        (tmp_path / name).write_text("")
+    payload = _codex_payload(tmp_path, ["*** Update File: a.rs", "*** Update File: b.rs"])
+    _run_hook("cargo-check.sh", payload, tmp_path, stub_dir)
+    assert len(log.read_text().splitlines()) == 1
+
+
+@needs_jq
+def test_tsc_check_reports_errors_for_edited_file(tmp_path: Path):
+    """tsc prints project-relative paths; the hook must match them."""
+    stub_dir, _ = _stub_tool(tmp_path, "unused")
+    npx = stub_dir / "npx"
+    npx.write_text("#!/bin/bash\necho 'src/app.ts(1,1): error TS1005: oops'\n"
+                   "echo 'src/other.ts(2,2): error TS1005: unrelated'\n")
+    npx.chmod(0o755)
+    (tmp_path / "package.json").write_text("{}")
+    (tmp_path / "tsconfig.json").write_text("{}")
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "app.ts").write_text("")
+    result = _run_hook("tsc-check.sh", _claude_payload(tmp_path / "src" / "app.ts"),
+                       tmp_path, stub_dir)
+    assert "src/app.ts(1,1)" in result.stderr
+    assert "other.ts" not in result.stderr

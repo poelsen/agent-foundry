@@ -101,6 +101,8 @@ class CliAdapter(ABC):
     # commands) on its own, so Claude-only skills reach it anyway whenever
     # Claude Code is a target too.
     reads_claude_skills: bool = False
+    # Bytes of AGENTS.md this CLI reads before silently truncating, if known.
+    agents_md_limit: int | None = None
 
     def config_root(self, project: Path) -> Path:
         """Directory this CLI reads its config from, inside the project."""

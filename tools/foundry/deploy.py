@@ -125,6 +125,10 @@ def _prune_stale_files(
         print(f"  Left non-foundry {kind}s untouched: {', '.join(foreign)}")
 
 
+HOOK_LIBRARY = REPO_ROOT / "cli" / "claude" / "hooks" / "library"
+# Sourced by every hook script to list the edited files (see the script).
+HOOK_HELPER = "_edited-files.sh"
+
 # Claude Code matches PostToolUse hooks on the tool name only (a regex), so
 # the hook fires for every file edit and each script filters by extension
 # itself. The expression matchers used previously (`tool == "Edit" && ...`)
@@ -379,16 +383,21 @@ def copy_skills(
         shutil.copytree(lib_src, lib_dest)
 
 
+def install_hook_scripts(dest: Path, hooks: list[str]) -> None:
+    """Copy the selected hook scripts plus the helper they source into ``dest``."""
+    if not hooks:
+        return
+    dest.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(HOOK_LIBRARY / HOOK_HELPER, dest / HOOK_HELPER)
+    for script in hooks:
+        src = HOOK_LIBRARY / script
+        if src.exists():
+            shutil.copy2(src, dest / script)
+            (dest / script).chmod((dest / script).stat().st_mode | 0o111)
+
+
 def copy_hooks(project: Path, hooks: list[str]) -> None:
-    if hooks:
-        lib_dest = project / ".claude" / "hooks" / "library"
-        lib_dest.mkdir(parents=True, exist_ok=True)
-        for script in hooks:
-            src = REPO_ROOT / "cli" / "claude" / "hooks" / "library" / script
-            if src.exists():
-                dest = lib_dest / script
-                shutil.copy2(src, dest)
-                dest.chmod(dest.stat().st_mode | 0o111)
+    install_hook_scripts(project / ".claude" / "hooks" / "library", hooks)
 
 
 def _substitute_placeholders(value):
@@ -400,6 +409,19 @@ def _substitute_placeholders(value):
     if isinstance(value, dict):
         return {k: _substitute_placeholders(v) for k, v in value.items()}
     return value
+
+
+def selected_mcp_servers(servers: list[str]) -> dict[str, dict]:
+    """Catalog entries for the selected MCP servers, ready to deploy:
+    descriptions dropped (not valid in any CLI's config) and
+    {FOUNDRY_ROOT} placeholders substituted."""
+    if not servers or not MCP_SERVERS_FILE.exists():
+        return {}
+    all_servers = json.loads(MCP_SERVERS_FILE.read_text(encoding='utf-8'))["mcpServers"]
+    selected = {k: v for k, v in all_servers.items() if k in servers}
+    for srv in selected.values():
+        srv.pop("description", None)
+    return _substitute_placeholders(selected)
 
 
 def write_mcp_servers(project: Path, servers: list[str]) -> None:
@@ -416,14 +438,9 @@ def write_mcp_servers(project: Path, servers: list[str]) -> None:
     so users don't lose their selections on re-run, then strip the
     mcpServers key from .claude.json (leaving any unrelated fields alone).
     """
-    if not servers or not MCP_SERVERS_FILE.exists():
+    selected = selected_mcp_servers(servers)
+    if not selected:
         return
-    all_servers = json.loads(MCP_SERVERS_FILE.read_text(encoding='utf-8'))["mcpServers"]
-    selected = {k: v for k, v in all_servers.items() if k in servers}
-    # Remove description fields (not valid in mcp.json) and substitute placeholders
-    for srv in selected.values():
-        srv.pop("description", None)
-    selected = _substitute_placeholders(selected)
 
     mcp_json = project / ".mcp.json"
     data: dict = {}

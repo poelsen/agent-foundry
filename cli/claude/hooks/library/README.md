@@ -43,6 +43,12 @@ Claude Code matches hooks on the tool name only, so every script is
 registered for `Edit|MultiEdit|Write` and filters the edited file's
 extension itself (e.g. `ruff-format.sh` ignores anything but `*.py`).
 
+The same scripts run as Codex hooks (`.codex/hooks.json`, matcher
+`apply_patch|Edit|Write`). They source `_edited-files.sh`, which lists the
+edited files from either CLI's hook input — Claude's `tool_input.file_path`
+or the paths in Codex's `apply_patch` patch — and they print nothing on
+stdout, because Codex treats non-hook JSON there as a failed hook run.
+
 ## Context cost note
 
 Type checker hooks (tsc-check, mypy-check) run after every edit and their output may consume Claude's context window. Enable these only when the type safety benefit outweighs the context cost for your project.
