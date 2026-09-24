@@ -44,9 +44,11 @@ registered for `Edit|MultiEdit|Write` and filters the edited file's
 extension itself (e.g. `ruff-format.sh` ignores anything but `*.py`).
 
 The same scripts run as Codex hooks (`.codex/hooks.json`, matcher
-`apply_patch|Edit|Write`). They source `_edited-files.sh`, which lists the
-edited files from either CLI's hook input — Claude's `tool_input.file_path`
-or the paths in Codex's `apply_patch` patch — and they print nothing on
+`apply_patch|Edit|Write`) and Antigravity hooks (`.agents/hooks.json`, matcher
+`write_to_file|replace_file_content|multi_replace_file_content`). They source `_edited-files.sh`, which lists the
+edited files from any of the three hook inputs — Claude's
+`tool_input.file_path`, the paths in Codex's `apply_patch` patch, or
+Antigravity's `toolCall.args.TargetFile` — and they print nothing on
 stdout, because Codex treats non-hook JSON there as a failed hook run.
 
 ## Context cost note

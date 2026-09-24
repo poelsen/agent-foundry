@@ -66,7 +66,7 @@ def _deploy_copilot(project: Path, sel: Selections) -> None:
 
 
 def test_registry_has_all_targets():
-    assert set(ADAPTERS) == {"claude", "copilot", "codex"}
+    assert set(ADAPTERS) == {"claude", "copilot", "codex", "agy"}
     assert DEFAULT_CLIS == ["claude"]
 
 
