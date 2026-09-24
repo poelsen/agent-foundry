@@ -1,9 +1,13 @@
 #!/bin/bash
 # Run TypeScript check after editing TS files
 # Usage: Add as PostToolUse hook in project .claude/settings.json
-# Matcher: tool == "Edit" && tool_input.file_path matches "\\.(ts|tsx)$"
+# Matcher: "Edit|MultiEdit|Write"; the script itself filters *.ts, *.tsx
 input=$(cat)
 file_path=$(echo "$input" | jq -r '.tool_input.file_path // ""')
+case "$file_path" in
+  *.ts|*.tsx) ;;
+  *) echo "$input"; exit 0 ;;
+esac
 
 if [ -n "$file_path" ] && [ -f "$file_path" ]; then
   dir=$(dirname "$file_path")

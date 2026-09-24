@@ -1,9 +1,13 @@
 #!/bin/bash
 # Run cargo check after editing Rust files
 # Usage: Add as PostToolUse hook in project .claude/settings.json
-# Matcher: tool == "Edit" && tool_input.file_path matches "\\.rs$"
+# Matcher: "Edit|MultiEdit|Write"; the script itself filters *.rs
 input=$(cat)
 file_path=$(echo "$input" | jq -r '.tool_input.file_path // ""')
+case "$file_path" in
+  *.rs) ;;
+  *) echo "$input"; exit 0 ;;
+esac
 
 if [ -n "$file_path" ] && [ -f "$file_path" ]; then
   if command -v cargo >/dev/null 2>&1; then

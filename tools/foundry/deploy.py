@@ -125,6 +125,13 @@ def _prune_stale_files(
         print(f"  Left non-foundry {kind}s untouched: {', '.join(foreign)}")
 
 
+# Claude Code matches PostToolUse hooks on the tool name only (a regex), so
+# the hook fires for every file edit and each script filters by extension
+# itself. The expression matchers used previously (`tool == "Edit" && ...`)
+# never matched any tool name, so no foundry hook ever ran.
+EDIT_TOOLS_MATCHER = "Edit|MultiEdit|Write"
+
+
 def generate_settings_json(
     hooks: list[str],
     plugins: list[str],
@@ -144,20 +151,8 @@ def generate_settings_json(
     post_hooks = []
     for script in hooks:
         meta = HOOK_SCRIPTS[script]
-        # Determine matcher from script name
-        if "ruff" in script or "mypy" in script:
-            matcher = 'tool == "Edit" && tool_input.file_path matches "\\.py$"'
-        elif "prettier" in script:
-            matcher = 'tool == "Edit" && tool_input.file_path matches "\\.(ts|tsx|js|jsx)$"'
-        elif "tsc" in script:
-            matcher = 'tool == "Edit" && tool_input.file_path matches "\\.(ts|tsx)$"'
-        elif "cargo" in script:
-            matcher = 'tool == "Edit" && tool_input.file_path matches "\\.rs$"'
-        else:
-            matcher = ""
-
         post_hooks.append({
-            "matcher": matcher,
+            "matcher": EDIT_TOOLS_MATCHER,
             "hooks": [{"type": "command", "command": f".claude/hooks/library/{script}"}],
             "description": meta["desc"],
         })
