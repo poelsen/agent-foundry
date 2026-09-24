@@ -22,7 +22,7 @@ Delete feature/bugfix branches after merge.
 
 <body - wrap at 72 chars>
 
-AI: Claude Opus 4.7
+AI: <assisting model, e.g. Claude Opus 5.5 or gpt-5.5>
 ```
 
 - Subject: 50 chars target, 70 max, imperative mood

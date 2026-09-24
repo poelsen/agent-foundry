@@ -70,6 +70,9 @@ class DeployContext:
     pending_private: list[dict]
     existing_private: list[dict]
     cli_private_sources: list[tuple[str, str]]
+    # MCP renderings the foundry deployed, per config file, from the last
+    # run's manifest; writers update it and the orchestrator saves it back.
+    mcp_state: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -139,6 +142,12 @@ class CliAdapter(ABC):
                 if claude_only:
                     report.append(Skipped(artifact, claude_only, claude_only=True))
         return report
+
+    def undeploy(self, project: Path, ctx: DeployContext) -> None:
+        """Remove what this CLI's adapter deployed, after the user dropped it
+        as a target. Default: leave it in place and say so."""
+        print(f"  {self.display_name} is no longer a target; its config was left in place "
+              f"— delete {self.config_root(project).name}/ yourself if unwanted")
 
     @abstractmethod
     def deploy(self, project: Path, sel: Selections, ctx: DeployContext) -> DeployResult:

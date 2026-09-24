@@ -181,9 +181,16 @@ OLD_COMMANDS=$COMMANDS OLD_RULES=$RULES OLD_AGENTS=$AGENTS OLD_SKILLS=$SKILLS
 # ── Run the new setup.py against the project ──────────────────────────
 echo "Applying update..."
 echo ""
-if ! $PYTHON "$SETUP_PY" init "$PROJECT_DIR" $INTERACTIVE_FLAG; then
+init_rc=0
+$PYTHON "$SETUP_PY" init "$PROJECT_DIR" $INTERACTIVE_FLAG || init_rc=$?
+if [[ $init_rc -ne 0 ]]; then
     echo ""
-    echo "ERROR: setup.py init failed — rolling back to previous version"
+    if [[ $init_rc -eq 3 ]]; then
+        # setup.py skipped the project or the update was declined — nothing applied
+        echo "Update not applied (see the setup output above) — keeping the previous version"
+    else
+        echo "ERROR: setup.py init failed (exit $init_rc) — rolling back to previous version"
+    fi
     [[ -f "$TARBALL_OLD"  ]] && mv "$TARBALL_OLD"  "$TARBALL"
     [[ -f "$SETUP_PY_OLD" ]] && mv "$SETUP_PY_OLD" "$SETUP_PY"
     exit 1

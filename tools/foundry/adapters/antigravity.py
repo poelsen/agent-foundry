@@ -23,7 +23,12 @@ import shutil
 from pathlib import Path
 
 from ..convert import WRITE_TOOLS, agent_tools, rewrite, split_frontmatter
-from ..deploy import install_hook_scripts, selected_mcp_servers
+from ..deploy import (
+    _owned_agent_names,
+    install_hook_scripts,
+    reconcile_mcp_servers,
+    selected_mcp_servers,
+)
 from ..paths import AGENTS_DIR
 from .base import AGENTS_MD, AGENTS_SKILLS, CliAdapter, DeployContext, DeployResult, Selections
 
@@ -85,7 +90,8 @@ def render_agent_md(src: Path) -> str | None:
 
 
 def _is_managed(path: Path) -> bool:
-    return _MANAGED_COMMENT in path.read_text(encoding="utf-8").split("\n---", 1)[0]
+    frontmatter = path.read_text(encoding="utf-8", errors="replace").split("\n---", 1)[0]
+    return _MANAGED_COMMENT in frontmatter
 
 
 def _deploy_agents(project: Path, agents: list[str]) -> int:
@@ -105,10 +111,13 @@ def _deploy_agents(project: Path, agents: list[str]) -> int:
         agents_dir.mkdir(parents=True, exist_ok=True)
         dest.write_text(rendered, encoding="utf-8")
     if agents_dir.is_dir():
+        owned = _owned_agent_names()  # plus the marker, below
         for existing in sorted(agents_dir.glob("*.md")):
-            if existing.name not in keep and _is_managed(existing):
+            if existing.name not in keep and existing.name in owned and _is_managed(existing):
                 existing.unlink()
                 print(f"  Removed stale foundry agent: {_AGENTS_DIR.as_posix()}/{existing.name}")
+    if agents_dir.is_dir() and not any(agents_dir.iterdir()):
+        agents_dir.rmdir()
     if keep:
         print(f"  Deployed {len(keep)} agent(s) → {_AGENTS_DIR.as_posix()}/")
     return len(keep)
@@ -132,7 +141,7 @@ def _load_json(path: Path) -> dict | None:
         return {}
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as err:
+    except (json.JSONDecodeError, UnicodeDecodeError) as err:
         print(f"  ⚠ {path.name} doesn't parse as plain JSON ({err}) — left unchanged")
         return None
     if not isinstance(data, dict):
@@ -141,43 +150,42 @@ def _load_json(path: Path) -> dict | None:
     return data
 
 
-def _write_json_or_remove(path: Path, data: dict) -> None:
+def _write_json_or_remove(path: Path, data: dict, original: dict) -> None:
+    """Write ``data`` if it differs from ``original``; remove the file only
+    when the foundry's entries were all it held (a project's own empty file
+    stays)."""
+    if data == original:
+        return
     if data:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
     elif path.exists():
-        path.unlink()  # the file held nothing but foundry entries
+        path.unlink()
 
 
-def _deploy_mcp(project: Path, servers: list[str]) -> int:
-    """Reconcile foundry servers in .agents/mcp_config.json.
-
-    JSON has no comments to mark ownership, so an entry counts as the
-    foundry's only while it still equals the catalog rendering: an entry the
-    project added or edited (say, with a real API key) is never overwritten
-    or removed. Returns servers present from the selection.
-    """
+def _deploy_mcp(project: Path, servers: list[str], state: dict) -> int:
+    """Reconcile the foundry's servers in .agents/mcp_config.json (see
+    reconcile_mcp_servers: owned while unchanged since the foundry wrote
+    them; filled-in API keys are kept). Returns servers deployed."""
     path = project / _MCP_CONFIG
     data = _load_json(path)
     if data is None:
         return 0
+    if not isinstance(data.get("mcpServers", {}), dict):
+        print(f"  ⚠ {_MCP_CONFIG.as_posix()} has an unexpected mcpServers value — left unchanged")
+        return 0
+    original = json.loads(json.dumps(data))
+    had_servers = "mcpServers" in data
     current = data.setdefault("mcpServers", {})
     catalog = {name: _agy_server(entry) for name, entry in selected_mcp_servers(None).items()}
-    deployed = 0
-    for name, rendered in catalog.items():
-        existing = current.get(name)
-        if name in servers:
-            if existing is None:
-                current[name] = rendered
-            elif existing != rendered:
-                print(f"  Kept the project's own mcpServers.{name} in {_MCP_CONFIG.as_posix()}")
-            deployed += 1
-        elif existing == rendered:
-            del current[name]
-    if not current:
+    deployed, kept = reconcile_mcp_servers(current, catalog, servers, state.get("agy", {}))
+    for name in kept:
+        print(f"  Kept the project's own mcpServers.{name} in {_MCP_CONFIG.as_posix()}")
+    state["agy"] = deployed
+    if not current and (not had_servers or original.get("mcpServers")):
         data.pop("mcpServers")
-    _write_json_or_remove(path, data)
-    return deployed
+    _write_json_or_remove(path, data, original)
+    return len(deployed)
 
 
 # ── Hooks (.agents/hooks.json) ──
@@ -190,14 +198,20 @@ def _deploy_hooks(project: Path, hooks: list[str]) -> int:
     data = _load_json(path)
     if data is None:
         return 0
-    data.pop(_HOOK_NAME, None)
+    original = json.loads(json.dumps(data))
+    previous = data.pop(_HOOK_NAME, None)
     scripts_rel = _HOOK_SCRIPTS_DIR.relative_to(".agents").as_posix()
     if hooks:
-        # PostToolUse hooks must answer with a JSON object on stdout.
-        data[_HOOK_NAME] = {"PostToolUse": [{"matcher": _HOOK_MATCHER, "hooks": [
-            {"type": "command", "command": f"{scripts_rel}/{script}; echo '{{}}'", "timeout": 120}
+        # `bash <script>` reads the same under `sh -c` (Unix) and `cmd /c`
+        # (Windows, Git Bash on PATH); the script prints the `{}` that
+        # PostToolUse hooks must answer with.
+        entry: dict = {"PostToolUse": [{"matcher": _HOOK_MATCHER, "hooks": [
+            {"type": "command", "command": f"bash {scripts_rel}/{script}", "timeout": 120}
             for script in hooks]}]}
-    _write_json_or_remove(path, data)
+        if isinstance(previous, dict) and "enabled" in previous:
+            entry = {"enabled": previous["enabled"], **entry}  # keep a user's opt-out
+        data[_HOOK_NAME] = entry
+    _write_json_or_remove(path, data, original)
 
     scripts_dir = project / _HOOK_SCRIPTS_DIR  # foundry-owned namespace
     if scripts_dir.is_dir():
@@ -235,9 +249,14 @@ class AntigravityAdapter(CliAdapter):
     def supported_artifacts(self) -> set[str]:
         return {"rules", "skills", "commands", "agents", "hooks", "mcp"}
 
+    def undeploy(self, project: Path, ctx: DeployContext) -> None:
+        _deploy_agents(project, [])
+        _deploy_mcp(project, [], ctx.mcp_state)
+        _deploy_hooks(project, [])
+
     def deploy(self, project: Path, sel: Selections, ctx: DeployContext) -> DeployResult:
         _deploy_agents(project, sel.agents)
-        servers = _deploy_mcp(project, sel.mcp_servers)
+        servers = _deploy_mcp(project, sel.mcp_servers, ctx.mcp_state)
         _deploy_hooks(project, sel.hooks)
         if servers:
             print(f"  Deployed {servers} MCP server(s) → {_MCP_CONFIG.as_posix()}")

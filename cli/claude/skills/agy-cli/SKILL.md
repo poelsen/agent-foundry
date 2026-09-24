@@ -40,6 +40,11 @@ timeout 600 agy -p "<prompt>" --model <model> --output-format json </dev/null \
 | `</dev/null` | Keeps it from reading stdin. |
 | `timeout` | Guards against a sign-in prompt hanging the caller. |
 
+`-p` takes the prompt as a single command-line argument, which Linux caps at
+128 KiB. For larger material (a big diff), write it to a file under a
+directory passed with `--add-dir <dir>` and reference the file's path in a
+short prompt instead.
+
 Without `--dangerously-skip-permissions`, tools that need approval are
 soft-denied — which is what a read-only reviewer wants. Pass review context
 **in the prompt text**; add `--add-dir <path>` only when the model genuinely

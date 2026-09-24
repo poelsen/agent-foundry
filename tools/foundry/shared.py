@@ -29,9 +29,15 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
-from .adapters.base import AGENTS_MD, AGENTS_SKILLS, MCP_JSON, Selections
+from .adapters.base import AGENTS_MD, AGENTS_SKILLS, MCP_JSON, CliAdapter, Selections
 from .convert import command_skill
-from .deploy import _command_skill_parent, write_mcp_servers
+from .deploy import (
+    _command_skill_parent,
+    _owned_command_names,
+    _owned_rule_names,
+    _owned_skill_names,
+    write_mcp_servers,
+)
 from .instructions import (
     has_agent_foundry_header,
     prepend_agent_foundry_header,
@@ -181,11 +187,12 @@ def _write_overflow_rules(project: Path, overflow: list[_Rule]) -> None:
     Unmarked files (the project's own rules) are never touched."""
     rules_dir = project / AGENTS_RULES_DIR
     keep = {Path(r.dest).name for r in overflow}
+    owned = _owned_rule_names()
     if rules_dir.is_dir():
         for existing in sorted(rules_dir.glob(f"{_RULE_PREFIX}*.md")):
-            if existing.name in keep:
+            if existing.name in keep or existing.name.removeprefix(_RULE_PREFIX) not in owned:
                 continue
-            if _RULE_MARKER in existing.read_text(encoding="utf-8"):
+            if _RULE_MARKER in existing.read_text(encoding="utf-8", errors="replace"):
                 existing.unlink()
                 print(f"  Removed stale foundry rule: {AGENTS_RULES_DIR.as_posix()}/{existing.name}")
     if not overflow:
@@ -200,19 +207,37 @@ def _write_overflow_rules(project: Path, overflow: list[_Rule]) -> None:
 
 def write_agents_md(
     project: Path, sel: Selections, limits: dict[str, int] | None = None,
+    claude_md_managed: bool = False,
 ) -> None:
     """Create or update the foundry block in AGENTS.md (+ rule overflow).
 
     ``limits`` maps a CLI's display name to the AGENTS.md bytes it reads;
     a file over any of them gets a warning, since the CLI truncates it.
+    ``claude_md_managed``: Claude Code is a target too, so CLAUDE.md holds
+    the Claude header — if AGENTS.md is that same file (a symlink, a
+    common way to share one instructions file), the block is skipped
+    rather than overwriting the header with the same markers.
     """
-    block, overflow = render_agents_block(sel, AGENTS_MD_BUDGET)
     agents_md = project / "AGENTS.md"
+    claude_md = project / "CLAUDE.md"
+    if (claude_md_managed and agents_md.exists() and claude_md.exists()
+            and agents_md.samefile(claude_md)):
+        print("  ⚠ AGENTS.md is the same file as CLAUDE.md — kept the Claude Code header; "
+              "other CLIs read it and follow its pointers to .claude/rules/")
+        return
+    block, overflow = render_agents_block(sel, AGENTS_MD_BUDGET)
+    if len(block.encode("utf-8")) > AGENTS_MD_BUDGET:
+        print(f"  ⚠ The agent-foundry block is {len(block.encode('utf-8')):,} bytes, over its "
+              f"{AGENTS_MD_BUDGET:,}-byte budget even with every rule as a pointer")
     if not agents_md.exists():
         agents_md.write_text(f"# {sel.project_name}\n\n{block}\n", encoding="utf-8")
         print("  Created AGENTS.md")
     else:
-        existing = agents_md.read_text(encoding="utf-8")
+        try:
+            existing = agents_md.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            print("  ⚠ AGENTS.md isn't UTF-8 text — left unchanged (re-save it as UTF-8)")
+            return
         if has_agent_foundry_header(existing):
             agents_md.write_text(update_agent_foundry_header(existing, block),
                                  encoding="utf-8")
@@ -229,6 +254,35 @@ def write_agents_md(
         if size > limit:
             print(f"  ⚠ AGENTS.md is {size:,} bytes — {cli} reads only the first "
                   f"{limit:,}; move project content from AGENTS.md into docs/")
+
+
+def remove_agents_md(project: Path, project_name: str) -> None:
+    """Take the foundry block (and its overflow rules) back out of AGENTS.md
+    once no selected CLI reads it; the file goes too if only the stub the
+    foundry created is left."""
+    agents_md = project / "AGENTS.md"
+    claude_md = project / "CLAUDE.md"
+    if agents_md.is_symlink() or (agents_md.exists() and claude_md.exists()
+                                  and agents_md.samefile(claude_md)):  # hard link too
+        # Most likely → CLAUDE.md: its foundry block may be the Claude header,
+        # and removing it would stop Claude Code updates. Never edit or
+        # delete through the link.
+        print("  AGENTS.md is a link — left it (and the file it points to) unchanged")
+        _write_overflow_rules(project, [])
+        return
+    try:
+        text = agents_md.read_text(encoding="utf-8") if agents_md.exists() else ""
+    except UnicodeDecodeError:
+        text = ""
+    if has_agent_foundry_header(text):
+        rest = update_agent_foundry_header(text, "").strip()
+        if rest in ("", f"# {project_name}"):
+            agents_md.unlink()
+            print("  Removed AGENTS.md (no selected CLI reads it)")
+        else:
+            agents_md.write_text(rest + "\n", encoding="utf-8")
+            print("  Removed the agent-foundry block from AGENTS.md (no selected CLI reads it)")
+    _write_overflow_rules(project, [])
 
 
 def _sanitize_skill_frontmatter(skill_md: Path) -> None:
@@ -293,6 +347,25 @@ def _mark_skill_dir(dest: Path) -> None:
     print(f"  Deployed skill → {AGENTS_SKILLS_DIR.as_posix()}/{dest.name}/")
 
 
+def remove_shared_skills(project: Path) -> None:
+    """Prune every foundry skill from .agents/skills/ once no selected CLI
+    reads the shared root (same ownership proof as deploying)."""
+    skills_root = project / AGENTS_SKILLS_DIR
+    if skills_root.is_symlink():
+        print(f"  {AGENTS_SKILLS_DIR.as_posix()}/ is a symlink — left it unchanged")
+        return
+    owned = _owned_skill_names() | {Path(c).stem for c in _owned_command_names()}
+    if skills_root.is_dir():
+        for existing in sorted(skills_root.iterdir()):
+            if (existing.name in owned and existing.is_dir()
+                    and (existing / _SKILL_MARKER_FILE).is_file()):
+                shutil.rmtree(existing)
+                print(f"  Removed foundry skill: {AGENTS_SKILLS_DIR.as_posix()}/{existing.name}/ "
+                      "(no selected CLI reads it)")
+        if not any(skills_root.iterdir()):
+            skills_root.rmdir()
+
+
 def deploy_shared_skills(project: Path, sel: Selections) -> None:
     """Deploy the selected portable skills, plus portable Claude commands
     converted to skills, to .agents/skills/.
@@ -311,9 +384,13 @@ def deploy_shared_skills(project: Path, sel: Selections) -> None:
         if (COMMANDS_DIR / c).is_file()
         and _command_skill_parent(Path(c).stem) in (None, *wanted))
     keep = set(wanted) | {c.stem for c in commands}
+    # Pruning needs both proofs: a name the foundry ships (or shipped) and
+    # the marker — a copy of a foundry skill under a new name keeps the
+    # marker but is the project's.
+    owned = _owned_skill_names() | {Path(c).stem for c in _owned_command_names()}
     if skills_root.is_dir():
         for existing in sorted(skills_root.iterdir()):
-            if (existing.name not in keep and existing.is_dir()
+            if (existing.name not in keep and existing.name in owned and existing.is_dir()
                     and (existing / _SKILL_MARKER_FILE).is_file()):
                 shutil.rmtree(existing)
                 print(f"  Removed stale foundry skill: "
@@ -330,11 +407,28 @@ def deploy_shared_skills(project: Path, sel: Selections) -> None:
             continue
         dest.mkdir(parents=True)
         (dest / "SKILL.md").write_text(command_skill(command), encoding="utf-8")
-        _adapt_skill_dir(dest)
+        # A skill's sub-commands inherit its user-only policy.
+        parent = _command_skill_parent(command.stem)
+        _adapt_skill_dir(dest, user_invoked_only=bool(parent) and _user_invoked_only(
+            REPO_ROOT / "cli" / "claude" / "skills" / parent / "SKILL.md"))
 
 
-def _adapt_skill_dir(dest: Path) -> None:
+def _user_invoked_only(skill_md: Path) -> bool:
+    """Claude's `disable-model-invocation: true` (the skill runs only when the
+    user asks for it)."""
+    text = skill_md.read_text(encoding="utf-8") if skill_md.exists() else ""
+    frontmatter = text.split("\n---", 1)[0] if text.startswith("---") else ""
+    return bool(re.search(r"^disable-model-invocation:\s*true\s*$", frontmatter, re.MULTILINE))
+
+
+def _adapt_skill_dir(dest: Path, user_invoked_only: bool = False) -> None:
     """Turn a Claude skill copied into the shared root into a portable one."""
+    if user_invoked_only or _user_invoked_only(dest / "SKILL.md"):
+        # Codex ignores Claude's frontmatter key; its equivalent is a policy
+        # in agents/openai.yaml (Antigravity reads the frontmatter key).
+        (dest / "agents").mkdir(exist_ok=True)
+        (dest / "agents" / "openai.yaml").write_text(
+            "policy:\n  allow_implicit_invocation: false\n", encoding="utf-8")
     _sanitize_skill_frontmatter(dest / "SKILL.md")
     _rewrite_for_shared_root(dest)
     _split_large_skill(dest)
@@ -342,15 +436,26 @@ def _adapt_skill_dir(dest: Path) -> None:
 
 
 def deploy_shared_outputs(
-    project: Path, sel: Selections, outputs: set[str],
-    agents_md_limits: dict[str, int] | None = None,
+    project: Path, sel: Selections, adapters: list[CliAdapter],
+    dropped: list[CliAdapter], mcp_state: dict,
 ) -> None:
-    """Write every shared output some selected CLI consumes, once each."""
+    """Write every shared output a selected CLI reads, once each, and remove
+    the foundry's part of any output that only dropped CLIs read."""
+    outputs = set().union(*(a.shared_outputs for a in adapters))
+    orphaned = set().union(*(a.shared_outputs for a in dropped)) - outputs
     if outputs & {AGENTS_MD, AGENTS_SKILLS}:
         print("\n  → Shared (AGENTS.md, .agents/ — read by several CLIs)")
-    if MCP_JSON in outputs and sel.mcp_servers:
-        write_mcp_servers(project, sel.mcp_servers)
+    if MCP_JSON in outputs:
+        write_mcp_servers(project, sel.mcp_servers, mcp_state)
+    elif MCP_JSON in orphaned:
+        write_mcp_servers(project, [], mcp_state)
     if AGENTS_MD in outputs:
-        write_agents_md(project, sel, agents_md_limits)
+        limits = {a.display_name: a.agents_md_limit for a in adapters if a.agents_md_limit}
+        write_agents_md(project, sel, limits,
+                        claude_md_managed=any(a.id == "claude" for a in adapters))
+    elif AGENTS_MD in orphaned:
+        remove_agents_md(project, sel.project_name)
     if AGENTS_SKILLS in outputs:
         deploy_shared_skills(project, sel)
+    elif AGENTS_SKILLS in orphaned:
+        remove_shared_skills(project)

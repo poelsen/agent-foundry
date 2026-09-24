@@ -26,7 +26,13 @@ import tomllib
 from pathlib import Path
 
 from ..convert import WRITE_TOOLS, agent_tools, rewrite, split_frontmatter
-from ..deploy import install_hook_scripts, selected_mcp_servers
+from ..deploy import (
+    _has_filled_placeholder,
+    _owned_agent_names,
+    install_hook_scripts,
+    keep_filled_placeholders,
+    selected_mcp_servers,
+)
 from ..paths import AGENTS_DIR
 from ..registry import HOOK_SCRIPTS
 from .base import AGENTS_MD, AGENTS_SKILLS, CliAdapter, DeployContext, DeployResult, Selections
@@ -110,7 +116,7 @@ def render_agent_toml(src: Path) -> str | None:
 
 
 def _is_managed(path: Path) -> bool:
-    return path.read_text(encoding="utf-8").startswith(_MANAGED_HEADER)
+    return path.read_text(encoding="utf-8", errors="replace").startswith(_MANAGED_HEADER)
 
 
 def _deploy_agents(project: Path, agents: list[str]) -> int:
@@ -130,10 +136,13 @@ def _deploy_agents(project: Path, agents: list[str]) -> int:
         agents_dir.mkdir(parents=True, exist_ok=True)
         dest.write_text(rendered, encoding="utf-8")
     if agents_dir.is_dir():
+        owned = {Path(a).stem for a in _owned_agent_names()}  # plus the marker, below
         for existing in sorted(agents_dir.glob("*.toml")):
-            if existing.name not in keep and _is_managed(existing):
+            if existing.name not in keep and existing.stem in owned and _is_managed(existing):
                 existing.unlink()
                 print(f"  Removed stale foundry agent: {_AGENTS_DIR.as_posix()}/{existing.name}")
+    if agents_dir.is_dir() and not any(agents_dir.iterdir()):
+        agents_dir.rmdir()
     if keep:
         print(f"  Deployed {len(keep)} agent(s) → {_AGENTS_DIR.as_posix()}/")
     return len(keep)
@@ -152,13 +161,23 @@ def _codex_server(entry: dict) -> dict:
 
 
 def render_mcp_block(servers: dict[str, dict]) -> str:
+    """The managed block for ``servers`` (already in Codex's schema)."""
     lines = [_BLOCK_START]
-    for name, entry in servers.items():
+    for name, server in servers.items():
         lines.append(f"[mcp_servers.{_toml_key(name)}]")
-        lines += [f"{_toml_key(k)} = {_toml_value(v)}" for k, v in _codex_server(entry).items()]
+        lines += [f"{_toml_key(k)} = {_toml_value(v)}" for k, v in server.items()]
         lines.append("")
     lines.append(_BLOCK_END)
     return "\n".join(lines) + "\n"
+
+
+def _block_servers(text: str) -> dict:
+    """The mcp_servers currently inside the foundry block of ``text``."""
+    start = text.find(_BLOCK_START)
+    end = text.find(_BLOCK_END, start)
+    if start == -1 or end == -1:
+        return {}
+    return tomllib.loads(text[start:end]).get("mcp_servers", {})
 
 
 def _strip_block(text: str) -> str:
@@ -176,24 +195,47 @@ def _deploy_mcp(project: Path, servers: list[str]) -> int:
     """Rewrite the foundry block in .codex/config.toml; the rest of the file
     is the project's and is kept as-is. Returns servers written."""
     path = project / _CONFIG
-    existing = path.read_text(encoding="utf-8") if path.exists() else ""
-    user_text = _strip_block(existing)
     try:
+        existing = path.read_text(encoding="utf-8") if path.exists() else ""
+        user_text = _strip_block(existing)
         user_config = tomllib.loads(user_text)
-    except tomllib.TOMLDecodeError as err:
+        previous = _block_servers(existing)
+    except (tomllib.TOMLDecodeError, UnicodeDecodeError) as err:
         print(f"  ⚠ {_CONFIG.as_posix()} doesn't parse ({err}) — MCP servers not written")
         return 0
-    project_defined = set(user_config.get("mcp_servers", {}))
+    user_servers = user_config.get("mcp_servers", {})
+    if not isinstance(user_servers, dict):
+        print(f"  ⚠ {_CONFIG.as_posix()} defines mcp_servers as a non-table — MCP servers not written")
+        return 0
     catalog = selected_mcp_servers(servers)
-    for name in sorted(project_defined & set(catalog)):
+    for name in sorted(set(user_servers) & set(catalog)):
         print(f"  Left project-defined mcp_servers.{name} in {_CONFIG.as_posix()} in place")
-    ours = {k: v for k, v in catalog.items() if k not in project_defined}
+    # A real API key typed into the managed block survives regeneration...
+    ours = {k: keep_filled_placeholders(_codex_server(v), previous.get(k))
+            for k, v in catalog.items() if k not in user_servers}
+    # ...and deselecting that server moves it out of the block, so the key
+    # is kept as the project's own config instead of being dropped.
+    full_catalog = selected_mcp_servers(None)
+    for name, entry in previous.items():
+        if (name not in ours and name in full_catalog and name not in user_servers
+                and _has_filled_placeholder(_codex_server(full_catalog[name]), entry)):
+            user_text = (f"{user_text.rstrip()}\n\n" if user_text.strip() else "") + \
+                render_mcp_block({name: entry}).replace(_BLOCK_START + "\n", "").replace(
+                    _BLOCK_END + "\n", "")
+            print(f"  Kept deselected MCP server {name} (it holds a value you filled in) — "
+                  f"moved it out of the foundry block in {_CONFIG.as_posix()}")
     new_text = user_text
     if ours:
         prefix = f"{user_text.rstrip()}\n\n" if user_text.strip() else ""
         new_text = prefix + render_mcp_block(ours)
     if new_text == existing:
         return len(ours)
+    try:
+        tomllib.loads(new_text)
+    except tomllib.TOMLDecodeError as err:  # e.g. servers also set as dotted/inline keys
+        print(f"  ⚠ merging MCP servers into {_CONFIG.as_posix()} would make it invalid "
+              f"({err}) — left unchanged")
+        return 0
     if new_text.strip():
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(new_text, encoding="utf-8")
@@ -205,18 +247,35 @@ def _deploy_mcp(project: Path, servers: list[str]) -> int:
 # ── Hooks (.codex/hooks.json) ──
 
 
-def _hook_command(script: str) -> str:
-    """Codex runs hooks from the session cwd, which may be a subdirectory —
-    resolve the script from the repository root."""
-    return (f'"$(git rev-parse --show-toplevel 2>/dev/null || pwd)'
-            f'/{(_HOOKS_DIR / script).as_posix()}"')
+def _hook_script_finder(script: str) -> str:
+    """POSIX sh program that runs ``script`` from the project's
+    .codex/hooks/agent-foundry/. Codex runs hooks from the session cwd,
+    which may sit below the project (or the project below the git root),
+    so walk up to the nearest directory with .codex/hooks.json — and stop
+    there: a same-named script further up is outside the project. Exits 0
+    quietly if the script isn't there.
+
+    Written with if/then only — no &, |, <, > — so `cmd /C` on Windows
+    passes it to bash intact (``commandWindows``)."""
+    rel = (_HOOKS_DIR / script).as_posix()
+    return (f's={rel}; d=$PWD; while true; do '
+            'if [ -f "$d/.codex/hooks.json" ]; then '
+            'if [ -f "$d/$s" ]; then exec bash "$d/$s"; fi; exit 0; fi; '
+            'if [ "$d" = / ]; then exit 0; fi; d=$(dirname "$d"); done')
 
 
-def _is_foundry_group(group) -> bool:
-    handlers = group.get("hooks", []) if isinstance(group, dict) else []
-    return bool(handlers) and all(
-        _HOOKS_DIR.as_posix() in str(h.get("command", "")) for h in handlers
-        if isinstance(h, dict))
+def _hook_handler(script: str) -> dict:
+    """Codex runs `command` via `$SHELL -lc` (so wrap in `sh -c` to be
+    independent of the user's shell, e.g. fish) and `commandWindows` via
+    `cmd /C` (Git Bash's `bash` must be on PATH)."""
+    finder = _hook_script_finder(script)
+    return {"type": "command", "command": f"sh -c '{finder}'",
+            "commandWindows": f"bash -c '{finder}'",
+            "statusMessage": f"agent-foundry: {HOOK_SCRIPTS[script]['desc']}"}
+
+
+def _is_foundry_handler(handler) -> bool:
+    return isinstance(handler, dict) and _HOOKS_DIR.as_posix() in str(handler.get("command", ""))
 
 
 def _deploy_hooks(project: Path, hooks: list[str]) -> int:
@@ -228,35 +287,48 @@ def _deploy_hooks(project: Path, hooks: list[str]) -> int:
     if path.exists():
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as err:
+        except (json.JSONDecodeError, UnicodeDecodeError) as err:
             print(f"  ⚠ {_HOOKS_JSON.as_posix()} doesn't parse ({err}) — hooks not written")
             return 0
+    original = json.loads(json.dumps(data))
     events = data.setdefault("hooks", {}) if isinstance(data, dict) else None
     if not isinstance(events, dict) or not isinstance(events.get("PostToolUse", []), list):
         print(f"  ⚠ {_HOOKS_JSON.as_posix()} has an unexpected shape — hooks not written")
         return 0
-    groups = [g for g in events.get("PostToolUse", []) if not _is_foundry_group(g)]
+    # Reconcile per handler: drop the foundry's handlers wherever they are
+    # (a user may have added their own handler to the foundry's group), keep
+    # everything else, then add the current foundry group.
+    groups = []
+    for group in events.get("PostToolUse", []):
+        if isinstance(group, dict) and isinstance(group.get("hooks"), list):
+            kept = [h for h in group["hooks"] if not _is_foundry_handler(h)]
+            if not kept:
+                continue
+            group = {**group, "hooks": kept}
+        groups.append(group)
     if hooks:
-        groups.append({"matcher": _HOOK_MATCHER, "hooks": [
-            {"type": "command", "command": _hook_command(script),
-             "statusMessage": f"agent-foundry: {HOOK_SCRIPTS[script]['desc']}"}
-            for script in hooks]})
+        groups.append({"matcher": _HOOK_MATCHER,
+                       "hooks": [_hook_handler(script) for script in hooks]})
     if groups:
         events["PostToolUse"] = groups
     else:
         events.pop("PostToolUse", None)
-    if not events:
+    if not events and "hooks" not in original:
         data.pop("hooks")
-    if data:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-    elif path.exists():
-        path.unlink()  # the file held nothing but the foundry group
+    if data != original:
+        if data.get("hooks") or set(data) - {"hooks"}:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+        elif path.exists():
+            path.unlink()  # the file held nothing but the foundry group
 
     scripts_dir = project / _HOOKS_DIR  # foundry-owned namespace
     if scripts_dir.is_dir():
         shutil.rmtree(scripts_dir)
     install_hook_scripts(scripts_dir, hooks)
+    for empty in (scripts_dir.parent, scripts_dir.parent.parent):  # .codex/hooks, .codex
+        if empty.is_dir() and not any(empty.iterdir()):
+            empty.rmdir()
     if hooks:
         print(f"  Deployed {len(hooks)} hook(s) → {_HOOKS_JSON.as_posix()}")
     return len(hooks)
@@ -294,6 +366,14 @@ class CodexAdapter(CliAdapter):
 
     def supported_artifacts(self) -> set[str]:
         return {"rules", "skills", "commands", "agents", "hooks", "mcp"}
+
+    def undeploy(self, project: Path, ctx: DeployContext) -> None:
+        _deploy_agents(project, [])
+        _deploy_mcp(project, [])
+        _deploy_hooks(project, [])
+        codex_dir = project / ".codex"
+        if codex_dir.is_dir() and not any(codex_dir.iterdir()):
+            codex_dir.rmdir()
 
     def deploy(self, project: Path, sel: Selections, ctx: DeployContext) -> DeployResult:
         agents = _deploy_agents(project, sel.agents)

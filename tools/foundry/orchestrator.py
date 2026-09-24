@@ -18,6 +18,7 @@ from .manifest import (
 )
 from .paths import COMMANDS_DIR, REPO_ROOT
 from .payload import _install_foundry_payload
+from .private import discover_private_content, validate_prefix
 from .selection import run_selection
 from .shared import deploy_shared_outputs
 
@@ -82,7 +83,9 @@ def _select_clis(saved: list[str], interactive: bool) -> list[str]:
     if unknown:
         print(f"Unknown CLI target(s) ignored: {', '.join(unknown)} "
               f"(available: {', '.join(available)})")
-    saved = [c for c in saved if c in available] or list(DEFAULT_CLIS)
+    # Canonical adapter order, no duplicates: an adapter that can abort (Claude,
+    # on an unmarked CLAUDE.md) runs before the others write anything.
+    saved = [c for c in available if c in saved] or list(DEFAULT_CLIS)
     if not interactive:
         return saved
     labels = [f"{ADAPTERS[c].display_name} ({c})" for c in available]
@@ -96,13 +99,16 @@ def _select_clis(saved: list[str], interactive: bool) -> list[str]:
 
 def _deploy_to_clis(
     project: Path, adapters: list[CliAdapter], sel: Selections, ctx: DeployContext,
+    dropped: list[CliAdapter] | None = None,
 ) -> tuple[bool, list[dict]]:
-    """Run each adapter, then write the shared outputs once for all of them.
+    """Run each adapter, undeploy CLIs the user dropped as targets, then
+    write the shared outputs once for all remaining readers.
 
-    Returns (ok, private_sources). Adapters run first so one that aborts
-    (e.g. the user declined to touch CLAUDE.md) stops before any shared file
-    is written.
+    Returns (ok, private_sources). Adapters run in canonical order (Claude
+    first), so one that aborts (e.g. the user declined to touch CLAUDE.md)
+    stops before any other file is written.
     """
+    dropped = dropped or []
     private_sources: list[dict] = []
     for adapter in adapters:
         print(f"\n  → {adapter.display_name}")
@@ -111,10 +117,11 @@ def _deploy_to_clis(
             return False, []
         if result.private_sources:
             private_sources = result.private_sources
+    for adapter in dropped:
+        print(f"\n  → {adapter.display_name} (no longer a target)")
+        adapter.undeploy(project, ctx)
 
-    outputs = set().union(*(a.shared_outputs for a in adapters))
-    limits = {a.display_name: a.agents_md_limit for a in adapters if a.agents_md_limit}
-    deploy_shared_outputs(project, sel, outputs, limits)
+    deploy_shared_outputs(project, sel, adapters, dropped, ctx.mcp_state)
     _report_skipped(adapters, sel, ctx)
     return True, private_sources
 
@@ -143,6 +150,37 @@ def _report_skipped(adapters: list[CliAdapter], sel: Selections, ctx: DeployCont
     if lines:
         print("\n  Not deployed (the target CLI can't use them):")
         print("\n".join(lines))
+
+
+def _register_private_sources(
+    existing: list[dict], flagged: list[tuple[str, str]],
+) -> list[dict]:
+    """Manifest entries for private sources nothing deployed this run."""
+    registered = list(existing)
+    for src_path, prefix in flagged:
+        source = Path(src_path).resolve()
+        if not source.is_dir() or validate_prefix(prefix, [s["prefix"] for s in registered]):
+            print(f"  Private source not registered: {src_path} (prefix {prefix})")
+            continue
+        registered.append({"path": str(source), "prefix": prefix,
+                           **discover_private_content(source)})
+        print(f"  Registered private source {prefix} — it deploys once Claude Code is a target")
+    return registered
+
+
+def _mcp_state(manifest: dict | None) -> dict:
+    """What the foundry deployed to each MCP config last run. Manifests from
+    before it was recorded only know the selection: the foundry wrote those
+    names to .mcp.json (the only file it wrote then), rendering unknown."""
+    if not manifest:
+        return {}
+    deployed = manifest.get("deployed_mcp")
+    if isinstance(deployed, dict):
+        return {file: dict(entries) for file, entries in deployed.items()
+                if isinstance(entries, dict)}
+    selected = manifest.get("mcp_servers")
+    names = [n for n in selected if isinstance(n, str)] if isinstance(selected, list) else []
+    return {".mcp.json": dict.fromkeys(names)}
 
 
 def cmd_init(
@@ -190,13 +228,29 @@ def cmd_init(
         manifest = migrate_manifest(manifest)
 
     # ── Choose target CLI(s) first, so later menus only offer what they use ──
+    unknown = [c for c in clis or [] if c not in ADAPTERS]
+    if unknown:
+        # A typo must not silently drop (and undeploy) a real target.
+        print(f"Unknown CLI target(s): {', '.join(unknown)} (available: {', '.join(ADAPTERS)})",
+              file=sys.stderr)
+        return False
     saved_clis = clis or (manifest.get("clis", DEFAULT_CLIS) if manifest else DEFAULT_CLIS)
     try:
         selected_clis = _select_clis(saved_clis, interactive)
     except QuitSetup:
         print("\nSetup cancelled.")
         return False
+    previous_clis = manifest.get("clis", []) if manifest else []
+    dropped_ids = [c for c in ADAPTERS if c in previous_clis and c not in selected_clis]
+    if dropped_ids and interactive:
+        names = ", ".join(ADAPTERS[c].display_name for c in dropped_ids)
+        if not confirm(f"Drop {names}? The foundry's files for it are removed "
+                       "(its agents, hooks, managed config).", default=False):
+            selected_clis = [c for c in ADAPTERS if c in selected_clis or c in dropped_ids]
+            dropped_ids = []
+            print(f"Keeping {names} as a target.")
     adapters = [ADAPTERS[c]() for c in selected_clis]
+    dropped = [ADAPTERS[c]() for c in dropped_ids]
     consumed = set().union(*(a.supported_artifacts() for a in adapters))
 
     # ── Selection phase (precompute + step loop + derive) ──
@@ -234,16 +288,18 @@ def cmd_init(
         interactive=interactive, force=force, private_prefixes=private_prefixes,
         pending_private=pending_private, existing_private=existing_private,
         cli_private_sources=cli_private_sources or [],
+        mcp_state=_mcp_state(manifest),
     )
 
     # Each chosen CLI's adapter renders the selections into its native layout.
-    ok, private_sources = _deploy_to_clis(project, adapters, sel, ctx)
+    ok, private_sources = _deploy_to_clis(project, adapters, sel, ctx, dropped)
     if not ok:
         return False
     if not any("private-sources" in a.supported_artifacts() for a in adapters):
-        # Nothing deployed them this run — keep them registered so adding
-        # Claude Code back later redeploys them.
-        private_sources = existing_private
+        # Nothing deployed them this run — keep them registered (plus any
+        # given with --private, all content selected as the flag does for
+        # Claude Code) so adding Claude Code back later deploys them.
+        private_sources = _register_private_sources(existing_private, cli_private_sources or [])
 
     # Save manifest
     manifest_data: dict = {
@@ -263,12 +319,20 @@ def cmd_init(
     }
     if private_sources:
         manifest_data["private_sources"] = private_sources
+    # Always recorded — even when empty — so the next run never mistakes this
+    # manifest for one from before ownership was recorded.
+    manifest_data["deployed_mcp"] = ctx.mcp_state
+    # VERSION for every target: update-all and the version guards key on it.
+    (project / ".claude").mkdir(parents=True, exist_ok=True)
+    (project / ".claude" / "VERSION").write_text(version + "\n", encoding="utf-8")
     save_manifest(project, manifest_data)
 
     # Summary
     print(f"\n✓ Project configured with agent-foundry v{version}")
     print(f"  Rules: {len(selected_base)} base + {sum(len(v) for v in selected_modular.values())} selected")
-    print(f"  Hooks: {len(selected_hooks)}")
+    print(f"  Hooks: {len(selected_hooks)}" + (
+        " (each runs only where the project configures its tool — see the README Hooks section)"
+        if selected_hooks else ""))
     cmd_count = len([f for f in (COMMANDS_DIR).iterdir() if f.suffix == ".md"]) if COMMANDS_DIR.is_dir() else 0
     print(f"  Commands: {cmd_count}")
     print(f"  Agents: {len(selected_agents)}")
@@ -433,13 +497,22 @@ def main() -> None:
                 remaining.append(arg)
                 i += 1
         project = Path(remaining[0]) if remaining else Path.cwd()
-        cmd_init(
+        bad = [c for c in clis_arg or [] if c not in ADAPTERS]
+        if clis_arg is not None and (bad or not clis_arg):
+            print(f"--clis: unknown CLI target(s) {', '.join(bad) or '(none given)'} "
+                  f"(available: {', '.join(ADAPTERS)})", file=sys.stderr)
+            sys.exit(2)
+        ok = cmd_init(
             project,
             interactive=interactive,
             force=force,
             cli_private_sources=private_sources or None,
             clis=clis_arg,
         )
+        # 3 = nothing applied, by design (skipped, declined, cancelled) — so
+        # callers such as update-foundry.sh roll back without calling it a
+        # failure. Crashes exit 1 (Python's default), usage errors 2.
+        sys.exit(0 if ok else 3)
     elif command == "update-all":
         force = "--force" in sys.argv
         cmd_update_all(force=force)
