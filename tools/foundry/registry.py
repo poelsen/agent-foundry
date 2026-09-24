@@ -58,6 +58,49 @@ BASE_RULES = [
     "architecture.md", "performance.md", "agents.md", "hooks.md", "codemaps.md",
 ]
 
+# Base rules that describe Claude Code-only machinery (the Task tool and the
+# foundry subagent roster, settings.json hooks, Claude model tiers). They
+# deploy to .claude/rules/ but are never rendered into the shared AGENTS.md,
+# where they would mislead Copilot, Codex, and Antigravity.
+CLAUDE_ONLY_RULES: set[str] = {"agents.md", "hooks.md", "performance.md"}
+
+# One-line descriptions shown next to each rule in the CLAUDE.md header and
+# in the AGENTS.md pointer list. Rules missing here get a title-cased name.
+RULE_DESCRIPTIONS: dict[str, str] = {
+    # Language/tooling rules
+    "python.md": "Python tooling (uv, pytest, ruff)",
+    "rust.md": "Rust tooling (cargo, clippy)",
+    "go.md": "Go tooling (go mod, golangci-lint)",
+    "nodejs.md": "Node.js tooling (npm)",
+    "matlab.md": "MATLAB tooling",
+    # Project templates
+    "embedded-c.md": "Embedded C/C++ (MISRA, memory safety, build)",
+    "embedded-dsp.md": "Embedded DSP & Audio (real-time, numerical, HW)",
+    "react-app.md": "React application (components, state, UX)",
+    "rest-api.md": "REST API backend (layers, reliability, observability)",
+    "desktop-gui-qt.md": "Desktop GUI Qt (threading, signals, persistence)",
+    "library.md": "Library development (API design, versioning)",
+    "scripts.md": "Scripts & CLI (argument parsing, error handling)",
+    "data-pipeline.md": "Data pipeline (idempotency, validation, monitoring)",
+    "monolith.md": "Monolith architecture (module boundaries, migrations)",
+    # Platform rules
+    "github.md": "GitHub workflow (gh CLI, PR conventions)",
+    # Security rules
+    "enterprise.md": "Enterprise security (production, compliance)",
+    "internal.md": "Internal security (team tools)",
+    "sandbox.md": "Sandbox security (prototyping)",
+    # Base rules
+    "coding-style.md": "Code style guidelines",
+    "git-workflow.md": "Git workflow and commit conventions",
+    "security.md": "Security checks and practices",
+    "testing.md": "Testing requirements (TDD, 80% coverage)",
+    "architecture.md": "Architecture principles",
+    "performance.md": "Performance and model selection",
+    "agents.md": "Agent orchestration",
+    "codemaps.md": "Codemap system",
+    "hooks.md": "Hooks system",
+}
+
 MODULAR_RULES = {
     "lang": {
         "python.md": {"detect": [".py"], "config": ["pyproject.toml", "requirements.txt"]},
@@ -153,13 +196,14 @@ SKILL_GROUPS: dict[str, list[str]] = {
     ],
 }
 
-# Skills portable to non-Claude CLIs that natively read SKILL.md (verified
-# against GitHub Copilot CLI 1.0.58, which loads skills from .github/skills/).
-# Limited to pure reasoning workflows — skills that wire into Claude-only
-# machinery (prj-*/snapshot/update-foundry/learn → .claude/, slash-commands,
-# session ids; review-process → Claude reviewer agents) are intentionally
-# excluded.
-COPILOT_PORTABLE_SKILLS: set[str] = {
+# Skills portable to every non-Claude CLI. They deploy once to the shared
+# .agents/skills/ root, which Copilot CLI (1.0.69), Codex (0.156) and
+# Antigravity (1.2.10) all load natively — so "portable" means safe on any
+# of them, not just one. Limited to pure reasoning workflows — skills that
+# wire into Claude-only machinery (prj-*/snapshot/update-foundry/learn →
+# .claude/, slash-commands, session ids; review-process → Claude reviewer
+# agents) are intentionally excluded.
+PORTABLE_SKILLS: set[str] = {
     "megamind-deep", "megamind-creative", "megamind-adversarial", "megamind-financial",
 }
 

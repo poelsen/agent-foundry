@@ -19,7 +19,6 @@ from ..deploy import (
     copy_rules,
     copy_skills,
     generate_settings_json,
-    write_mcp_servers,
 )
 from ..instructions import (
     generate_agent_foundry_header,
@@ -35,18 +34,20 @@ from ..private import (
     redeploy_private_sources,
     validate_prefix,
 )
-from .base import CliAdapter, DeployContext, DeployResult, Selections
+from .base import MCP_JSON, CliAdapter, DeployContext, DeployResult, Selections
 
 
 class ClaudeAdapter(CliAdapter):
     id = "claude"
     display_name = "Claude Code"
+    shared_outputs = frozenset({MCP_JSON})
 
     def config_root(self, project: Path) -> Path:
         return project / ".claude"
 
     def supported_artifacts(self) -> set[str]:
-        return {"rules", "mcp", "agents", "skills", "commands", "hooks"}
+        return {"rules", "mcp", "agents", "skills", "commands", "hooks",
+                "plugins", "learned", "private-sources"}
 
     def deploy(self, project: Path, sel: Selections, ctx: DeployContext) -> DeployResult:
         # ── Pre-check CLAUDE.md for non-interactive mode ──
@@ -104,9 +105,8 @@ class ClaudeAdapter(CliAdapter):
         (claude_dir / "settings.json").write_text(
             json.dumps(settings, indent=2) + "\n", encoding='utf-8')
 
-        # MCP servers
-        if sel.mcp_servers:
-            write_mcp_servers(project, sel.mcp_servers)
+        # MCP servers: .mcp.json is a shared output (Copilot reads it too),
+        # written once by the orchestrator after every adapter has run.
 
         # ── Private Sources ──
         private_sources: list[dict] = []

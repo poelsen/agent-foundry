@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from .adapters import ADAPTERS, DEFAULT_CLIS, DeployContext, Selections
+from .adapters import ADAPTERS, DEFAULT_CLIS, CliAdapter, DeployContext, Selections
 from .console import GoBack, QuitSetup, confirm, toggle_menu
 from .manifest import (
     discover_projects,
@@ -19,6 +19,7 @@ from .manifest import (
 from .paths import COMMANDS_DIR, REPO_ROOT
 from .payload import _install_foundry_payload
 from .selection import run_selection
+from .shared import deploy_shared_outputs
 
 __doc_usage__ = """agent-foundry per-project setup tool.
 
@@ -72,9 +73,14 @@ def _select_clis(saved: list[str], interactive: bool) -> list[str]:
     """Choose which CLI target(s) to deploy for.
 
     Non-interactive runs return the saved selection (default ``["claude"]``).
-    Interactive runs present a toggle menu of available adapters.
+    Interactive runs present a toggle menu of available adapters. Unknown
+    ids are reported and dropped. Raises QuitSetup if the user quits.
     """
     available = list(ADAPTERS.keys())
+    unknown = [c for c in saved if c not in available]
+    if unknown:
+        print(f"Unknown CLI target(s) ignored: {', '.join(unknown)} "
+              f"(available: {', '.join(available)})")
     saved = [c for c in saved if c in available] or list(DEFAULT_CLIS)
     if not interactive:
         return saved
@@ -82,9 +88,59 @@ def _select_clis(saved: list[str], interactive: bool) -> list[str]:
     preselected = {i for i, c in enumerate(available) if c in saved}
     try:
         chosen = toggle_menu("Target CLI(s)", labels, preselected, required_one=True)
-    except (GoBack, QuitSetup):
+    except GoBack:
         return saved
     return [available[i] for i in sorted(chosen)] or list(DEFAULT_CLIS)
+
+
+def _deploy_to_clis(
+    project: Path, adapters: list[CliAdapter], sel: Selections, ctx: DeployContext,
+) -> tuple[bool, list[dict]]:
+    """Run each adapter, then write the shared outputs once for all of them.
+
+    Returns (ok, private_sources). Adapters run first so one that aborts
+    (e.g. the user declined to touch CLAUDE.md) stops before any shared file
+    is written.
+    """
+    private_sources: list[dict] = []
+    for adapter in adapters:
+        print(f"\n  → {adapter.display_name}")
+        result = adapter.deploy(project, sel, ctx)
+        if not result.ok:
+            return False, []
+        if result.private_sources:
+            private_sources = result.private_sources
+
+    outputs = set().union(*(a.shared_outputs for a in adapters))
+    deploy_shared_outputs(project, sel, outputs)
+    _report_skipped(adapters, sel, ctx)
+    return True, private_sources
+
+
+def _report_skipped(adapters: list[CliAdapter], sel: Selections, ctx: DeployContext) -> None:
+    """Say which selected items each target CLI didn't get, and why."""
+    lines: list[str] = []
+    claude_selected = any(a.id == "claude" for a in adapters)
+    for adapter in adapters:
+        unsupported: list[str] = []
+        for skip in adapter.skipped(sel):
+            if skip.claude_only:
+                lines.append(f"    {adapter.display_name}: Claude-only {skip.artifact} — "
+                             f"{', '.join(skip.items)}")
+                if (skip.artifact == "skills" and claude_selected
+                        and adapter.reads_claude_skills):
+                    lines.append(f"      (note: {adapter.display_name} still loads them "
+                                 "from .claude/skills/ on its own)")
+            else:
+                unsupported.append(f"{skip.artifact} ({len(skip.items)})")
+        if unsupported:
+            lines.append(f"    {adapter.display_name}: no support for {', '.join(unsupported)}")
+    has_private = ctx.cli_private_sources or ctx.pending_private or ctx.existing_private
+    if has_private and not any("private-sources" in a.supported_artifacts() for a in adapters):
+        lines.append("    Private sources deploy only for Claude Code — not deployed")
+    if lines:
+        print("\n  Not deployed (the target CLI can't use them):")
+        print("\n".join(lines))
 
 
 def cmd_init(
@@ -131,8 +187,18 @@ def cmd_init(
     if manifest:
         manifest = migrate_manifest(manifest)
 
+    # ── Choose target CLI(s) first, so later menus only offer what they use ──
+    saved_clis = clis or (manifest.get("clis", DEFAULT_CLIS) if manifest else DEFAULT_CLIS)
+    try:
+        selected_clis = _select_clis(saved_clis, interactive)
+    except QuitSetup:
+        print("\nSetup cancelled.")
+        return False
+    adapters = [ADAPTERS[c]() for c in selected_clis]
+    consumed = set().union(*(a.supported_artifacts() for a in adapters))
+
     # ── Selection phase (precompute + step loop + derive) ──
-    result = run_selection(project, manifest, interactive, cli_private_sources)
+    result = run_selection(project, manifest, interactive, cli_private_sources, consumed)
     if not result.ok:
         return False
 
@@ -149,10 +215,6 @@ def cmd_init(
     pending_private = result.pending_private
     existing_private = result.existing_private
     existing_private_prefixes = result.existing_private_prefixes
-
-    # ── Choose target CLI(s) ──
-    saved_clis = clis or (manifest.get("clis", DEFAULT_CLIS) if manifest else DEFAULT_CLIS)
-    selected_clis = _select_clis(saved_clis, interactive)
 
     # ── Generate ──
     print("\nGenerating project configuration...")
@@ -173,19 +235,13 @@ def cmd_init(
     )
 
     # Each chosen CLI's adapter renders the selections into its native layout.
-    private_sources: list[dict] = []
-    for cli_id in selected_clis:
-        adapter_cls = ADAPTERS.get(cli_id)
-        if adapter_cls is None:
-            print(f"  Unknown CLI target '{cli_id}' — skipping")
-            continue
-        adapter = adapter_cls()
-        print(f"\n  → {adapter.display_name}")
-        result = adapter.deploy(project, sel, ctx)
-        if not result.ok:
-            return False
-        if result.private_sources:
-            private_sources = result.private_sources
+    ok, private_sources = _deploy_to_clis(project, adapters, sel, ctx)
+    if not ok:
+        return False
+    if not any("private-sources" in a.supported_artifacts() for a in adapters):
+        # Nothing deployed them this run — keep them registered so adding
+        # Claude Code back later redeploys them.
+        private_sources = existing_private
 
     # Save manifest
     manifest_data: dict = {

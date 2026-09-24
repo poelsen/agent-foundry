@@ -32,6 +32,16 @@ from .registry import (
     WORKFLOW_PLUGINS,
 )
 
+# Artifact type each selection step picks, matched against the selected
+# CLIs' supported_artifacts(). Steps not listed (features) always apply.
+_STEP_ARTIFACT = {
+    "base": "rules", "lang": "rules", "templates": "rules",
+    "platform": "rules", "security": "rules",
+    "hooks": "hooks", "agents": "agents", "skills": "skills",
+    "learned": "learned", "plugins": "plugins", "mcp": "mcp",
+    "private": "private-sources",
+}
+
 
 @dataclass
 class SelectionResult:
@@ -58,6 +68,7 @@ def run_selection(
     manifest: dict | None,
     interactive: bool,
     cli_private_sources: list[tuple[str, str]] | None,
+    consumed: set[str] | None = None,
 ) -> SelectionResult:
     """Run the precompute + selection loop + derive phases of ``cmd_init``.
 
@@ -66,6 +77,10 @@ def run_selection(
         manifest: Loaded+migrated manifest, or None.
         interactive: Whether to prompt for choices.
         cli_private_sources: (path, prefix) tuples from --private/--prefix flags.
+        consumed: Artifact types the selected CLIs can consume (None = all).
+            Steps for other types are not shown; they resolve from the
+            manifest/defaults as in a non-interactive run, so switching
+            target CLIs later doesn't lose the saved choices.
 
     Returns:
         A fully-resolved :class:`SelectionResult`. On ``QuitSetup`` (user quit),
@@ -114,7 +129,12 @@ def run_selection(
     # ── Selection phase (step-based with back/quit for interactive) ──
     STEPS = ["base", *modular_categories,
              "hooks", "agents", "skills", "learned", "plugins", "mcp", "features"]
-    if interactive and not cli_private_sources:
+
+    def _applies(s: str) -> bool:
+        artifact = _STEP_ARTIFACT.get(s)
+        return consumed is None or artifact is None or artifact in consumed
+
+    if interactive and not cli_private_sources and _applies("private"):
         STEPS.append("private")
     saved_steps: dict[str, set[int]] = {}
     saved_plugin_names: set[str] | None = None
@@ -138,6 +158,7 @@ def run_selection(
             if _skip_step(name):
                 step += 1
                 continue
+            ask = interactive and _applies(name)
 
             try:
                 if name == "base":
@@ -147,7 +168,7 @@ def run_selection(
                         defaults = _manifest_indices(BASE_RULES, "base_rules")
                     else:
                         defaults = set(range(len(BASE_RULES)))
-                    if interactive:
+                    if ask:
                         saved_steps["base"] = toggle_menu(
                             "Base Rules (all recommended)", BASE_RULES, defaults)
                     else:
@@ -169,7 +190,7 @@ def run_selection(
                                 auto.add(i)
                     required = name == "security"
                     label = category_labels.get(name, name)
-                    if interactive:
+                    if ask:
                         saved_steps[name] = toggle_menu(
                             f"{label}" + (" (select exactly one)" if required else ""),
                             [f"{rule}" for rule in rules], auto,
@@ -189,7 +210,7 @@ def run_selection(
                             meta = HOOK_SCRIPTS[script]
                             if any(lang in sfd for lang in meta["langs"]):
                                 auto.add(i)
-                    if interactive:
+                    if ask:
                         saved_steps["hooks"] = toggle_menu(
                             "Hooks (auto-selected by language)",
                             [f"{s} — {HOOK_SCRIPTS[s]['desc']}" for s in hook_names],
@@ -215,7 +236,7 @@ def run_selection(
                                 auto.add(i)
                             if "desktop-gui-qt.md" in sfd and "python-qt" in af:
                                 auto.add(i)
-                    if interactive:
+                    if ask:
                         saved_steps["agents"] = toggle_menu("Agents", agent_files, auto)
                     else:
                         saved_steps["agents"] = auto
@@ -271,7 +292,7 @@ def run_selection(
                         if any(SKILLS.index(s) in auto for s in skills):
                             auto_visible.add(vi)
 
-                    if interactive:
+                    if ask:
                         chosen_visible = toggle_menu("Skills", visible_items, auto_visible)
                     else:
                         chosen_visible = auto_visible
@@ -293,7 +314,7 @@ def run_selection(
                         auto = _manifest_indices(learned_cats, "learned_categories")
                     else:
                         auto = set(range(len(learned_cats)))
-                    if interactive:
+                    if ask:
                         saved_steps["learned"] = toggle_menu(
                             "Learned Skills (categories)", learned_cats, auto)
                     else:
@@ -320,7 +341,7 @@ def run_selection(
                         auto = {i for i, (p, _) in enumerate(all_plugins) if p in sp}
                     else:
                         auto = set(range(len(all_plugins)))
-                    result = toggle_menu("Plugins", plugin_display, auto) if interactive else auto
+                    result = toggle_menu("Plugins", plugin_display, auto) if ask else auto
                     saved_steps["plugins"] = result
                     saved_plugin_names = {all_plugins[i][0] for i in result
                                           if i < len(all_plugins)}
@@ -333,7 +354,7 @@ def run_selection(
                         auto = {i for i, n in enumerate(mcp_names) if n in sm}
                     else:
                         auto = set()
-                    if interactive:
+                    if ask:
                         saved_steps["mcp"] = toggle_menu(
                             "MCP Servers (optional)", mcp_descs, auto)
                     else:
@@ -353,7 +374,7 @@ def run_selection(
                                 if k in sel}
                     else:
                         auto = set()
-                    if interactive:
+                    if ask:
                         saved_steps["features"] = toggle_menu(
                             "Optional Features", feat_labels, auto)
                     else:
@@ -449,7 +470,8 @@ def run_selection(
 
             except GoBack:
                 step -= 1
-                while step >= 0 and _skip_step(STEPS[step]):
+                while step >= 0 and (_skip_step(STEPS[step])
+                                     or not _applies(STEPS[step])):
                     step -= 1
                 step = max(0, step)
 

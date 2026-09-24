@@ -14,9 +14,15 @@ A per-CLI **adapter** renders the selected artifacts into that CLI's conventions
 | Target | Reads | Gets |
 |--------|-------|------|
 | **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)** (`claude`) | `.claude/` + `CLAUDE.md` | full fidelity — rules, agents, skills, commands, hooks, settings, MCP |
-| **[GitHub Copilot CLI](https://github.com/github/copilot-cli)** (`copilot`) | `AGENTS.md`, `.mcp.json`, `.github/skills/` | coding-standard rules (embedded in the cross-tool [`AGENTS.md`](https://agents.md)), MCP servers (workspace `.mcp.json`), and portable reasoning skills (megamind) as native Copilot `SKILL.md` skills |
+| **[GitHub Copilot CLI](https://github.com/github/copilot-cli)** (`copilot`) | `AGENTS.md`, `.mcp.json`, `.agents/skills/` | coding-standard rules (embedded in the cross-tool [`AGENTS.md`](https://agents.md)), MCP servers (workspace `.mcp.json`), and portable reasoning skills (megamind) as native `SKILL.md` skills |
 
-Pick targets with `--clis claude,copilot` (or the interactive menu). Artifact types a CLI can't consume (Copilot has no subagent/hook equivalent) are reported as not-applicable, never silently dropped.
+Pick targets with `--clis claude,copilot` (or the interactive menu, which comes first so later menus only offer what the chosen CLIs can use). Selected items a CLI can't consume (Copilot has no subagent/hook equivalent; Claude-only skills and rules) are listed in a "Not deployed" report at the end of the run, never silently dropped.
+
+**Shared outputs.** Files that several CLIs read — `AGENTS.md`, `.agents/skills/`, `.mcp.json` — are written once per run for all selected targets, not once per adapter:
+
+- **`AGENTS.md`** gets a marker-wrapped block with the portable coding-standard rules (Claude-only rules such as `agents.md`, `hooks.md`, `performance.md` are left out). The block is capped at 20 KB because other CLIs silently truncate large instruction files (Antigravity at 24,000 bytes per file, Codex at 32 KiB in total). Rules that don't fit go to `.agents/rules/foundry-<rule>.md` — with Antigravity `trigger:` frontmatter, so Antigravity loads them natively — and `AGENTS.md` points to them.
+- **`.agents/skills/`** is the cross-vendor skill root (Copilot CLI, Codex and Antigravity all load it). Only portable skills go there.
+- `.agents/` is shared with other tools, so every file the foundry writes there carries an ownership marker and updates only ever prune marked content.
 
 ## Bootstrap
 
@@ -404,6 +410,7 @@ agent-foundry/
     └── foundry/                  # The deployment package
         ├── orchestrator.py       # Selects artifacts, dispatches to adapters
         ├── adapters/             # One per CLI: base, claude, copilot
+        ├── shared.py             # Files several CLIs read (AGENTS.md, .agents/, .mcp.json)
         ├── registry.py  detect.py  manifest.py  …
         └── …
 ```
