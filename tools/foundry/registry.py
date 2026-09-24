@@ -173,7 +173,7 @@ SKILLS = [
     "update-foundry", "learn", "learn-recall", "snapshot-list",
     "private-list", "private-remove",
     "prj-new", "prj-list", "prj-pause", "prj-resume", "prj-done", "prj-delete",
-    "copilot-cli",
+    "copilot-cli", "codex-cli", "agy-cli",
     "writer", "humanizer",
 ]
 
@@ -199,19 +199,26 @@ SKILL_GROUPS: dict[str, list[str]] = {
 # Skills portable to every non-Claude CLI. They deploy once to the shared
 # .agents/skills/ root, which Copilot CLI (1.0.69), Codex (0.156) and
 # Antigravity (1.2.10) all load natively — so "portable" means safe on any
-# of them, not just one. Limited to pure reasoning workflows — skills that
-# wire into Claude-only machinery (prj-*/snapshot/update-foundry/learn →
-# .claude/, slash-commands, session ids; review-process → Claude reviewer
-# agents) are intentionally excluded.
+# of them, not just one. Deploying adapts them (see shared.py): Claude-only
+# frontmatter is dropped, .claude/skills/ paths and Skill(x) calls are
+# rewritten, and files over Codex's 8 KB skill limit are split. Excluded:
+# skills tied to Claude-only state (prj-*/snapshot-list/learn* → Claude
+# session ids and .claude/ layouts, private-* → Claude-only private
+# sources, review-process → Claude reviewer agents and prompts) and the
+# MiniMax delegate pair (a secondary Claude Code CLI).
 PORTABLE_SKILLS: set[str] = {
     "megamind-deep", "megamind-creative", "megamind-adversarial", "megamind-financial",
+    "clickhouse-io", "gui-threading", "python-qt-gui", "writer", "humanizer",
+    "update-foundry", "copilot-cli", "codex-cli", "agy-cli",
 }
 
 # Claude slash commands that work on any CLI. Copilot, Codex and Antigravity
 # have no command files (Codex removed custom prompts in 0.117), so these are
-# converted to skills in .agents/skills/. The rest touch .claude/ state
-# (snapshots) or wrap Claude-only skills (update-foundry-*).
-PORTABLE_COMMANDS: set[str] = {"update-codemaps.md"}
+# converted to skills in .agents/skills/ (sub-commands only with their
+# skill). The snapshot commands keep state in .claude/ and stay Claude-only.
+PORTABLE_COMMANDS: set[str] = {
+    "update-codemaps.md", "update-foundry-check.md", "update-foundry-interactive.md",
+}
 
 # Skills that are never shown in the interactive skill menu. None today —
 # kept as an explicit empty set so the menu-build logic stays uniform.

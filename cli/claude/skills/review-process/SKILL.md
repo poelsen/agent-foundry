@@ -112,20 +112,28 @@ else
     host=unknown
 fi
 
-# Local GitHub Copilot CLI — the ONLY way to run non-Claude (GPT, Gemini,
-# Grok, …) models. Required for any "ChatGPT/GPT-5.x" reviewer run. See the
-# `copilot-cli` skill for the exact invocation contract.
+# Local cross-vendor CLIs — the ONLY ways to run non-Claude models. Each has
+# a reference skill with the exact invocation contract:
+#   copilot → Copilot catalog (GPT, Gemini, Grok, …)   see `copilot-cli`
+#   codex   → OpenAI models (GPT-5.x) directly         see `codex-cli`
+#   agy     → Google Gemini models                     see `agy-cli`
 copilot_cli=no
 command -v copilot >/dev/null 2>&1 && copilot --version >/dev/null 2>&1 && copilot_cli=yes
+codex_cli=no
+command -v codex >/dev/null 2>&1 && codex --version >/dev/null 2>&1 && codex_cli=yes
+agy_cli=no
+command -v agy >/dev/null 2>&1 && agy --version >/dev/null 2>&1 && agy_cli=yes
 
-echo "host=$host copilot_cli=$copilot_cli"
+echo "host=$host copilot_cli=$copilot_cli codex_cli=$codex_cli agy_cli=$agy_cli"
 ```
 
 > **Hard requirement:** running a GPT / ChatGPT (or any non-Claude) model as a
-> reviewer **requires the local `copilot` CLI** (`copilot_cli=yes`). There is
-> no MCP bridge or extension fallback — that path was retired. If
-> `copilot_cli=no`, GPT runs are unavailable; fall back per the
-> `DIVERSE_STANDARD` rule and record it in the header.
+> reviewer **requires a local cross-vendor CLI**: `copilot` (any Copilot-catalog
+> model), `codex` (GPT models via the `codex-cli` skill), or `agy` (Gemini
+> models via the `agy-cli` skill). There is no MCP bridge or extension
+> fallback — that path was retired. If none is installed, non-Claude runs are
+> unavailable; fall back per the `DIVERSE_STANDARD` rule and record it in the
+> header.
 
 The profiles drive which strategies are actually viable:
 
@@ -133,7 +141,8 @@ The profiles drive which strategies are actually viable:
 |---------|-------------------------------|------------------|
 | `host=copilot-cli` | Copilot's native model catalog (GPT-5, Gemini, Claude 4.x, Grok, …) directly | All strategies viable. In `USER_SPECIFIED` / "Other", accept any Copilot-catalog model name. The bigger catalog makes `DIVERSE_STANDARD` and `MIXED_PREMIUM` cheap to satisfy. |
 | `host=claude-code` + `copilot_cli=yes` | Anthropic via current session + Agent model overrides; **non-Claude models (GPT-5.4, …) via the `copilot-cli` skill** (`copilot -p … --model …`) | All strategies viable. `PREMIUM_TARGETED` / `MIXED_PREMIUM` and cross-vendor `DIVERSE_STANDARD` resolve through the `copilot-cli` skill. |
-| `host=claude-code` + `copilot_cli=no` | Anthropic only (current session + Agent `model:` overrides). `delegate` for MiniMax if installed. **No GPT/ChatGPT models available.** | `SINGLE_FAST` and `DIVERSE_STANDARD` still viable (same-vendor fallback). `PREMIUM_TARGETED` / `MIXED_PREMIUM` and any GPT reviewer are degraded — surface this in the prompt so the user can install the Copilot CLI or pick a different strategy. |
+| `host=claude-code` + `copilot_cli=no` + `codex_cli=yes` and/or `agy_cli=yes` | Anthropic via current session; **GPT via the `codex-cli` skill** (`codex exec -m gpt-5.5 …`) and/or **Gemini via the `agy-cli` skill** (`agy -p … --model gemini-3.1-pro-high`) | All strategies viable within those vendors. Cross-vendor `DIVERSE_STANDARD` resolves through whichever CLI is present (prefer `codex` for GPT). |
+| `host=claude-code` + no cross-vendor CLI | Anthropic only (current session + Agent `model:` overrides). `delegate` for MiniMax if installed. **No GPT/ChatGPT models available.** | `SINGLE_FAST` and `DIVERSE_STANDARD` still viable (same-vendor fallback). `PREMIUM_TARGETED` / `MIXED_PREMIUM` and any GPT reviewer are degraded — surface this in the prompt so the user can install the Copilot, Codex or Antigravity CLI or pick a different strategy. |
 | `host=unknown` | Conservative: assume Claude Code without the Copilot CLI. | Same as the row above. |
 
 Record the detected profile in the review header alongside the chosen
@@ -189,9 +198,11 @@ rather than family diversity, but never collapse to a single run).
 | Runtime | Run A | Run B (fallback rule) |
 |---------|-------|-----------------------|
 | `host=claude-code` + `copilot_cli=yes` | **Claude Opus 4.7** (current session) — deep/correctness frame | **GPT-5.4** via the `copilot-cli` skill (`copilot -p … --model gpt-5.4 --allow-all-tools -s`) — adversarial/failure-modes frame |
-| `host=claude-code` + `copilot_cli=no` | **Claude Opus 4.7** (current session) — deep/correctness frame | **Claude Opus 4.7** spawned via `Agent` tool with a fresh context — adversarial/failure-modes frame. GPT is unreachable without the Copilot CLI; record "no cross-vendor diversity available (copilot CLI not installed); second-run Opus 4.7" in the review header. |
+| `host=claude-code` + `copilot_cli=no` + `codex_cli=yes` | **Claude Opus 4.7** (current session) — deep/correctness frame | **GPT-5.5** via the `codex-cli` skill (`codex exec -m gpt-5.5 -s read-only …`) — adversarial/failure-modes frame |
+| `host=claude-code` + `copilot_cli=no` + `codex_cli=no` + `agy_cli=yes` | **Claude Opus 4.7** (current session) — deep/correctness frame | **Gemini 3.1 Pro** via the `agy-cli` skill (`agy -p … --model gemini-3.1-pro-high`) — adversarial/failure-modes frame |
+| `host=claude-code` + no cross-vendor CLI | **Claude Opus 4.7** (current session) — deep/correctness frame | **Claude Opus 4.7** spawned via `Agent` tool with a fresh context — adversarial/failure-modes frame. Non-Claude models are unreachable without a cross-vendor CLI; record "no cross-vendor diversity available (no copilot/codex/agy CLI installed); second-run Opus 4.7" in the review header. |
 | `host=copilot-cli` | **GPT-5.4** via Copilot catalog — deep/correctness frame | **Claude Opus 4.6** via Copilot catalog — adversarial/failure-modes frame |
-| `host=unknown` | Same as `claude-code` + `copilot_cli=no` | Same fallback rule |
+| `host=unknown` | Same as `claude-code` + no cross-vendor CLI | Same fallback rule |
 
 Always assign different frames (deep vs adversarial, or whichever two the
 routing table calls for) to the two runs — running the same frame twice on
@@ -202,8 +213,8 @@ For T3-T4, model selection follows the chosen strategy (`PREMIUM_TARGETED`,
 `MIXED_PREMIUM`) and the runtime profile — concrete defaults are not pinned
 because the highest-tier strategies are inherently bespoke per review.
 
-If the strategy the user chooses requires a GPT/non-Claude model but the local
-`copilot` CLI is not installed (`copilot_cli=no`), `delegate` is missing, or a
+If the strategy the user chooses requires a GPT/non-Claude model but no local
+cross-vendor CLI can serve it (`copilot`, `codex` or `agy`), `delegate` is missing, or a
 Copilot-catalog model is not reachable from the current runtime, surface this
 in the review header (`Skipped/unavailable reviewers`) and substitute the
 closest available reviewer (per the `DIVERSE_STANDARD` fallback) rather than

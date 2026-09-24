@@ -3,17 +3,20 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "tools"))
 
 import pytest
+import yaml
 
 from foundry import shared
 from foundry.adapters import CopilotAdapter, Selections
 from foundry.adapters.base import AGENTS_MD, AGENTS_SKILLS, MCP_JSON
-from foundry.registry import BASE_RULES, CLAUDE_ONLY_RULES
+from foundry.paths import REPO_ROOT
+from foundry.registry import BASE_RULES, CLAUDE_ONLY_RULES, PORTABLE_SKILLS
 from foundry.selection import run_selection
 
 HEAVY_MODULAR = {
@@ -219,3 +222,67 @@ def test_private_source_step_gated_on_claude(tmp_path: Path, monkeypatch):
     run_selection(tmp_path, None, interactive=True, cli_private_sources=None,
                   consumed={"rules", "mcp", "skills"})
     assert not any("private config source" in p for p in prompts)
+
+
+# ── Portable skills adapted for the shared root ──
+
+
+def _deployed(tmp_path: Path, *skills: str) -> Path:
+    shared.deploy_shared_skills(tmp_path, _selections(skills=list(skills)))
+    return tmp_path / ".agents" / "skills"
+
+
+@pytest.mark.parametrize("skill", sorted(PORTABLE_SKILLS))
+def test_every_portable_skill_deploys_valid_and_within_codex_limit(tmp_path: Path, skill: str):
+    skill_md = _deployed(tmp_path, skill) / skill / "SKILL.md"
+    text = skill_md.read_text()
+    meta = yaml.safe_load(text.split("---", 2)[1])
+    assert meta["name"] == skill and meta["description"]
+    assert not {"model", "allowed-tools"} & set(meta)       # Claude-only keys dropped
+    assert len(text.encode()) <= shared._SKILL_PROMPT_LIMIT  # Codex injects ≤ 8,000 B
+    for md in skill_md.parent.rglob("*.md"):
+        assert ".claude/skills/" not in md.read_text(), md
+        assert "Skill(" not in md.read_text(), md
+
+
+def test_large_skill_split_keeps_full_text(tmp_path: Path):
+    root = _deployed(tmp_path, "megamind-financial")
+    stub = (root / "megamind-financial" / "SKILL.md").read_text()
+    full = (root / "megamind-financial" / "SKILL.full.md").read_text()
+    assert "`SKILL.full.md`" in stub
+    source = (REPO_ROOT / "cli/claude/skills/megamind-financial/SKILL.md").read_text()
+    assert full.split("---", 2)[2] == source.split("---", 2)[2]  # body unchanged
+    assert not (root / "megamind-deep").exists()
+
+
+def test_small_skill_not_split(tmp_path: Path):
+    root = _deployed(tmp_path, "codex-cli")
+    assert not (root / "codex-cli" / "SKILL.full.md").exists()
+
+
+def test_multiline_allowed_tools_removed_cleanly(tmp_path: Path):
+    skill = _deployed(tmp_path, "writer") / "writer" / "SKILL.full.md"
+    meta = yaml.safe_load(skill.read_text().split("---", 2)[1])
+    assert "allowed-tools" not in meta and meta["name"] == "writer"
+
+
+def test_skill_invocations_rewritten(tmp_path: Path):
+    text = (_deployed(tmp_path, "writer", "humanizer") / "writer" / "SKILL.full.md").read_text()
+    assert "the `humanizer` skill (`.agents/skills/humanizer/SKILL.md`)" in text
+    assert "one short batch of questions" in text
+
+
+def test_update_foundry_portable_with_script(tmp_path: Path):
+    root = _deployed(tmp_path, "update-foundry")
+    skill = (root / "update-foundry" / "SKILL.md").read_text()
+    assert "bash .agents/skills/update-foundry/scripts/update-foundry.sh" in skill
+    script = root / "update-foundry" / "scripts" / "update-foundry.sh"
+    assert os.access(script, os.X_OK)
+    check = (root / "update-foundry-check" / "SKILL.md").read_text()
+    assert ".agents/skills/update-foundry/scripts/update-foundry.sh --check" in check
+
+
+def test_skill_subcommands_only_with_their_skill(tmp_path: Path):
+    root = _deployed(tmp_path, "megamind-deep")
+    assert (root / "update-codemaps").is_dir()          # standalone command
+    assert not (root / "update-foundry-check").exists()  # needs update-foundry

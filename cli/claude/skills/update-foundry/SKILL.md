@@ -22,7 +22,7 @@ bash .claude/skills/update-foundry/scripts/update-foundry.sh $ARGUMENTS
 ```
 
 Show the output to the user verbatim. After a successful update:
-- Command changes take effect immediately
+- Command and skill changes take effect immediately (or on the next session)
 - Rule changes take effect next interaction
 - Agent changes load on demand
 

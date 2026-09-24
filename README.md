@@ -14,7 +14,7 @@ A per-CLI **adapter** renders the selected artifacts into that CLI's conventions
 | Target | Reads | Gets |
 |--------|-------|------|
 | **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)** (`claude`) | `.claude/` + `CLAUDE.md` | full fidelity — rules, agents, skills, commands, hooks, settings, MCP |
-| **[GitHub Copilot CLI](https://github.com/github/copilot-cli)** (`copilot`) | `AGENTS.md`, `.mcp.json`, `.agents/skills/` | coding-standard rules (embedded in the cross-tool [`AGENTS.md`](https://agents.md)), MCP servers (workspace `.mcp.json`), and portable reasoning skills (megamind) as native `SKILL.md` skills |
+| **[GitHub Copilot CLI](https://github.com/github/copilot-cli)** (`copilot`) | `AGENTS.md`, `.mcp.json`, `.agents/skills/` | coding-standard rules (embedded in the cross-tool [`AGENTS.md`](https://agents.md)), MCP servers (workspace `.mcp.json`), and portable skills as native `SKILL.md` skills |
 | **[OpenAI Codex CLI](https://github.com/openai/codex)** (`codex`) | `AGENTS.md`, `.agents/skills/`, `.codex/` | coding-standard rules (`AGENTS.md`), portable skills plus portable commands (`update-codemaps`) as skills, subagents as `.codex/agents/*.toml`, MCP servers in `.codex/config.toml`, formatter hooks in `.codex/hooks.json` |
 | **[Google Antigravity CLI](https://antigravity.google)** (`agy`) | `AGENTS.md`, `.agents/` | coding-standard rules (`AGENTS.md`, overflow rules in `.agents/rules/` load natively), portable skills and commands in `.agents/skills/`, subagents as `.agents/agents/*.md`, MCP servers in `.agents/mcp_config.json`, formatter hooks in `.agents/hooks.json` |
 
@@ -23,7 +23,7 @@ Pick targets with `--clis claude,copilot,codex,agy` (or the interactive menu, wh
 **Shared outputs.** Files that several CLIs read — `AGENTS.md`, `.agents/skills/`, `.mcp.json` — are written once per run for all selected targets, not once per adapter:
 
 - **`AGENTS.md`** gets a marker-wrapped block with the portable coding-standard rules (Claude-only rules such as `agents.md`, `hooks.md`, `performance.md` are left out). The block is capped at 20 KB because other CLIs silently truncate large instruction files (Antigravity at 24,000 bytes per file, Codex at 32 KiB in total). Rules that don't fit go to `.agents/rules/foundry-<rule>.md` — with Antigravity `trigger:` frontmatter, so Antigravity loads them natively — and `AGENTS.md` points to them.
-- **`.agents/skills/`** is the cross-vendor skill root (Copilot CLI, Codex and Antigravity all load it). Only portable skills go there.
+- **`.agents/skills/`** is the cross-vendor skill root (Copilot CLI, Codex and Antigravity all load it). Only portable skills go there — megamind ×4, `clickhouse-io`, `gui-threading`, `python-qt-gui`, `writer`, `humanizer`, `update-foundry`, and the cross-model CLI references `copilot-cli`, `codex-cli`, `agy-cli` — plus the portable commands (`update-codemaps`, `update-foundry-check`, `update-foundry-interactive`) converted to skills. Deploying adapts them without touching the Claude sources: Claude-only frontmatter (`model`, `allowed-tools`) is dropped, `.claude/skills/` paths and `Skill(x)` calls are rewritten, and a `SKILL.md` over 8 KB (Codex's limit for an explicitly invoked skill) becomes a short pointer to the unchanged text in `SKILL.full.md`. Skills tied to Claude-only state — `prj-*` (Claude session ids), `snapshot-list`, `learn`/`learn-recall`, `private-*`, `review-process`, the MiniMax `delegate` pair — stay Claude Code-only for now.
 - `.agents/` is shared with other tools, so every file the foundry writes there carries an ownership marker and updates only ever prune marked content.
 
 **Codex specifics.** Codex reads `AGENTS.md` and `.agents/skills/` in any project, but everything under `.codex/` (agents, MCP servers, hooks) only once the project is trusted — setup prints how to trust it (`codex` → accept the prompt, or `[projects."<path>"] trust_level = "trusted"` in `~/.codex/config.toml`). Hooks additionally stay inert until you approve each one in Codex's `/hooks`. The foundry only rewrites its own marked block in `.codex/config.toml`, its own agent files and its own hook group, so project settings in those files survive updates. Agents without write tools (architect, code-reviewer) run in Codex's `read-only` sandbox.
@@ -70,7 +70,7 @@ Non-interactive: `python3 tools/setup.py init /path/to/project --non-interactive
 
 ## Updating
 
-From any configured project, run the `/update-foundry` slash command inside a Claude Code session:
+From any configured project, run the `update-foundry` skill from any target CLI — `/update-foundry` in Claude Code, Copilot CLI and Antigravity, `$update-foundry` in Codex:
 
 ```
 /update-foundry                # Check for new release, download, and apply
@@ -310,7 +310,7 @@ The skill menu in `setup.py init` presents related skills as **groups**, not ind
 | **Project Management** | `prj-new`, `prj-list`, `prj-pause`, `prj-resume`, `prj-done`, `prj-delete` | on |
 | **Writing** | `writer`, `humanizer` | off (opt-in) |
 
-Megamind Reasoning and Project Management are **auto-selected by default**; Writing is **off by default** — toggle it on to deploy the drafting pipeline (`writer` drafts in the author's voice with ten selectable presets, then invokes `humanizer` for the anti-AI audit; the pair deploys together because the hand-off requires both). Individual non-grouped skills (`clickhouse-io`, `gui-threading`, `learn`, `update-foundry`, `snapshot-list`, `private-list`, `private-remove`, `review-process`, `copilot-cli`, etc.) continue to appear as individual entries. A handful — `update-foundry`, `learn`, `learn-recall`, `snapshot-list`, `private-list`, `private-remove`, `review-process`, and `copilot-cli` — are auto-selected by default; the others are off until explicitly toggled on.
+Megamind Reasoning and Project Management are **auto-selected by default**; Writing is **off by default** — toggle it on to deploy the drafting pipeline (`writer` drafts in the author's voice with ten selectable presets, then invokes `humanizer` for the anti-AI audit; the pair deploys together because the hand-off requires both). Individual non-grouped skills (`clickhouse-io`, `gui-threading`, `learn`, `update-foundry`, `snapshot-list`, `private-list`, `private-remove`, `review-process`, `copilot-cli`, etc.) continue to appear as individual entries. A handful — `update-foundry`, `learn`, `learn-recall`, `snapshot-list`, `private-list`, `private-remove`, `review-process`, `copilot-cli`, `codex-cli`, and `agy-cli` — are auto-selected by default; the others are off until explicitly toggled on.
 
 The manifest still stores individual skill names (not group names), so existing projects keep working without migration.
 
@@ -499,9 +499,10 @@ rubric:
 
 ### Running the Benchmark
 
-Subject and judge each run via the **claude** CLI or the **GitHub Copilot** CLI
-(authenticated, in PATH). Defaults to claude; use the backend flags to pick the
-model matrix. See [docs/BENCHMARKS.md](docs/BENCHMARKS.md) for full methodology.
+Subject and judge each run via the **claude**, **copilot**, **codex** (`codex exec`)
+or **agy** (Antigravity, `agy -p`) CLI (authenticated, in PATH). Defaults to
+claude; use the backend flags to pick the model matrix (`CODEX_EFFORT` /
+`AGY_EFFORT` set the reasoning effort for those two). See [docs/BENCHMARKS.md](docs/BENCHMARKS.md) for full methodology.
 
 ```bash
 # Default (claude CLI, all skills)
@@ -592,6 +593,13 @@ copilot -p "<prompt>" --model <model> --allow-all-tools -s
 See `skills/copilot-cli/SKILL.md` for the full invocation contract and model
 notes. There is no installer, no MCP server, and nothing to enable per
 workspace — if `copilot` runs in your shell, it works.
+
+Two sibling reference skills, also auto-installed, do the same for the other
+local CLIs: `codex-cli` (`codex exec … -s read-only -o <file> </dev/null` for
+OpenAI models without a Copilot subscription) and `agy-cli`
+(`agy -p … --output-format json` for Gemini models). `review-process` probes
+for all three and routes its cross-vendor reviewer through whichever is
+installed.
 
 ## Project Management
 

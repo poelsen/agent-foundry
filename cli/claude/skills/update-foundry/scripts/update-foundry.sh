@@ -5,8 +5,10 @@
 # Per-project payload model: the foundry release is shipped as a tarball
 # at <project>/.foundry/foundry.tar.gz with a sibling setup.py extracted
 # from it. setup.py detects the sibling tarball at runtime, extracts to
-# a tempdir, and cleans up on exit — nothing under .claude/ that Claude
-# could traverse and find duplicates of.
+# a tempdir, and cleans up on exit — nothing under the project's agent
+# config dirs that a CLI could traverse and find duplicates of. Works from
+# any CLI: the manifest lives at .claude/setup-manifest.json for every
+# target, and this script is deployed to .claude/skills/ or .agents/skills/.
 set -euo pipefail
 
 CHECK_ONLY=false
@@ -162,11 +164,19 @@ if [[ ! -f "$SETUP_PY" ]]; then
 fi
 
 # ── Snapshot old project state ────────────────────────────────────────
-CLAUDE_DIR="$PROJECT_DIR/.claude"
-OLD_COMMANDS=$(ls "$CLAUDE_DIR/commands/" 2>/dev/null | sort || true)
-OLD_RULES=$(ls "$CLAUDE_DIR/rules/" 2>/dev/null | sort || true)
-OLD_AGENTS=$(ls "$CLAUDE_DIR/agents/" 2>/dev/null | sort || true)
-OLD_SKILLS=$(ls "$CLAUDE_DIR/skills/" 2>/dev/null | sort || true)
+# Every CLI's config dirs: Claude Code (.claude/), the shared .agents/
+# (Copilot, Codex, Antigravity) and Codex's .codex/.
+list_dirs() {  # list_dirs <subdir>... → sorted entries under each existing dir
+    for d in "$@"; do ls "$PROJECT_DIR/$d/" 2>/dev/null | sed "s|^|$d/|"; done | sort || true
+}
+snapshot() {
+    COMMANDS=$(list_dirs .claude/commands)
+    RULES=$(list_dirs .claude/rules .agents/rules; cksum "$PROJECT_DIR/AGENTS.md" 2>/dev/null || true)
+    AGENTS=$(list_dirs .claude/agents .codex/agents .agents/agents)
+    SKILLS=$(list_dirs .claude/skills .agents/skills)
+}
+snapshot
+OLD_COMMANDS=$COMMANDS OLD_RULES=$RULES OLD_AGENTS=$AGENTS OLD_SKILLS=$SKILLS
 
 # ── Run the new setup.py against the project ──────────────────────────
 echo "Applying update..."
@@ -183,10 +193,8 @@ fi
 rm -f "$TARBALL_OLD" "$SETUP_PY_OLD"
 
 # ── Report changes ─────────────────────────────────────────────────────
-NEW_COMMANDS=$(ls "$CLAUDE_DIR/commands/" 2>/dev/null | sort || true)
-NEW_RULES=$(ls "$CLAUDE_DIR/rules/" 2>/dev/null | sort || true)
-NEW_AGENTS=$(ls "$CLAUDE_DIR/agents/" 2>/dev/null | sort || true)
-NEW_SKILLS=$(ls "$CLAUDE_DIR/skills/" 2>/dev/null | sort || true)
+snapshot
+NEW_COMMANDS=$COMMANDS NEW_RULES=$RULES NEW_AGENTS=$AGENTS NEW_SKILLS=$SKILLS
 
 echo ""
 echo "═══════════════════════════════════════════"
