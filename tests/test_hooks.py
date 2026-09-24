@@ -114,6 +114,23 @@ def test_codex_patch_files_resolved_from_cwd(tmp_path: Path):
 
 
 @needs_jq
+def test_antigravity_payload_uses_target_file_and_workspace(tmp_path: Path):
+    stub_dir, log = _stub_tool(tmp_path, "mypy")
+    (tmp_path / "mod.py").write_text("")
+    (tmp_path / ".agents").mkdir()
+    payload = {"workspacePaths": [str(tmp_path)],
+               "toolCall": {"name": "write_to_file",
+                            "args": {"TargetFile": str(tmp_path / "mod.py")}}}
+    # agy runs hooks from .agents/; mypy must run from the workspace root
+    stub = stub_dir / "mypy"
+    stub.write_text(f'#!/bin/bash\necho "$(pwd) $@" >> "{log}"\n')
+    result = _run_hook("mypy-check.sh", payload, tmp_path / ".agents", stub_dir)
+    assert result.returncode == 0 and result.stdout == ""
+    assert log.read_text().split()[0] == str(tmp_path)
+    assert str(tmp_path / "mod.py") in log.read_text()
+
+
+@needs_jq
 def test_cargo_check_runs_once_per_patch(tmp_path: Path):
     stub_dir, log = _stub_tool(tmp_path, "cargo")
     for name in ("a.rs", "b.rs"):

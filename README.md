@@ -16,8 +16,9 @@ A per-CLI **adapter** renders the selected artifacts into that CLI's conventions
 | **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)** (`claude`) | `.claude/` + `CLAUDE.md` | full fidelity — rules, agents, skills, commands, hooks, settings, MCP |
 | **[GitHub Copilot CLI](https://github.com/github/copilot-cli)** (`copilot`) | `AGENTS.md`, `.mcp.json`, `.agents/skills/` | coding-standard rules (embedded in the cross-tool [`AGENTS.md`](https://agents.md)), MCP servers (workspace `.mcp.json`), and portable reasoning skills (megamind) as native `SKILL.md` skills |
 | **[OpenAI Codex CLI](https://github.com/openai/codex)** (`codex`) | `AGENTS.md`, `.agents/skills/`, `.codex/` | coding-standard rules (`AGENTS.md`), portable skills plus portable commands (`update-codemaps`) as skills, subagents as `.codex/agents/*.toml`, MCP servers in `.codex/config.toml`, formatter hooks in `.codex/hooks.json` |
+| **[Google Antigravity CLI](https://antigravity.google)** (`agy`) | `AGENTS.md`, `.agents/` | coding-standard rules (`AGENTS.md`, overflow rules in `.agents/rules/` load natively), portable skills and commands in `.agents/skills/`, subagents as `.agents/agents/*.md`, MCP servers in `.agents/mcp_config.json`, formatter hooks in `.agents/hooks.json` |
 
-Pick targets with `--clis claude,copilot,codex` (or the interactive menu, which comes first so later menus only offer what the chosen CLIs can use). Selected items a CLI can't consume (Copilot has no subagent/hook equivalent; Claude-only skills and rules) are listed in a "Not deployed" report at the end of the run, never silently dropped.
+Pick targets with `--clis claude,copilot,codex,agy` (or the interactive menu, which comes first so later menus only offer what the chosen CLIs can use). Selected items a CLI can't consume (Copilot has no subagent/hook equivalent; Claude-only skills and rules) are listed in a "Not deployed" report at the end of the run, never silently dropped.
 
 **Shared outputs.** Files that several CLIs read — `AGENTS.md`, `.agents/skills/`, `.mcp.json` — are written once per run for all selected targets, not once per adapter:
 
@@ -26,6 +27,8 @@ Pick targets with `--clis claude,copilot,codex` (or the interactive menu, which 
 - `.agents/` is shared with other tools, so every file the foundry writes there carries an ownership marker and updates only ever prune marked content.
 
 **Codex specifics.** Codex reads `AGENTS.md` and `.agents/skills/` in any project, but everything under `.codex/` (agents, MCP servers, hooks) only once the project is trusted — setup prints how to trust it (`codex` → accept the prompt, or `[projects."<path>"] trust_level = "trusted"` in `~/.codex/config.toml`). Hooks additionally stay inert until you approve each one in Codex's `/hooks`. The foundry only rewrites its own marked block in `.codex/config.toml`, its own agent files and its own hook group, so project settings in those files survive updates. Agents without write tools (architect, code-reviewer) run in Codex's `read-only` sandbox.
+
+**Antigravity specifics.** Antigravity loads a workspace's `.agents/` customizations only once the folder is trusted (run `agy` there once and accept; setup reminds you until it is). Hooks run as the `agent-foundry` entry of `.agents/hooks.json`; other named hooks are left alone. MCP servers in `.agents/mcp_config.json` count as the foundry's only while they still match the catalog, so an entry you edit (e.g. to add a real API key) is never overwritten or removed. Agents without write tools get an explicit read-only tool list.
 
 ## Bootstrap
 
@@ -53,7 +56,7 @@ python3 tools/setup.py init /path/to/your/project
 
 1. Scans your project for languages (file extensions, config files like `pyproject.toml`, `package.json`, `Cargo.toml`)
 2. Presents interactive toggle menus for each component category:
-   - **Target CLI(s)** — which coding-agent CLIs to deploy for (Claude Code, Copilot CLI, Codex CLI)
+   - **Target CLI(s)** — which coding-agent CLIs to deploy for (Claude Code, Copilot CLI, Codex CLI, Antigravity CLI)
    - **Base rules** — coding style, security, testing, git workflow, etc.
    - **Modular rules** — language tooling, project templates, platform, security
    - **Hooks** — language-specific formatters and type checkers
@@ -63,7 +66,7 @@ python3 tools/setup.py init /path/to/your/project
 3. Hands the selections to each chosen CLI's adapter, which deploys them into that CLI's layout (`.claude/` for Claude Code, `AGENTS.md` for Copilot, …)
 4. Saves selections — including the chosen `clis` — to `.claude/setup-manifest.json` for future updates
 
-Non-interactive: `python3 tools/setup.py init /path/to/project --non-interactive --clis claude,copilot,codex`
+Non-interactive: `python3 tools/setup.py init /path/to/project --non-interactive --clis claude,copilot,codex,agy`
 
 ## Updating
 
@@ -412,7 +415,8 @@ agent-foundry/
     ├── setup.py                  # Bootstrap shim (source + tarball modes)
     └── foundry/                  # The deployment package
         ├── orchestrator.py       # Selects artifacts, dispatches to adapters
-        ├── adapters/             # One per CLI: base, claude, copilot, codex
+        ├── adapters/             # One per CLI: base, claude, copilot, codex, antigravity
+        ├── convert.py            # Parses Claude-format sources for conversion
         ├── shared.py             # Files several CLIs read (AGENTS.md, .agents/, .mcp.json)
         ├── registry.py  detect.py  manifest.py  …
         └── …

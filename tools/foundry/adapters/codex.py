@@ -25,6 +25,7 @@ import shutil
 import tomllib
 from pathlib import Path
 
+from ..convert import WRITE_TOOLS, agent_tools, rewrite, split_frontmatter
 from ..deploy import install_hook_scripts, selected_mcp_servers
 from ..paths import AGENTS_DIR
 from ..registry import HOOK_SCRIPTS
@@ -50,11 +51,6 @@ _HOOK_MATCHER = "apply_patch|Edit|Write"
 # invoked as $name there, not /name).
 _REWRITES = (("Claude Code", "Codex"), ("CLAUDE.md", "AGENTS.md"),
              ("/update-codemaps", "$update-codemaps"))
-
-# An agent whose Claude tools include none of these can't modify files, so
-# it runs in Codex's read-only sandbox.
-_WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
-
 
 # ── TOML rendering (the standard library only reads TOML) ──
 
@@ -95,42 +91,21 @@ def _toml_value(value) -> str:
 # ── Subagents ──
 
 
-def _split_frontmatter(text: str) -> tuple[dict[str, str], str]:
-    """Scalar ``key: value`` frontmatter (all foundry agents use) and body."""
-    if not text.startswith("---\n"):
-        return {}, text
-    end = text.find("\n---", 4)
-    if end == -1:
-        return {}, text
-    meta: dict[str, str] = {}
-    for line in text[4:end].splitlines():
-        key, sep, value = line.partition(":")
-        if sep and key.strip():
-            meta[key.strip()] = value.strip().strip("\"'")
-    return meta, text[end + 4:].lstrip("\n")
-
-
-def _rewrite(text: str) -> str:
-    for old, new in _REWRITES:
-        text = text.replace(old, new)
-    return text
-
-
 def render_agent_toml(src: Path) -> str | None:
     """Codex agent role file for a Claude agent, or None if it lacks a
     name, description or body. ``model`` is dropped (Claude model names mean
     nothing to Codex); agents without write tools get a read-only sandbox."""
-    meta, body = _split_frontmatter(src.read_text(encoding="utf-8"))
+    meta, body = split_frontmatter(src.read_text(encoding="utf-8"))
     name, description, body = meta.get("name"), meta.get("description"), body.strip()
     if not (name and description and body):
         return None
-    tools = {t.strip() for t in meta.get("tools", "").split(",") if t.strip()}
+    tools = agent_tools(meta)
     lines = [_MANAGED_HEADER,
              f"name = {_toml_str(name)}",
-             f"description = {_toml_str(_rewrite(description))}"]
-    if tools and not tools & _WRITE_TOOLS:
+             f"description = {_toml_str(rewrite(description, _REWRITES))}"]
+    if tools and not tools & WRITE_TOOLS:
         lines.append('sandbox_mode = "read-only"')
-    lines.append(f"developer_instructions = {_toml_multiline(_rewrite(body))}")
+    lines.append(f"developer_instructions = {_toml_multiline(rewrite(body, _REWRITES))}")
     return "\n".join(lines) + "\n"
 
 

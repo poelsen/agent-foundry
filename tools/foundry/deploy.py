@@ -411,14 +411,14 @@ def _substitute_placeholders(value):
     return value
 
 
-def selected_mcp_servers(servers: list[str]) -> dict[str, dict]:
-    """Catalog entries for the selected MCP servers, ready to deploy:
-    descriptions dropped (not valid in any CLI's config) and
-    {FOUNDRY_ROOT} placeholders substituted."""
-    if not servers or not MCP_SERVERS_FILE.exists():
+def selected_mcp_servers(servers: list[str] | None) -> dict[str, dict]:
+    """Catalog entries for the selected MCP servers (None: the whole
+    catalog), ready to deploy: descriptions dropped (not valid in any CLI's
+    config) and {FOUNDRY_ROOT} placeholders substituted."""
+    if servers == [] or not MCP_SERVERS_FILE.exists():
         return {}
     all_servers = json.loads(MCP_SERVERS_FILE.read_text(encoding='utf-8'))["mcpServers"]
-    selected = {k: v for k, v in all_servers.items() if k in servers}
+    selected = {k: v for k, v in all_servers.items() if servers is None or k in servers}
     for srv in selected.values():
         srv.pop("description", None)
     return _substitute_placeholders(selected)
