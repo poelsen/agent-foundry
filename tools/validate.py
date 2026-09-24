@@ -153,6 +153,9 @@ class Validator:
                 self.error(f"HOOK_SCRIPTS references missing file: cli/claude/hooks/library/{script}")
             elif not os.access(path, os.X_OK):
                 self.error(f"Hook script not executable: cli/claude/hooks/library/{script}")
+        guard = self.root / "cli" / "claude" / "hooks" / "bash-output-guard.py"
+        if not os.access(guard, os.X_OK):
+            self.error("Hook script missing or not executable: cli/claude/hooks/bash-output-guard.py")
 
     def check_registry_skills(self) -> None:
         self.check("Registry: SKILLS")

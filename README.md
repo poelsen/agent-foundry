@@ -300,10 +300,18 @@ Hooks are pre-selected by detected language; each script then acts only on its o
 | `tsc-check.sh` | `.ts`/`.tsx` | `tsconfig.json` and a local `typescript` install (never downloaded) | Reports type errors for the edited file |
 | `cargo-check.sh` | `.rs` | `Cargo.toml` | Reports `cargo check` errors |
 
+Every Claude Code project also gets two output limits, whatever hooks are selected. They keep shell output from filling the context, which brings on compaction and loses detail sooner:
+
+- `bashOutputMaxChars: 16000` in `.claude/settings.json`: a command's output beyond 16,000 characters is saved to a file, and Claude gets a 2 KB preview plus the path (Claude Code's default is 30,000). Nothing is lost; Claude greps or reads the file for the rest.
+- `.claude/hooks/bash-output-guard.py`, a PreToolUse hook that blocks `cat` of files over 150 lines or 12 KB and points Claude to the Read tool with an offset and limit. Piped, redirected and heredoc uses of `cat` still work.
+
+Other CLIs don't get these; they have no equivalent settings.
+
 The config gate (searched from the edited file up to the repository root) keeps a project that lints with ruff, formats with black, or isn't formatted at all from getting whole-file ruff rewrites. Check hooks never block an edit: their errors reach Claude Code and Codex as additional context — labelled as tool output and capped at 8,000 characters (Antigravity has no such channel, so they go to its hook log). The scripts need `jq`; without it they print a warning and do nothing. On Windows, the Codex and Antigravity hooks need Git Bash's `bash` and `jq` on `PATH` (untested there so far). To turn hooks off, deselect them in `/update-foundry-interactive` — `settings.json` and `hooks.json` entries are regenerated on every update.
 
 ### Upgrading from earlier releases
 
+- **Claude Code output limits.** `.claude/settings.json` now caps command output at 16,000 characters (longer output goes to a file with a preview) and blocks `cat` of large files; see [Hooks](#hooks).
 - **Hooks now actually run.** Earlier releases wrote a `settings.json` matcher that never matched, so the selected hooks never fired; they now do, gated as above.
 - **Copilot skills moved** from `.github/skills/` to the shared `.agents/skills/`; the foundry's four old `megamind-*` copies are removed (only when their `SKILL.md` names that skill).
 - **New always-on skills** `codex-cli` and `agy-cli`; `review-process` may route its cross-vendor reviewer through them when those CLIs are installed.

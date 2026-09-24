@@ -285,3 +285,68 @@ def test_missing_jq_is_reported_not_silent(tmp_path: Path):
     assert result.returncode == 0
     assert "jq not found" in result.stderr
     assert result.stdout == "{}\n"  # agy still gets its answer
+
+
+# ── Bash output guard (always deployed for Claude Code) ──
+
+GUARD = Path(__file__).parent.parent / "cli" / "claude" / "hooks" / "bash-output-guard.py"
+
+
+def test_settings_always_cap_output_and_guard_cat():
+    for hooks in ([], list(HOOK_SCRIPTS)):
+        settings = generate_settings_json(hooks, [])
+        assert settings["bashOutputMaxChars"] == 16_000
+        pre = settings["hooks"]["PreToolUse"]
+        assert [e["matcher"] for e in pre] == ["Bash"]
+        assert pre[0]["hooks"][0]["command"] == \
+            '"$CLAUDE_PROJECT_DIR"/.claude/hooks/bash-output-guard.py'
+    assert len(generate_settings_json(list(HOOK_SCRIPTS), [])["hooks"]["PostToolUse"]) == \
+        len(HOOK_SCRIPTS)
+
+
+def test_guard_deployed_even_without_selected_hooks(tmp_path: Path):
+    from foundry.deploy import copy_hooks
+    copy_hooks(tmp_path, [])
+    guard = tmp_path / ".claude" / "hooks" / "bash-output-guard.py"
+    assert guard.read_text() == GUARD.read_text()
+    assert os.access(guard, os.X_OK)
+    assert os.access(GUARD, os.X_OK)
+
+
+def _guard(command: str, cwd: Path) -> str:
+    event = {"tool_name": "Bash", "cwd": str(cwd), "tool_input": {"command": command}}
+    proc = subprocess.run([sys.executable, str(GUARD)], input=json.dumps(event), text=True,
+                          capture_output=True, timeout=30)
+    assert proc.returncode == 0, proc.stderr
+    return proc.stdout
+
+
+@pytest.mark.parametrize(("command", "blocked"), [
+    ("cat big.txt", True),
+    ("git status && cat big.txt", True),
+    ("cat small.txt; cat big.txt", True),
+    ("cat small.txt", False),
+    ("cat big.txt | head -20", False),
+    ("cat big.txt > copy.txt", False),
+    ("cat > new.txt <<'EOF'\nhi\nEOF", False),
+    ("grep -n foo big.txt", False),
+    ("cat missing.txt", False),
+    ('cat "unbalanced', False),
+])
+def test_guard_blocks_only_plain_cat_of_large_files(tmp_path: Path, command: str, blocked: bool):
+    (tmp_path / "big.txt").write_text("line\n" * 400)
+    (tmp_path / "small.txt").write_text("line\n" * 5)
+    out = _guard(command, tmp_path)
+    if blocked:
+        decision = json.loads(out)["hookSpecificOutput"]
+        assert decision["permissionDecision"] == "deny"
+        assert "big.txt (400 lines)" in decision["permissionDecisionReason"]
+        assert "Read tool" in decision["permissionDecisionReason"]
+    else:
+        assert out == ""
+
+
+def test_guard_ignores_malformed_input(tmp_path: Path):
+    proc = subprocess.run([sys.executable, str(GUARD)], input="not json", text=True,
+                          capture_output=True, timeout=30)
+    assert proc.returncode == 0 and proc.stdout == ""

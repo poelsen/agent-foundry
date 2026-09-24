@@ -140,13 +140,22 @@ HOOK_HELPER = "_edited-files.sh"
 # never matched any tool name, so no foundry hook ever ran.
 EDIT_TOOLS_MATCHER = "Edit|MultiEdit|Write"
 
+# Always part of the Claude Code settings: command output over this many
+# characters is saved to a file and Claude gets a 2 KB preview plus the path
+# (Claude Code's default is 30,000), and a PreToolUse hook blocks `cat` of
+# large files. Together they keep shell output from flooding the context,
+# which would bring on compaction and lose detail sooner.
+BASH_OUTPUT_MAX_CHARS = 16_000
+BASH_GUARD = "bash-output-guard.py"
+BASH_GUARD_SRC = REPO_ROOT / "cli" / "claude" / "hooks" / BASH_GUARD
+
 
 def generate_settings_json(
     hooks: list[str],
     plugins: list[str],
 ) -> dict:
     """Build .claude/settings.json content."""
-    settings: dict = {}
+    settings: dict = {"bashOutputMaxChars": BASH_OUTPUT_MAX_CHARS}
 
     # Plugins
     if plugins:
@@ -155,7 +164,13 @@ def generate_settings_json(
         }
 
     # Hooks
-    hook_entries: dict[str, list] = {}
+    hook_entries: dict[str, list] = {"PreToolUse": [{
+        "matcher": "Bash",
+        "hooks": [{"type": "command",
+                   "command": f'"$CLAUDE_PROJECT_DIR"/.claude/hooks/{BASH_GUARD}',
+                   "timeout": 10}],
+        "description": "Blocks cat of large files (use Read with offset/limit)",
+    }]}
 
     post_hooks = []
     for script in hooks:
@@ -171,9 +186,7 @@ def generate_settings_json(
     if post_hooks:
         hook_entries.setdefault("PostToolUse", []).extend(post_hooks)
 
-    if hook_entries:
-        settings["hooks"] = hook_entries
-
+    settings["hooks"] = hook_entries
     return settings
 
 
@@ -405,6 +418,10 @@ def install_hook_scripts(dest: Path, hooks: list[str]) -> None:
 
 def copy_hooks(project: Path, hooks: list[str]) -> None:
     install_hook_scripts(project / ".claude" / "hooks" / "library", hooks)
+    guard = project / ".claude" / "hooks" / BASH_GUARD
+    guard.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(BASH_GUARD_SRC, guard)
+    guard.chmod(guard.stat().st_mode | 0o111)
 
 
 def _substitute_placeholders(value):
