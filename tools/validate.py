@@ -334,16 +334,7 @@ class Validator:
             else:
                 source_cmds = {f.name for f in (self.root / "cli" / "claude" / "commands").glob("*.md")}
                 deployed_cmds = {f.name for f in commands_dir.glob("*.md")}
-                # Commands gated behind an OPTIONAL_FEATURES toggle (e.g.
-                # commands/delegate.md under "minimax-delegate") aren't
-                # expected to deploy — features default OFF in the smoke run.
-                gated_cmds: set[str] = set()
-                feature_paths = getattr(setup_module, "FEATURE_PATHS", {})
-                for paths in feature_paths.values():
-                    for rel in paths:
-                        if rel.startswith("cli/claude/commands/") and rel.endswith(".md"):
-                            gated_cmds.add(Path(rel).name)
-                missing_cmds = (source_cmds - deployed_cmds) - gated_cmds
+                missing_cmds = source_cmds - deployed_cmds
                 if missing_cmds:
                     self.error(f"Smoke: commands not deployed: {', '.join(sorted(missing_cmds))}")
 

@@ -32,6 +32,7 @@ from pathlib import Path
 from .adapters.base import AGENTS_MD, AGENTS_SKILLS, MCP_JSON, CliAdapter, Selections
 from .convert import command_skill
 from .deploy import (
+    SKILL_COPY_IGNORE,
     _command_skill_parent,
     _owned_command_names,
     _owned_rule_names,
@@ -399,7 +400,8 @@ def deploy_shared_skills(project: Path, sel: Selections) -> None:
         dest = skills_root / name
         if not _claim_skill_dir(dest):
             continue
-        shutil.copytree(REPO_ROOT / "cli" / "claude" / "skills" / name, dest)
+        shutil.copytree(REPO_ROOT / "cli" / "claude" / "skills" / name, dest,
+                        ignore=SKILL_COPY_IGNORE)
         _adapt_skill_dir(dest)
     for command in commands:
         dest = skills_root / command.stem

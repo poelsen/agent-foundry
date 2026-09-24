@@ -46,7 +46,6 @@ class Selections:
     hooks: list[str]
     plugins: list[str]
     mcp_servers: list[str]
-    features: list[str]
     langs: set[str]
     project_name: str
     version: str

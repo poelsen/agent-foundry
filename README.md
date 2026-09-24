@@ -23,7 +23,7 @@ Pick targets with `--clis claude,copilot,codex,agy` (or the interactive menu, wh
 **Shared outputs.** Files that several CLIs read — `AGENTS.md`, `.agents/skills/`, `.mcp.json` — are written once per run for all selected targets, not once per adapter:
 
 - **`AGENTS.md`** gets a marker-wrapped block with the portable coding-standard rules (Claude-only rules such as `agents.md`, `hooks.md`, `performance.md` are left out). The block is capped at 20 KB because other CLIs silently truncate large instruction files (Antigravity at 24,000 bytes per file, Codex at 32 KiB in total). Rules that don't fit go to `.agents/rules/foundry-<rule>.md` — with Antigravity `trigger:` frontmatter, so Antigravity loads them natively — and `AGENTS.md` points to them.
-- **`.agents/skills/`** is the cross-vendor skill root (Copilot CLI, Codex and Antigravity all load it). Only portable skills go there — megamind ×4, `clickhouse-io`, `gui-threading`, `python-qt-gui`, `writer`, `humanizer`, `update-foundry`, and the cross-model CLI references `copilot-cli`, `codex-cli`, `agy-cli` — plus the portable commands (`update-codemaps`, `update-foundry-check`, `update-foundry-interactive`) converted to skills. Deploying adapts them without touching the Claude sources: Claude-only frontmatter (`model`, `allowed-tools`) is dropped, `.claude/skills/` paths and `Skill(x)` calls are rewritten, and a `SKILL.md` over 8 KB (Codex's limit for an explicitly invoked skill) becomes a short pointer to the unchanged text in `SKILL.full.md`. Skills tied to Claude-only state — `prj-*` (Claude session ids), `snapshot-list`, `learn`/`learn-recall`, `private-*`, `review-process`, the MiniMax `delegate` pair — stay Claude Code-only for now.
+- **`.agents/skills/`** is the cross-vendor skill root (Copilot CLI, Codex and Antigravity all load it). Only portable skills go there — megamind ×4, `clickhouse-io`, `gui-threading`, `python-qt-gui`, `writer`, `humanizer`, `update-foundry`, the cross-model CLI references `copilot-cli`, `codex-cli`, `agy-cli`, and `delegate` (see [Delegation](#delegation)) — plus the portable commands (`update-codemaps`, `update-foundry-check`, `update-foundry-interactive`) converted to skills. Deploying adapts them without touching the Claude sources: Claude-only frontmatter (`model`, `allowed-tools`) is dropped, `.claude/skills/` paths and `Skill(x)` calls are rewritten, and a `SKILL.md` over 8 KB (Codex's limit for an explicitly invoked skill) becomes a short pointer to the unchanged text in `SKILL.full.md`. Skills tied to Claude-only state — `prj-*` (Claude session ids), `snapshot-list`, `learn`/`learn-recall`, `private-*`, `review-process` — stay Claude Code-only for now.
 - `.agents/` is shared with other tools, so every file the foundry writes there carries an ownership marker and updates only ever prune marked content.
 
 **Codex specifics.** Codex reads `AGENTS.md` and `.agents/skills/` in any project, but everything under `.codex/` (agents, MCP servers, hooks) only once the project is trusted — setup prints how to trust it (`codex` → accept the prompt, or `[projects."<path>"] trust_level = "trusted"` in `~/.codex/config.toml`). Hooks additionally stay inert until you approve each one in Codex's `/hooks`. The foundry only rewrites its own marked block in `.codex/config.toml`, its own agent files and its own hook group, so project settings in those files survive updates. Agents without write tools (architect, code-reviewer) run in Codex's `read-only` sandbox.
@@ -216,6 +216,7 @@ Everything is copied into `<project>/.claude/`:
 | **MCP servers** | `common/mcp/` | Cross-vendor MCP configs (deployed to `.mcp.json`) |
 | **Plugins** | configured in `settings.json` | LSP servers and workflow plugins (feature-dev, PR review toolkit) |
 | **Copilot CLI** | `cli/claude/skills/copilot-cli/` | Thin reference skill for the local GitHub Copilot CLI — lets review-process run non-Claude models. See [Copilot CLI](#copilot-cli). |
+| **Delegation** | `cli/claude/skills/delegate/` | Any target CLI hands tasks to any other (Claude Code, Codex, Antigravity, Copilot) as managed jobs: own worktree, policy, audit log, review gate. See [Delegation](#delegation). |
 
 ## Rules
 
@@ -306,6 +307,7 @@ The config gate (searched from the edited file up to the repository root) keeps 
 - **Hooks now actually run.** Earlier releases wrote a `settings.json` matcher that never matched, so the selected hooks never fired; they now do, gated as above.
 - **Copilot skills moved** from `.github/skills/` to the shared `.agents/skills/`; the foundry's four old `megamind-*` copies are removed (only when their `SKILL.md` names that skill).
 - **New always-on skills** `codex-cli` and `agy-cli`; `review-process` may route its cross-vendor reviewer through them when those CLIs are installed.
+- **`delegate` is now cross-CLI and always-on.** Any target CLI can delegate to any other through one Python runner, `delegate.py` (see [Delegation](#delegation)); the old bash scripts (`run.sh`, `launch.sh`, `worktree.sh`, `lib.sh`, `activate.sh`) and the optional-features menu are gone. Skills the foundry no longer ships aren't removed from existing projects — delete them from `.claude/skills/` by hand. A `.delegate/` line an older release added to `.gitignore` stops `.delegate/policy.json` from being committed; remove it if you want to share a policy.
 - **Dropping a target** (e.g. `--clis claude` after `claude,codex`; the interactive menu asks first) removes the foundry's files for it — its agents, hooks and managed config — and the shared `AGENTS.md` block and `.agents/skills/` once no remaining target reads them. Only content the foundry can prove it wrote is removed: a foundry name plus its marker, and never anything through an `AGENTS.md` symlink. An unknown id in `--clis` is an error (exit 2) rather than a silent drop, and `setup.py init` exits 3 when it applies nothing by design (skipped, declined, cancelled) — `/update-foundry` then keeps the previous version.
 - **MCP servers are reconciled, not just added.** The foundry records the entries it writes (manifest `deployed_mcp`; after an upgrade, the servers the old manifest selected). A recorded entry that is unchanged — apart from values you filled in, such as API keys, which are kept — is updated, and removed when you deselect it; an entry holding a filled-in key is never removed. Entries you configured yourself are never touched, even if they match the catalog — unless you select that server in the foundry, which adopts an identical entry. Codex keeps a deselected server whose key you filled in by moving it out of the foundry block. A project's own (even empty) `.mcp.json` is never deleted.
 - **Codex and Antigravity** load `.codex/` / `.agents/` only in trusted projects; Codex hooks also need approval in `/hooks`.
@@ -320,7 +322,7 @@ The skill menu in `setup.py init` presents related skills as **groups**, not ind
 | **Project Management** | `prj-new`, `prj-list`, `prj-pause`, `prj-resume`, `prj-done`, `prj-delete` | on |
 | **Writing** | `writer`, `humanizer` | off (opt-in) |
 
-Megamind Reasoning and Project Management are **auto-selected by default**; Writing is **off by default** — toggle it on to deploy the drafting pipeline (`writer` drafts in the author's voice with ten selectable presets, then invokes `humanizer` for the anti-AI audit; the pair deploys together because the hand-off requires both). Individual non-grouped skills (`clickhouse-io`, `gui-threading`, `learn`, `update-foundry`, `snapshot-list`, `private-list`, `private-remove`, `review-process`, `copilot-cli`, etc.) continue to appear as individual entries. A handful — `update-foundry`, `learn`, `learn-recall`, `snapshot-list`, `private-list`, `private-remove`, `review-process`, `copilot-cli`, `codex-cli`, and `agy-cli` — are auto-selected by default; the others are off until explicitly toggled on.
+Megamind Reasoning and Project Management are **auto-selected by default**; Writing is **off by default** — toggle it on to deploy the drafting pipeline (`writer` drafts in the author's voice with ten selectable presets, then invokes `humanizer` for the anti-AI audit; the pair deploys together because the hand-off requires both). Individual non-grouped skills (`clickhouse-io`, `gui-threading`, `learn`, `update-foundry`, `snapshot-list`, `private-list`, `private-remove`, `review-process`, `copilot-cli`, etc.) continue to appear as individual entries. A handful — `update-foundry`, `learn`, `learn-recall`, `snapshot-list`, `private-list`, `private-remove`, `review-process`, `copilot-cli`, `codex-cli`, `agy-cli`, and `delegate` — are auto-selected by default; the others are off until explicitly toggled on.
 
 The manifest still stores individual skill names (not group names), so existing projects keep working without migration.
 
@@ -610,6 +612,49 @@ OpenAI models without a Copilot subscription) and `agy-cli`
 (`agy -p … --output-format json` for Gemini models). `review-process` probes
 for all three and routes its cross-vendor reviewer through whichever is
 installed.
+
+## Delegation
+
+The `delegate` skill lets a session in one coding-agent CLI hand a task to
+another — Claude Code → Codex, Codex → Antigravity, Copilot → Claude Code, any
+direction — as a managed job. It deploys to every target CLI
+(`.claude/skills/` and `.agents/skills/`), and every run goes through one
+stdlib-only runner, `scripts/delegate.py`:
+
+```bash
+python3 .claude/skills/delegate/scripts/delegate.py start --to codex --job fix-auth --task "..."
+python3 .claude/skills/delegate/scripts/delegate.py wait fix-auth    # JSON result
+python3 .claude/skills/delegate/scripts/delegate.py diff fix-auth    # review
+python3 .claude/skills/delegate/scripts/delegate.py merge fix-auth   # after approval
+```
+
+(`.agents/skills/delegate/...` from Copilot CLI, Codex and Antigravity.)
+
+- **Isolation:** a write job runs in its own git worktree
+  (`../<repo>-delegate-<job>`, branch `delegate/<job>`); `--mode read-only`
+  runs in place under the target's read-only settings. Nothing reaches your
+  branch until `merge`.
+- **Policy:** `.delegate/policy.json` (committable) sets which targets are
+  allowed, whether writes are, delegation depth (default: a delegate may not
+  delegate again), concurrency, timeouts and per-target models.
+- **Accountability:** a normalized JSON result for every target (status,
+  summary, files changed, commits, usage, warnings). Job records and an
+  event log in `.git/delegate/`, shared by all worktrees. Warnings when a
+  read-only run writes, a delegate switches branch, or any ref moves.
+- **Supervision:** every run has a detached supervisor that owns the
+  target's process group, enforces the timeout, honours `cancel` (SIGTERM,
+  then SIGKILL) and records the result, so a host whose shell tool times out
+  loses nothing.
+- **Clean hand-off:** the child gets depth and chain markers, none of the
+  parent session's variables (some are credentials), and only its own CLI's
+  credentials.
+- **Follow-ups:** `run --job <job> --resume` continues in the same worktree
+  and the target's previous conversation.
+
+Run delegate commands outside the host CLI's own sandbox; the runner refuses
+inside Codex's. `delegate.py doctor` shows which CLIs are installed, the
+active policy, and caveats such as a Codex sandbox that can't start. Details:
+[`cli/claude/skills/delegate/scripts/README.md`](cli/claude/skills/delegate/scripts/README.md).
 
 ## Project Management
 

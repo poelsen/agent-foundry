@@ -20,20 +20,17 @@ from .paths import AGENTS_DIR, MCP_SERVERS_FILE
 from .private import discover_private_content, validate_prefix
 from .registry import (
     BASE_RULES,
-    FEATURE_REQUIRED_SKILLS,
-    FEATURE_SUGGESTED_SKILLS,
     HIDDEN_SKILLS,
     HOOK_SCRIPTS,
     LSP_PLUGINS,
     MODULAR_RULES,
-    OPTIONAL_FEATURES,
     SKILL_GROUPS,
     SKILLS,
     WORKFLOW_PLUGINS,
 )
 
 # Artifact type each selection step picks, matched against the selected
-# CLIs' supported_artifacts(). Steps not listed (features) always apply.
+# CLIs' supported_artifacts().
 _STEP_ARTIFACT = {
     "base": "rules", "lang": "rules", "templates": "rules",
     "platform": "rules", "security": "rules",
@@ -56,7 +53,6 @@ class SelectionResult:
     learned: list[str] = field(default_factory=list)
     plugins: list[str] = field(default_factory=list)
     mcp_servers: list[str] = field(default_factory=list)
-    features: list[str] = field(default_factory=list)
     pending_private: list[dict] = field(default_factory=list)
     existing_private: list[dict] = field(default_factory=list)
     existing_private_prefixes: list[str] = field(default_factory=list)
@@ -128,7 +124,7 @@ def run_selection(
 
     # ── Selection phase (step-based with back/quit for interactive) ──
     STEPS = ["base", *modular_categories,
-             "hooks", "agents", "skills", "learned", "plugins", "mcp", "features"]
+             "hooks", "agents", "skills", "learned", "plugins", "mcp"]
 
     def _applies(s: str) -> bool:
         artifact = _STEP_ARTIFACT.get(s)
@@ -258,7 +254,7 @@ def run_selection(
                     # Default-on individual skills (the small always-useful set)
                     always_on = ("update-foundry", "learn", "learn-recall", "snapshot-list",
                                  "private-list", "private-remove", "review-process",
-                                 "copilot-cli", "codex-cli", "agy-cli")
+                                 "copilot-cli", "codex-cli", "agy-cli", "delegate")
                     for i, skill in enumerate(SKILLS):
                         if skill in always_on:
                             auto.add(i)
@@ -360,42 +356,6 @@ def run_selection(
                     else:
                         saved_steps["mcp"] = auto
 
-                elif name == "features":
-                    # Opt-in tooling (default OFF). Each feature excludes a
-                    # chunk of tools/ from the foundry self-copy unless the
-                    # user deliberately checks it here.
-                    feat_labels = [f"{label} — {desc}"
-                                   for _, label, desc in OPTIONAL_FEATURES]
-                    if "features" in saved_steps:
-                        auto = saved_steps["features"]
-                    elif manifest:
-                        sel = set(manifest.get("features", []))
-                        auto = {i for i, (k, _, _) in enumerate(OPTIONAL_FEATURES)
-                                if k in sel}
-                    else:
-                        auto = set()
-                    if ask:
-                        saved_steps["features"] = toggle_menu(
-                            "Optional Features", feat_labels, auto)
-                    else:
-                        saved_steps["features"] = auto
-                    # Auto-suggest associated skills when a feature is ON.
-                    # (User can still uncheck them after.)
-                    sel_keys = {OPTIONAL_FEATURES[i][0]
-                                for i in saved_steps["features"]}
-                    if "skills" in saved_steps:
-                        for key in sel_keys:
-                            # Suggested + required skills both pre-checked here.
-                            # The required reconciliation later in finalize will
-                            # also re-add required skills if the user unchecks
-                            # them — the feature is non-functional without them.
-                            for skill in (
-                                FEATURE_SUGGESTED_SKILLS.get(key, [])
-                                + FEATURE_REQUIRED_SKILLS.get(key, [])
-                            ):
-                                if skill in SKILLS:
-                                    saved_steps["skills"].add(SKILLS.index(skill))
-
                 elif name == "private":
                     # Interactive-only: collect private sources (deployment deferred)
                     while True:
@@ -496,20 +456,6 @@ def run_selection(
     selected_plugins = sorted(saved_plugin_names) if saved_plugin_names else []
     mcp_servers = ([mcp_names[i] for i in sorted(saved_steps.get("mcp", set()))]
                    if mcp_available else [])
-    selected_features = [OPTIONAL_FEATURES[i][0]
-                         for i in sorted(saved_steps.get("features", set()))]
-
-    # Reconcile feature-required skills: any feature that's enabled MUST
-    # have its required skills installed, regardless of what the manifest
-    # says. This heals stale manifests from before the skill was declared
-    # required (e.g. minimax-delegate enabled before PR #54 added the
-    # delegate skill — old manifests don't list it, but the feature is
-    # broken without it).
-    for feature in selected_features:
-        for skill in FEATURE_REQUIRED_SKILLS.get(feature, []):
-            if skill not in selected_skills:
-                selected_skills.append(skill)
-
     return SelectionResult(
         base=selected_base,
         modular=selected_modular,
@@ -520,7 +466,6 @@ def run_selection(
         learned=selected_learned,
         plugins=selected_plugins,
         mcp_servers=mcp_servers,
-        features=selected_features,
         pending_private=pending_private,
         existing_private=existing_private,
         existing_private_prefixes=existing_private_prefixes,

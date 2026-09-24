@@ -14,6 +14,10 @@ This replaced the retired VS Code Copilot MCP bridge. There is no MCP server,
 no extension, and nothing to enable per workspace — if `copilot` runs in the
 shell, this works.
 
+For work that edits files or runs for a while (implement, fix, refactor), use
+the `delegate` skill instead (`--to copilot`): it gives Copilot its own
+worktree, applies the project's delegation policy, and records the job.
+
 ## Prerequisite check (always do this first)
 
 ```bash

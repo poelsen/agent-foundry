@@ -32,7 +32,7 @@ def _selections(**overrides) -> Selections:
         "base": list(BASE_RULES),
         "modular": {"lang": ["python.md"], "templates": ["scripts.md"]},
         "agents": [], "skills": [], "learned": [], "hooks": [], "plugins": [],
-        "mcp_servers": [], "features": [], "langs": {"python.md"},
+        "mcp_servers": [], "langs": {"python.md"},
         "project_name": "demo", "version": "9999.99.99",
     }
     base.update(overrides)
@@ -326,6 +326,24 @@ def test_update_foundry_portable_with_script(tmp_path: Path):
     assert os.access(script, os.X_OK)
     check = (root / "update-foundry-check" / "SKILL.md").read_text()
     assert ".agents/skills/update-foundry/scripts/update-foundry.sh --check" in check
+
+
+def test_delegate_portable_with_runner(tmp_path: Path):
+    root = _deployed(tmp_path, "delegate")
+    skill = (root / "delegate" / "SKILL.md").read_text()
+    assert "python3 .agents/skills/delegate/scripts/delegate.py" in skill
+    assert os.access(root / "delegate" / "scripts" / "delegate.py", os.X_OK)
+
+
+def test_local_env_files_never_deploy(tmp_path: Path, monkeypatch):
+    src = tmp_path / "src" / "cli" / "claude" / "skills" / "delegate"
+    shutil.copytree(REPO_ROOT / "cli" / "claude" / "skills" / "delegate", src)
+    (src / "scripts" / ".env").write_text("SOME_API_KEY=maintainer-secret\n")
+    (src / "scripts" / "__pycache__").mkdir()
+    monkeypatch.setattr(shared, "REPO_ROOT", tmp_path / "src")
+    root = _deployed(tmp_path / "proj", "delegate")
+    assert not (root / "delegate" / "scripts" / ".env").exists()
+    assert not (root / "delegate" / "scripts" / "__pycache__").exists()
 
 
 def test_skill_subcommands_only_with_their_skill(tmp_path: Path):

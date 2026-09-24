@@ -126,6 +126,10 @@ def _prune_stale_files(
         print(f"  Left non-foundry {kind}s untouched: {', '.join(foreign)}")
 
 
+# Skill directories deploy as-is, minus local-only files: a gitignored .env
+# (e.g. a maintainer's API key) and bytecode caches.
+SKILL_COPY_IGNORE = shutil.ignore_patterns(".env", "__pycache__", "*.pyc")
+
 HOOK_LIBRARY = REPO_ROOT / "cli" / "claude" / "hooks" / "library"
 # Sourced by every hook script to list the edited files (see the script).
 HOOK_HELPER = "_edited-files.sh"
@@ -376,7 +380,7 @@ def copy_skills(
         if src.is_dir():
             if dest.exists():
                 shutil.rmtree(dest)
-            shutil.copytree(src, dest)
+            shutil.copytree(src, dest, ignore=SKILL_COPY_IGNORE)
     # Copy shared libraries (e.g., _lib/session-id.sh used by prj-* skills)
     lib_src = REPO_ROOT / "cli" / "claude" / "skills" / "_lib"
     if lib_src.is_dir():

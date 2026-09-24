@@ -9,7 +9,6 @@ from pathlib import Path
 
 from . import paths
 from .manifest import read_version
-from .registry import FEATURE_PATHS
 
 # Names pruned anywhere in the source tree (caches, build artifacts, the
 # maintainer's local .claude/ dev install).
@@ -17,6 +16,7 @@ _PAYLOAD_SKIP_ANYWHERE = {
     ".git", "__pycache__", ".pytest_cache", ".venv", "venv",
     "node_modules", "out", ".vscode-test", "dist", "build",
     ".coverage", "results", ".claude",
+    ".env",  # local secrets never ship
 }
 
 # Per-project payload dirs. These must only be pruned when they appear as
@@ -47,9 +47,7 @@ def _repo_root() -> Path:
     return paths.REPO_ROOT
 
 
-def _install_foundry_payload(
-    project: Path, selected_features: list[str] | None = None,
-) -> None:
+def _install_foundry_payload(project: Path) -> None:
     """Install foundry payload (tarball + setup.py) at <project>/.foundry/.
 
     Writes:
@@ -69,13 +67,9 @@ def _install_foundry_payload(
 
     Args:
         project: Target project directory.
-        selected_features: Keys from OPTIONAL_FEATURES the user opted
-            into. Paths mapped in FEATURE_PATHS for features NOT in
-            this list are excluded from the source-mode tarball build.
     """
     import atexit
 
-    selected_features = selected_features or []
     project = project.resolve()
     repo_root = _repo_root()
 
@@ -140,7 +134,7 @@ def _install_foundry_payload(
         if paths._PAYLOAD_TARBALL.resolve() != target_tarball.resolve():
             shutil.copy2(paths._PAYLOAD_TARBALL, target_tarball)
     else:
-        _build_foundry_tarball(repo_root, target_tarball, selected_features)
+        _build_foundry_tarball(repo_root, target_tarball)
 
     # setup.py copy: always refresh from REPO_ROOT so it matches the tarball
     src_setup = repo_root / "tools" / "setup.py"
@@ -148,10 +142,6 @@ def _install_foundry_payload(
     shutil.copy2(src_setup, dst_setup)
 
     _ensure_gitignore_entry(project / ".gitignore", ".foundry/")
-    # Delegate runtime state lives at <project>/.delegate/ when the
-    # minimax-delegate feature is enabled — gitignore it too.
-    if "minimax-delegate" in selected_features:
-        _ensure_gitignore_entry(project / ".gitignore", ".delegate/")
 
     # If we were invoked from inside the legacy .claude/foundry/ tree,
     # defer its removal until after Python exits — we can't safely rmtree
@@ -164,15 +154,11 @@ def _install_foundry_payload(
     print(f"    Manual re-init: python3 {dst_setup} init {project}")
 
 
-def _build_foundry_tarball(
-    src_root: Path,
-    out_path: Path,
-    selected_features: list[str] | None = None,
-) -> None:
+def _build_foundry_tarball(src_root: Path, out_path: Path) -> None:
     """Build a gzipped tarball of `src_root` at `out_path`.
 
-    Excludes caches/build artifacts, the maintainer's local `.claude/`
-    dev install, and any feature-gated paths the user didn't opt into.
+    Excludes caches/build artifacts, local `.env` files and the
+    maintainer's local `.claude/` dev install.
     The tarball uses a top-level wrapper directory `agent-foundry-<ver>/`
     matching the GitHub release tarball convention.
 
@@ -180,14 +166,6 @@ def _build_foundry_tarball(
     so a crash mid-build never leaves a partial tarball.
     """
     import tarfile
-
-    selected_features = selected_features or []
-    excluded_abs: set[str] = set()
-    for key, feature_paths in FEATURE_PATHS.items():
-        if key in selected_features:
-            continue
-        for rel in feature_paths:
-            excluded_abs.add(str((src_root / rel).resolve()))
 
     arc_root = f"agent-foundry-{read_version()}"
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -200,7 +178,7 @@ def _build_foundry_tarball(
             for root, dirs, files in os.walk(src_root, topdown=True):
                 root_path = Path(root)
                 at_top = root_path == src_root
-                # Prune subdirs in-place to skip caches and feature-gated paths.
+                # Prune subdirs in-place to skip caches.
                 # Per-project payload dirs (.foundry/, foundry/) are only pruned
                 # at the top level so the `tools/foundry/` source package survives.
                 kept_dirs = []
@@ -208,8 +186,6 @@ def _build_foundry_tarball(
                     if d in _PAYLOAD_SKIP_ANYWHERE:
                         continue
                     if at_top and d in _PAYLOAD_SKIP_TOPLEVEL:
-                        continue
-                    if str((root_path / d).resolve()) in excluded_abs:
                         continue
                     kept_dirs.append(d)
                 dirs[:] = kept_dirs
@@ -220,8 +196,6 @@ def _build_foundry_tarball(
                     if at_top and fname in _PAYLOAD_SKIP_TOPLEVEL:
                         continue
                     fpath = root_path / fname
-                    if str(fpath.resolve()) in excluded_abs:
-                        continue
                     arcname = f"{arc_root}/{fpath.relative_to(src_root).as_posix()}"
                     tf.add(fpath, arcname=arcname, recursive=False)
         tmp_path.replace(out_path)
