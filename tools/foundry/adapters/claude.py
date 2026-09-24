@@ -49,6 +49,11 @@ class ClaudeAdapter(CliAdapter):
         return {"rules", "mcp", "agents", "skills", "commands", "hooks",
                 "plugins", "learned", "private-sources"}
 
+    def undeploy(self, project: Path, ctx: DeployContext) -> None:
+        print("  Claude Code is no longer a target; its config (.claude/, CLAUDE.md) was left in "
+              "place. If you remove it, keep .claude/setup-manifest.json and .claude/VERSION — "
+              "the foundry uses them for every target.")
+
     def deploy(self, project: Path, sel: Selections, ctx: DeployContext) -> DeployResult:
         # ── Pre-check CLAUDE.md for non-interactive mode ──
         claude_md = project / "CLAUDE.md"
@@ -75,9 +80,6 @@ class ClaudeAdapter(CliAdapter):
 
         claude_dir = project / ".claude"
         claude_dir.mkdir(parents=True, exist_ok=True)
-
-        # VERSION
-        (claude_dir / "VERSION").write_text(sel.version + "\n", encoding='utf-8')
 
         # Rules
         copy_rules(project, sel.base, sel.modular, ctx.private_prefixes)

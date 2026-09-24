@@ -109,19 +109,30 @@ def test_copilot_removes_deselected_skill(tmp_path: Path):
     assert not (tmp_path / ".agents" / "skills" / "megamind-deep").exists()
 
 
+def _legacy_skill(root: Path, name: str, skill_name: str | None = None) -> Path:
+    d = root / ".github" / "skills" / name
+    d.mkdir(parents=True)
+    (d / "SKILL.md").write_text(f"---\nname: {skill_name or name}\ndescription: x\n---\nbody\n")
+    return d
+
+
 def test_copilot_migrates_legacy_github_skills(tmp_path: Path):
-    legacy = tmp_path / ".github" / "skills"
-    (legacy / "megamind-deep").mkdir(parents=True)
-    (legacy / "megamind-deep" / "SKILL.md").write_text("old copy")
-    (legacy / "team-skill").mkdir()  # project-owned — must survive
+    legacy = _legacy_skill(tmp_path, "megamind-deep")
+    (tmp_path / ".github" / "skills" / "team-skill").mkdir()  # project-owned — must survive
     _deploy_copilot(tmp_path, _selections(skills=["megamind-deep"]))
-    assert not (legacy / "megamind-deep").exists()
-    assert (legacy / "team-skill").is_dir()
+    assert not legacy.exists()
+    assert (tmp_path / ".github" / "skills" / "team-skill").is_dir()
     assert (tmp_path / ".agents" / "skills" / "megamind-deep" / "SKILL.md").exists()
 
 
+def test_copilot_keeps_same_named_dir_that_isnt_the_foundry_skill(tmp_path: Path):
+    own = _legacy_skill(tmp_path, "megamind-deep", skill_name="our-deep-review")
+    _deploy_copilot(tmp_path, _selections(skills=["megamind-deep"]))
+    assert own.is_dir()
+
+
 def test_copilot_removes_emptied_legacy_skill_dir(tmp_path: Path):
-    (tmp_path / ".github" / "skills" / "megamind-creative").mkdir(parents=True)
+    _legacy_skill(tmp_path, "megamind-creative")
     (tmp_path / ".github" / "workflows").mkdir()
     _deploy_copilot(tmp_path, _selections())
     assert not (tmp_path / ".github" / "skills").exists()
@@ -133,6 +144,82 @@ def test_copilot_removes_emptied_legacy_skill_dir(tmp_path: Path):
 
 def test_select_clis_non_interactive_returns_saved():
     assert _select_clis(["copilot"], interactive=False) == ["copilot"]
+
+
+def test_select_clis_canonical_order_without_duplicates():
+    # Claude (which may abort on an unmarked CLAUDE.md) always runs first
+    assert _select_clis(["codex", "claude", "codex"], interactive=False) == ["claude", "codex"]
+
+
+def test_claude_abort_leaves_no_other_cli_files(tmp_path: Path):
+    (tmp_path / "CLAUDE.md").write_text("# Mine, no foundry marker\n")
+    assert not cmd_init(tmp_path, interactive=False, clis=["codex", "claude"])
+    assert not (tmp_path / ".codex").exists()
+    assert not (tmp_path / "AGENTS.md").exists()
+
+
+def test_unknown_only_clis_is_an_error_not_claude(tmp_path: Path, capsys):
+    assert not cmd_init(tmp_path, interactive=False, clis=["codx"])
+    assert "Unknown CLI target(s): codx" in capsys.readouterr().err
+    assert not (tmp_path / "CLAUDE.md").exists()
+
+
+def test_typo_among_valid_clis_never_drops_a_target(tmp_path: Path):
+    (tmp_path / "pyproject.toml").write_text('name = "x"\n')
+    assert cmd_init(tmp_path, interactive=False, clis=["claude", "codex"])
+    assert not cmd_init(tmp_path, interactive=False, clis=["claude", "codx"])
+    assert (tmp_path / ".codex").is_dir()  # nothing undeployed
+    manifest = json.loads((tmp_path / ".claude" / "setup-manifest.json").read_text())
+    assert manifest["clis"] == ["claude", "codex"]
+
+
+def test_interactive_drop_needs_confirmation(tmp_path: Path, monkeypatch, capsys):
+    (tmp_path / "pyproject.toml").write_text('name = "x"\n')
+    assert cmd_init(tmp_path, interactive=False, clis=["claude", "codex"])
+    # Accept "Reconfigure?", decline only the drop
+    monkeypatch.setattr("foundry.orchestrator.confirm",
+                        lambda msg, **k: not msg.startswith("Drop "))
+    monkeypatch.setattr("foundry.orchestrator.toggle_menu", lambda t, items, sel, **k: {0})
+    monkeypatch.setattr("foundry.selection.toggle_menu", lambda t, items, sel, **k: set(sel))
+    monkeypatch.setattr("builtins.input", lambda *_: "")
+    assert cmd_init(tmp_path, interactive=True)  # user unticked Codex, then declined the drop
+    assert (tmp_path / ".codex").is_dir()
+    assert "Keeping OpenAI Codex CLI as a target." in capsys.readouterr().out
+
+
+def test_main_exit_codes(tmp_path: Path):
+    import subprocess
+    setup = Path(__file__).parent.parent / "tools" / "setup.py"
+    typo = subprocess.run([sys.executable, str(setup), "init", str(tmp_path), "--non-interactive",
+                           "--clis", "claude,codx"], capture_output=True, text=True)
+    assert typo.returncode == 2 and "codx" in typo.stderr
+    (tmp_path / "CLAUDE.md").write_text("# no marker\n")
+    skipped = subprocess.run([sys.executable, str(setup), "init", str(tmp_path),
+                              "--non-interactive"], capture_output=True, text=True)
+    assert skipped.returncode == 3  # nothing applied by design → update-foundry keeps the old version
+
+
+def test_private_source_registered_on_non_claude_run(tmp_path: Path):
+    src = tmp_path / "company-config"
+    (src / "rule-library" / "templates").mkdir(parents=True)
+    (src / "rule-library" / "templates" / "house.md").write_text("# House rule\n")
+    project = tmp_path / "proj"
+    project.mkdir()
+    (project / "pyproject.toml").write_text('name = "x"\n')
+    assert cmd_init(project, interactive=False, clis=["codex"],
+                    cli_private_sources=[(str(src), "company")])
+    manifest = json.loads((project / ".claude" / "setup-manifest.json").read_text())
+    (entry,) = manifest["private_sources"]
+    assert entry["prefix"] == "company" and entry["rules"] == ["templates/house.md"]
+    assert cmd_init(project, interactive=False, clis=["claude", "codex"])
+    assert (project / ".claude" / "rules" / "company-house.md").exists()
+
+
+def test_claude_drop_notice_keeps_manifest_advice(tmp_path: Path, capsys):
+    (tmp_path / "pyproject.toml").write_text('name = "x"\n')
+    assert cmd_init(tmp_path, interactive=False, clis=["claude", "codex"])
+    assert cmd_init(tmp_path, interactive=False, clis=["codex"])
+    assert "keep .claude/setup-manifest.json and .claude/VERSION" in capsys.readouterr().out
 
 
 def test_select_clis_filters_unknown_and_falls_back(capsys):
@@ -282,3 +369,31 @@ def test_cmd_init_copilot_only_skips_claude_dir(tmp_path: Path):
     assert (tmp_path / "AGENTS.md").exists()
     # Copilot-only: no .claude/ config tree (only the .foundry payload may exist)
     assert not (tmp_path / ".claude" / "rules").exists()
+
+
+def test_ownership_record_saved_even_when_empty(tmp_path: Path):
+    """A manifest without deployed_mcp would be mistaken for a pre-upgrade one
+    and its selection claimed as foundry-written .mcp.json entries."""
+    (tmp_path / "pyproject.toml").write_text('name = "x"\n')
+    manifest_path = tmp_path / ".claude" / "setup-manifest.json"
+    manifest_path.parent.mkdir()
+    manifest_path.write_text(json.dumps({"version": "1.0", "clis": ["codex"], "deployed_mcp": {},
+                                         "mcp_servers": ["memory"]}))
+    assert cmd_init(tmp_path, interactive=False)
+    assert json.loads(manifest_path.read_text())["deployed_mcp"] == {}
+    from foundry.deploy import selected_mcp_servers
+    own = {"mcpServers": {"memory": selected_mcp_servers(["memory"])["memory"]}}
+    (tmp_path / ".mcp.json").write_text(json.dumps(own))  # the project's own, identical
+    data = json.loads(manifest_path.read_text())
+    data["mcp_servers"] = []
+    manifest_path.write_text(json.dumps(data))
+    assert cmd_init(tmp_path, interactive=False, clis=["claude", "codex"])
+    assert json.loads((tmp_path / ".mcp.json").read_text()) == own
+
+
+def test_malformed_manifest_mcp_fields_dont_crash():
+    from foundry.orchestrator import _mcp_state
+    assert _mcp_state({"mcp_servers": None}) == {".mcp.json": {}}
+    assert _mcp_state({"deployed_mcp": None, "mcp_servers": ["memory", 3]}) == {
+        ".mcp.json": {"memory": None}}
+    assert _mcp_state({"deployed_mcp": {".mcp.json": None, "agy": {}}}) == {"agy": {}}

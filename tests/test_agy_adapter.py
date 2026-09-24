@@ -28,9 +28,13 @@ def _selections(**overrides) -> Selections:
     return Selections(**base)
 
 
+_MCP_STATE: dict[Path, dict] = {}  # stands in for the manifest's deployed_mcp between runs
+
+
 def _deploy(project: Path, **overrides) -> None:
     ctx = DeployContext(interactive=False, force=False, private_prefixes=[],
-                        pending_private=[], existing_private=[], cli_private_sources=[])
+                        pending_private=[], existing_private=[], cli_private_sources=[],
+                        mcp_state=_MCP_STATE.setdefault(project, {}))
     ok, _ = _deploy_to_clis(project, [AntigravityAdapter()], _selections(**overrides), ctx)
     assert ok
 
@@ -112,17 +116,66 @@ def test_mcp_servers_in_agy_schema(tmp_path: Path):
     assert servers["vercel"] == {"serverUrl": "https://mcp.vercel.com"}  # not url/type
 
 
-def test_edited_server_is_the_projects(tmp_path: Path, capsys):
+def test_filled_in_api_key_survives_updates(tmp_path: Path):
     _deploy(tmp_path, mcp_servers=["firecrawl"])
     path = tmp_path / ".agents/mcp_config.json"
     data = json.loads(path.read_text())
     data["mcpServers"]["firecrawl"]["env"]["FIRECRAWL_API_KEY"] = "real-key"
     path.write_text(json.dumps(data))
-    _deploy(tmp_path, mcp_servers=["firecrawl"])  # never clobbers the real key
+    _deploy(tmp_path, mcp_servers=["firecrawl"])  # never resets the real key
     assert _mcp(tmp_path)["firecrawl"]["env"]["FIRECRAWL_API_KEY"] == "real-key"
-    assert "Kept the project's own mcpServers.firecrawl" in capsys.readouterr().out
-    _deploy(tmp_path, mcp_servers=[])  # deselecting doesn't delete an edited entry
-    assert "firecrawl" in _mcp(tmp_path)
+
+
+def test_otherwise_edited_server_is_the_projects(tmp_path: Path, capsys):
+    _deploy(tmp_path, mcp_servers=["memory"])
+    path = tmp_path / ".agents/mcp_config.json"
+    data = json.loads(path.read_text())
+    data["mcpServers"]["memory"]["args"].append("--custom")
+    path.write_text(json.dumps(data))
+    _deploy(tmp_path, mcp_servers=["memory"])
+    assert "--custom" in _mcp(tmp_path)["memory"]["args"]
+    assert "Kept the project's own mcpServers.memory" in capsys.readouterr().out
+    _deploy(tmp_path, mcp_servers=[])  # deselecting doesn't delete the project's entry
+    assert "memory" in _mcp(tmp_path)
+
+
+def test_catalog_change_reaches_deployed_entry(tmp_path: Path, monkeypatch):
+    ctx_state: dict = {}
+    agy_mod._deploy_mcp(tmp_path, ["memory"], ctx_state)
+    real = agy_mod.selected_mcp_servers
+
+    def bumped(servers):
+        catalog = real(servers)
+        if "memory" in catalog:
+            catalog["memory"]["args"] = ["-y", "@modelcontextprotocol/server-memory@2"]
+        return catalog
+
+    monkeypatch.setattr(agy_mod, "selected_mcp_servers", bumped)
+    agy_mod._deploy_mcp(tmp_path, ["memory"], ctx_state)  # recorded → still the foundry's
+    assert _mcp(tmp_path)["memory"]["args"][-1].endswith("@2")
+    agy_mod._deploy_mcp(tmp_path, [], ctx_state)
+    assert not (tmp_path / ".agents/mcp_config.json").exists()
+
+
+def test_project_configured_catalog_server_is_never_removed(tmp_path: Path):
+    """Equal to the catalog but never recorded as deployed → the project's."""
+    path = tmp_path / ".agents/mcp_config.json"
+    path.parent.mkdir()
+    own = {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-memory"]}
+    path.write_text(json.dumps({"mcpServers": {"memory": own}}))
+    _deploy(tmp_path, mcp_servers=[])
+    assert _mcp(tmp_path)["memory"] == own
+
+
+def test_deselected_server_with_filled_key_is_kept(tmp_path: Path, capsys):
+    _deploy(tmp_path, mcp_servers=["firecrawl"])
+    path = tmp_path / ".agents/mcp_config.json"
+    data = json.loads(path.read_text())
+    data["mcpServers"]["firecrawl"]["env"]["FIRECRAWL_API_KEY"] = "real-key"
+    path.write_text(json.dumps(data))
+    _deploy(tmp_path, mcp_servers=[])
+    assert _mcp(tmp_path)["firecrawl"]["env"]["FIRECRAWL_API_KEY"] == "real-key"
+    assert "holds a value you filled in" in capsys.readouterr().out
 
 
 def test_mcp_config_removed_when_only_foundry(tmp_path: Path):
@@ -147,11 +200,30 @@ def test_hooks_json_named_entry(tmp_path: Path):
     data = json.loads((tmp_path / ".agents/hooks.json").read_text())
     (group,) = data["agent-foundry"]["PostToolUse"]
     assert group["matcher"] == "write_to_file|replace_file_content|multi_replace_file_content"
-    # Runs from .agents/ and answers PostToolUse with the required {}
-    assert group["hooks"][0]["command"] == "agent-foundry/hooks/ruff-format.sh; echo '{}'"
+    # `bash <script>` reads the same under sh -c and cmd /c; the script prints `{}`
+    assert group["hooks"][0]["command"] == "bash agent-foundry/hooks/ruff-format.sh"
     scripts = tmp_path / ".agents/agent-foundry/hooks"
     assert os.access(scripts / "ruff-format.sh", os.X_OK)
     assert (scripts / "_edited-files.sh").is_file()
+
+
+def test_user_disabled_hook_stays_disabled(tmp_path: Path):
+    _deploy(tmp_path, hooks=["ruff-format.sh"])
+    path = tmp_path / ".agents/hooks.json"
+    data = json.loads(path.read_text())
+    data["agent-foundry"]["enabled"] = False
+    path.write_text(json.dumps(data))
+    _deploy(tmp_path, hooks=["ruff-format.sh", "mypy-check.sh"])
+    assert json.loads(path.read_text())["agent-foundry"]["enabled"] is False
+
+
+def test_copied_agent_survives_prune(tmp_path: Path):
+    _deploy(tmp_path, agents=["architect-python.md"])
+    agents = tmp_path / ".agents/agents"
+    (agents / "team-architect.md").write_text((agents / "architect-python.md").read_text())
+    _deploy(tmp_path, agents=[])
+    assert (agents / "team-architect.md").exists()  # marker copied, but not a foundry name
+    assert not (agents / "architect-python.md").exists()
 
 
 def test_project_named_hooks_kept(tmp_path: Path):
@@ -205,6 +277,25 @@ def test_cmd_init_agy_only(tmp_path: Path):
     assert not (tmp_path / ".claude" / "rules").exists()
 
 
+def test_dropping_agy_removes_its_config(tmp_path: Path):
+    (tmp_path / "pyproject.toml").write_text('name = "x"\n')
+    assert cmd_init(tmp_path, interactive=False, clis=["agy"])
+    assert (tmp_path / ".agents/agents").is_dir()
+    (tmp_path / ".agents/agents/team.md").write_text("---\nname: team\n---\nours\n")
+    assert cmd_init(tmp_path, interactive=False, clis=["claude"])
+    assert not list((tmp_path / ".agents/agents").glob("*-python.md"))
+    assert (tmp_path / ".agents/agents/team.md").exists()
+    assert not (tmp_path / ".agents/hooks.json").exists()
+    assert not (tmp_path / "AGENTS.md").exists()          # no remaining reader
+    assert not (tmp_path / ".agents/skills/update-codemaps").exists()
+
+
+def test_version_written_for_non_claude_targets(tmp_path: Path):
+    (tmp_path / "pyproject.toml").write_text('name = "x"\n')
+    assert cmd_init(tmp_path, interactive=False, clis=["agy"])
+    assert (tmp_path / ".claude/VERSION").read_text().strip()
+
+
 def test_all_four_targets_in_one_run(tmp_path: Path):
     (tmp_path / "pyproject.toml").write_text('name = "x"\n')
     assert cmd_init(tmp_path, interactive=False, clis=["claude", "copilot", "codex", "agy"])
@@ -212,3 +303,14 @@ def test_all_four_targets_in_one_run(tmp_path: Path):
     assert text.count("<!-- agent-foundry -->") == 1  # one shared block for three readers
     for path in (".claude/rules", ".codex/agents", ".agents/agents", ".agents/skills"):
         assert (tmp_path / path).is_dir(), path
+
+
+@pytest.mark.parametrize("name, content", [("mcp_config.json", "{}"),
+                                           ("mcp_config.json", '{"mcpServers": {}}'),
+                                           ("hooks.json", "{}")])
+def test_projects_empty_config_files_survive(tmp_path: Path, name: str, content: str):
+    path = tmp_path / ".agents" / name
+    path.parent.mkdir()
+    path.write_text(content)
+    _deploy(tmp_path)
+    assert path.read_text() == content

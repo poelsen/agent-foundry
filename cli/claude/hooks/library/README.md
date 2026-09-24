@@ -29,7 +29,7 @@ Add a hook entry to your project's `.claude/settings.json`:
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/library/ruff-format.sh"
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/library/ruff-format.sh"
           }
         ],
         "description": "Auto-format Python files with ruff"
@@ -42,6 +42,10 @@ Add a hook entry to your project's `.claude/settings.json`:
 Claude Code matches hooks on the tool name only, so every script is
 registered for `Edit|MultiEdit|Write` and filters the edited file's
 extension itself (e.g. `ruff-format.sh` ignores anything but `*.py`).
+Each script also runs only where the project configures its tool (e.g.
+`ruff-format.sh` needs `ruff.toml` or `[tool.ruff]`), and check scripts
+(mypy, tsc, cargo) hand their errors back to the agent as
+`additionalContext` instead of printing them.
 
 The same scripts run as Codex hooks (`.codex/hooks.json`, matcher
 `apply_patch|Edit|Write`) and Antigravity hooks (`.agents/hooks.json`, matcher
@@ -49,7 +53,9 @@ The same scripts run as Codex hooks (`.codex/hooks.json`, matcher
 edited files from any of the three hook inputs — Claude's
 `tool_input.file_path`, the paths in Codex's `apply_patch` patch, or
 Antigravity's `toolCall.args.TargetFile` — and they print nothing on
-stdout, because Codex treats non-hook JSON there as a failed hook run.
+stdout except one hook-output object, because Codex treats any other
+JSON there as a failed hook run (under Antigravity the helper prints the
+`{}` its PostToolUse contract requires).
 
 ## Context cost note
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 import tomllib
 from pathlib import Path
@@ -153,6 +154,45 @@ def test_project_defined_server_wins(tmp_path: Path, capsys):
     assert "Left project-defined mcp_servers.memory" in capsys.readouterr().out
 
 
+@pytest.mark.parametrize("config", [
+    'mcp_servers = { mine = { command = "x" } }\n',   # inline table
+    "mcp_servers = 1\n",                               # not a table at all
+    "[mcp_servers]\nmemory = { command = 'x' }\n",   # header + inline server
+])
+def test_merge_never_writes_invalid_toml(tmp_path: Path, config: str):
+    path = tmp_path / ".codex/config.toml"
+    path.parent.mkdir()
+    path.write_text(config)
+    _deploy(tmp_path, mcp_servers=["memory"])
+    tomllib.loads(path.read_text())  # still valid, whatever happened
+    assert path.read_text().startswith(config)
+
+
+def test_filled_in_key_in_managed_block_survives(tmp_path: Path):
+    _deploy(tmp_path, mcp_servers=["firecrawl"])
+    path = tmp_path / ".codex/config.toml"
+    path.write_text(path.read_text().replace("YOUR_FIRECRAWL_KEY_HERE", "real-key"))
+    _deploy(tmp_path, mcp_servers=["firecrawl"])
+    assert _toml(path)["mcp_servers"]["firecrawl"]["env"]["FIRECRAWL_API_KEY"] == "real-key"
+
+
+def test_copied_agent_survives_prune(tmp_path: Path):
+    _deploy(tmp_path, agents=["doc-updater.md"])
+    agents = tmp_path / ".codex/agents"
+    (agents / "team-doc.toml").write_text((agents / "doc-updater.toml").read_text())
+    _deploy(tmp_path, agents=[])
+    assert (agents / "team-doc.toml").exists()
+
+
+def test_dropping_codex_removes_its_config(tmp_path: Path):
+    (tmp_path / "pyproject.toml").write_text('name = "x"\n')
+    assert cmd_init(tmp_path, interactive=False, clis=["claude", "codex"])
+    assert (tmp_path / ".codex/hooks.json").exists()
+    assert cmd_init(tmp_path, interactive=False, clis=["claude"])
+    assert not (tmp_path / ".codex").exists()
+    assert not (tmp_path / "AGENTS.md").exists()
+
+
 def test_unparseable_config_left_alone(tmp_path: Path, capsys):
     config = tmp_path / ".codex/config.toml"
     config.parent.mkdir()
@@ -170,9 +210,10 @@ def test_hooks_json_and_scripts(tmp_path: Path):
     data = json.loads((tmp_path / ".codex/hooks.json").read_text())
     (group,) = data["hooks"]["PostToolUse"]
     assert group["matcher"] == "apply_patch|Edit|Write"
-    commands = [h["command"] for h in group["hooks"]]
-    assert all("git rev-parse --show-toplevel" in c for c in commands)
-    assert commands[0].endswith('/.codex/hooks/agent-foundry/ruff-format.sh"')
+    handler = group["hooks"][0]
+    assert handler["command"].startswith("sh -c '")        # any login shell, even fish
+    assert handler["commandWindows"].startswith("bash -c '")  # cmd /C → Git Bash
+    assert ".codex/hooks/agent-foundry/ruff-format.sh" in handler["command"]
     scripts = tmp_path / ".codex/hooks/agent-foundry"
     assert os.access(scripts / "ruff-format.sh", os.X_OK)
     assert (scripts / "_edited-files.sh").is_file()  # helper the scripts source
@@ -189,6 +230,91 @@ def test_project_hooks_kept_foundry_hooks_reconciled(tmp_path: Path):
     _deploy(tmp_path, hooks=[])
     assert json.loads(hooks_json.read_text())["hooks"]["PostToolUse"] == [own]
     assert not (tmp_path / ".codex/hooks/agent-foundry").exists()
+
+
+def _run_codex_hook(command: str, cwd: Path, stub_dir: Path, target: Path):
+    payload = json.dumps({"tool_name": "apply_patch", "cwd": str(target.parent),
+                          "tool_input": {"command": f"*** Update File: {target.name}\n"}})
+    env = {**os.environ, "PATH": f"{stub_dir}{os.pathsep}{os.environ['PATH']}"}
+    # `bash -c` rather than Codex's `$SHELL -lc`: a login profile may reset PATH
+    # and lose the stub; what's under test is the finder, not the shell.
+    return subprocess.run(["bash", "-c", command], cwd=cwd, input=payload, text=True,
+                          capture_output=True, env=env, timeout=30)
+
+
+def test_hook_command_finds_scripts_from_nested_dirs(tmp_path: Path):
+    """Project inside a larger git repo, session cwd below the project; the
+    hook must actually run (a stub ruff logs the call)."""
+    repo = tmp_path / "mono repo's $dir"
+    project = repo / "svc"
+    (repo / ".git").mkdir(parents=True)
+    project.mkdir()
+    (project / "ruff.toml").write_text("[format]\n")
+    target = project / "mod.py"
+    target.write_text("")
+    _deploy(project, hooks=["ruff-format.sh"])
+    command = json.loads((project / ".codex/hooks.json").read_text())[
+        "hooks"]["PostToolUse"][0]["hooks"][0]["command"]
+    stub_dir = tmp_path / "bin"
+    stub_dir.mkdir()
+    log = tmp_path / "ruff.log"
+    (stub_dir / "ruff").write_text(f'#!/bin/bash\necho "$@" >> "{log}"\n')
+    (stub_dir / "ruff").chmod(0o755)
+    (project / "src" / "deep").mkdir(parents=True)
+    for cwd in (project, project / "src" / "deep"):
+        log.unlink(missing_ok=True)
+        result = _run_codex_hook(command, cwd, stub_dir, target)
+        assert result.returncode == 0, result.stderr
+        assert log.exists(), f"hook did not run from {cwd}"
+    log.unlink()
+    assert _run_codex_hook(command, tmp_path, stub_dir, target).returncode == 0
+    assert not log.exists()  # outside the project: quiet no-op
+
+
+def test_finder_never_runs_a_script_above_the_project(tmp_path: Path):
+    outer = tmp_path / ".codex" / "hooks" / "agent-foundry"
+    outer.mkdir(parents=True)
+    marker = tmp_path / "ran-outer"
+    (outer / "ruff-format.sh").write_text(f'touch "{marker}"\n')
+    project = tmp_path / "proj"
+    (project / ".codex").mkdir(parents=True)
+    (project / ".codex" / "hooks.json").write_text("{}")  # project hooks, script missing
+    command = codex_mod._hook_handler("ruff-format.sh")["command"]
+    result = subprocess.run(["bash", "-c", command], cwd=project, input="{}", text=True,
+                            capture_output=True, timeout=30)
+    assert result.returncode == 0  # a quiet no-op, not a failed hook
+    assert not marker.exists()
+
+
+def test_windows_command_has_no_cmd_metacharacters():
+    """cmd /C doesn't honour single quotes: &, |, <, > would split the program."""
+    windows = codex_mod._hook_handler("ruff-format.sh")["commandWindows"]
+    assert not set("&|<>^%") & set(windows)
+
+
+def test_invalid_merge_result_is_refused(tmp_path: Path, monkeypatch, capsys):
+    path = tmp_path / ".codex/config.toml"
+    path.parent.mkdir()
+    path.write_text('model = "gpt-5.5"\n')
+    monkeypatch.setattr(codex_mod, "render_mcp_block", lambda servers: "[broken\n")
+    _deploy(tmp_path, mcp_servers=["memory"])
+    assert path.read_text() == 'model = "gpt-5.5"\n'
+    assert "would make it invalid" in capsys.readouterr().out
+
+
+def test_user_handler_in_foundry_group_kept_without_dangling(tmp_path: Path):
+    _deploy(tmp_path, hooks=["ruff-format.sh", "mypy-check.sh"])
+    path = tmp_path / ".codex/hooks.json"
+    data = json.loads(path.read_text())
+    mine = {"type": "command", "command": "./scripts/my-lint.sh"}
+    data["hooks"]["PostToolUse"][0]["hooks"].append(mine)
+    path.write_text(json.dumps(data))
+    _deploy(tmp_path, hooks=["ruff-format.sh"])
+    groups = json.loads(path.read_text())["hooks"]["PostToolUse"]
+    commands = [h["command"] for g in groups for h in g["hooks"]]
+    assert commands.count("./scripts/my-lint.sh") == 1
+    assert sum("ruff-format.sh" in c for c in commands) == 1
+    assert not any("mypy-check.sh" in c for c in commands)  # no dangling handler
 
 
 def test_hooks_json_removed_when_only_foundry(tmp_path: Path):
@@ -266,3 +392,24 @@ def test_cmd_init_codex_only(tmp_path: Path):
     assert list((tmp_path / ".codex/agents").glob("*-python.toml"))  # auto-selected by language
     assert (tmp_path / ".codex/hooks.json").exists()                  # ruff/mypy by language
     assert not (tmp_path / ".claude" / "rules").exists()
+
+
+def test_deselected_server_with_filled_key_moves_out_of_block(tmp_path: Path, capsys):
+    _deploy(tmp_path, mcp_servers=["firecrawl"])
+    path = tmp_path / ".codex/config.toml"
+    path.write_text(path.read_text().replace("YOUR_FIRECRAWL_KEY_HERE", "real-key"))
+    _deploy(tmp_path, mcp_servers=[])
+    text = path.read_text()
+    assert codex_mod._BLOCK_START not in text                      # block gone...
+    assert tomllib.loads(text)["mcp_servers"]["firecrawl"]["env"]["FIRECRAWL_API_KEY"] == "real-key"
+    assert "moved it out of the foundry block" in capsys.readouterr().out
+    _deploy(tmp_path, mcp_servers=["firecrawl"])                   # ...and now the project's
+    assert "real-key" in path.read_text()
+
+
+def test_projects_empty_hooks_json_survives(tmp_path: Path):
+    path = tmp_path / ".codex/hooks.json"
+    path.parent.mkdir()
+    path.write_text("{}")
+    _deploy(tmp_path)
+    assert path.read_text() == "{}"

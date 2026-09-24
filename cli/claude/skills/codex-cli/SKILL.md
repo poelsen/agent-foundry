@@ -27,9 +27,8 @@ never installed or authenticated by this skill or by foundry setup.
 
 ```bash
 out=$(mktemp)
-codex exec -m <model> -c 'model_reasoning_effort="medium"' \
-  -s read-only --skip-git-repo-check --ephemeral \
-  -o "$out" "<prompt>" </dev/null
+printf '%s' "<prompt>" | codex exec -m <model> -c 'model_reasoning_effort="medium"' \
+  -s read-only --skip-git-repo-check --ephemeral -o "$out"
 cat "$out"
 ```
 
@@ -42,7 +41,7 @@ cat "$out"
 | `--skip-git-repo-check` | Allows running outside a git repository. |
 | `--ephemeral` | Don't persist the session. |
 | `-o <file>` | Writes only the final answer to the file; stdout also carries progress. |
-| `</dev/null` | **Mandatory.** With stdin open, `codex exec` waits for more input. |
+| prompt on stdin | With no prompt argument, `codex exec` reads the prompt from stdin — no size limit (a command-line argument is capped at 128 KiB on Linux), and stdin is closed when the pipe ends. Never pass a prompt argument while leaving stdin open: `codex exec` then waits for more input. |
 
 `--full-auto` no longer exists; do not pass it. Pass review context **in the
 prompt text** (paste the diff/snippet); use `-C <dir>` only when the model

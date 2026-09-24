@@ -28,7 +28,7 @@ Pick targets with `--clis claude,copilot,codex,agy` (or the interactive menu, wh
 
 **Codex specifics.** Codex reads `AGENTS.md` and `.agents/skills/` in any project, but everything under `.codex/` (agents, MCP servers, hooks) only once the project is trusted — setup prints how to trust it (`codex` → accept the prompt, or `[projects."<path>"] trust_level = "trusted"` in `~/.codex/config.toml`). Hooks additionally stay inert until you approve each one in Codex's `/hooks`. The foundry only rewrites its own marked block in `.codex/config.toml`, its own agent files and its own hook group, so project settings in those files survive updates. Agents without write tools (architect, code-reviewer) run in Codex's `read-only` sandbox.
 
-**Antigravity specifics.** Antigravity loads a workspace's `.agents/` customizations only once the folder is trusted (run `agy` there once and accept; setup reminds you until it is). Hooks run as the `agent-foundry` entry of `.agents/hooks.json`; other named hooks are left alone. MCP servers in `.agents/mcp_config.json` count as the foundry's only while they still match the catalog, so an entry you edit (e.g. to add a real API key) is never overwritten or removed. Agents without write tools get an explicit read-only tool list.
+**Antigravity specifics.** Antigravity loads a workspace's `.agents/` customizations only once the folder is trusted (run `agy` there once and accept; setup reminds you until it is). Hooks run as the `agent-foundry` entry of `.agents/hooks.json` (set `"enabled": false` there to turn them off — updates keep it); other named hooks are left alone. MCP servers follow the same ownership rule as `.mcp.json` (see Upgrading below). Agents without write tools get an explicit tool list without Antigravity's file-writing tools (reading, searching, and `run_command` where the Claude agent had `Bash`).
 
 ## Bootstrap
 
@@ -285,20 +285,30 @@ Agents are specialized sub-agents that Claude Code launches for specific tasks. 
 
 ## Hooks
 
-Hooks are shell scripts that run automatically before or after Claude Code tool calls.
+Hooks are shell scripts the coding agent runs after each file edit. The same scripts serve Claude Code (`.claude/settings.json`), Codex (`.codex/hooks.json`) and Antigravity (`.agents/hooks.json`).
 
 ### What `setup.py` installs
 
-`setup.py` writes hook entries into your project's `.claude/settings.json` based on detected languages. Only language-specific hooks from `cli/claude/hooks/library/` are installed:
+Hooks are pre-selected by detected language; each script then acts only on its own file types, and only where the project has configured the tool:
 
-| Hook script | Trigger | Language |
-|-------------|---------|----------|
-| `ruff-format.sh` | After editing `.py` files | Python |
-| `mypy-check.sh` | After editing `.py` files | Python |
-| `prettier-format.sh` | After editing `.ts`/`.tsx`/`.js`/`.jsx` files | JS/TS |
-| `tsc-check.sh` | After editing `.ts`/`.tsx` files | TypeScript |
-| `cargo-check.sh` | After editing `.rs` files | Rust |
+| Hook script | Acts on | Runs only when the project has | Effect |
+|-------------|---------|--------------------------------|--------|
+| `ruff-format.sh` | `.py` | a `[format]` section in `ruff.toml`/`.ruff.toml`, `[tool.ruff.format]` in `pyproject.toml`, or a `ruff-format` pre-commit hook — and no black (`[tool.black]` or a black pre-commit hook) | Formats the edited file |
+| `mypy-check.sh` | `.py` | `mypy.ini`, `.mypy.ini`, `[mypy]` in `setup.cfg` or `[tool.mypy]` in `pyproject.toml` | Reports type errors back to the agent |
+| `prettier-format.sh` | `.ts`/`.tsx`/`.js`/`.jsx` | a `.prettierrc*`, `prettier.config.*` or `"prettier"` in `package.json` | Formats the edited file |
+| `tsc-check.sh` | `.ts`/`.tsx` | `tsconfig.json` and a local `typescript` install (never downloaded) | Reports type errors for the edited file |
+| `cargo-check.sh` | `.rs` | `Cargo.toml` | Reports `cargo check` errors |
 
+The config gate (searched from the edited file up to the repository root) keeps a project that lints with ruff, formats with black, or isn't formatted at all from getting whole-file ruff rewrites. Check hooks never block an edit: their errors reach Claude Code and Codex as additional context — labelled as tool output and capped at 8,000 characters (Antigravity has no such channel, so they go to its hook log). The scripts need `jq`; without it they print a warning and do nothing. On Windows, the Codex and Antigravity hooks need Git Bash's `bash` and `jq` on `PATH` (untested there so far). To turn hooks off, deselect them in `/update-foundry-interactive` — `settings.json` and `hooks.json` entries are regenerated on every update.
+
+### Upgrading from earlier releases
+
+- **Hooks now actually run.** Earlier releases wrote a `settings.json` matcher that never matched, so the selected hooks never fired; they now do, gated as above.
+- **Copilot skills moved** from `.github/skills/` to the shared `.agents/skills/`; the foundry's four old `megamind-*` copies are removed (only when their `SKILL.md` names that skill).
+- **New always-on skills** `codex-cli` and `agy-cli`; `review-process` may route its cross-vendor reviewer through them when those CLIs are installed.
+- **Dropping a target** (e.g. `--clis claude` after `claude,codex`; the interactive menu asks first) removes the foundry's files for it — its agents, hooks and managed config — and the shared `AGENTS.md` block and `.agents/skills/` once no remaining target reads them. Only content the foundry can prove it wrote is removed: a foundry name plus its marker, and never anything through an `AGENTS.md` symlink. An unknown id in `--clis` is an error (exit 2) rather than a silent drop, and `setup.py init` exits 3 when it applies nothing by design (skipped, declined, cancelled) — `/update-foundry` then keeps the previous version.
+- **MCP servers are reconciled, not just added.** The foundry records the entries it writes (manifest `deployed_mcp`; after an upgrade, the servers the old manifest selected). A recorded entry that is unchanged — apart from values you filled in, such as API keys, which are kept — is updated, and removed when you deselect it; an entry holding a filled-in key is never removed. Entries you configured yourself are never touched, even if they match the catalog — unless you select that server in the foundry, which adopts an identical entry. Codex keeps a deselected server whose key you filled in by moving it out of the foundry block. A project's own (even empty) `.mcp.json` is never deleted.
+- **Codex and Antigravity** load `.codex/` / `.agents/` only in trusted projects; Codex hooks also need approval in `/hooks`.
 
 ## Skill Selection (groups, hidden skills, gating)
 

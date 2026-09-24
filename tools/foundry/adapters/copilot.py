@@ -39,7 +39,9 @@ def _remove_legacy_skills(project: Path) -> None:
     legacy_root = project / _LEGACY_SKILLS_DIR
     for name in _LEGACY_SKILLS:
         legacy = legacy_root / name
-        if legacy.is_dir():
+        skill_md = legacy / "SKILL.md"
+        text = skill_md.read_text(encoding="utf-8", errors="replace") if skill_md.is_file() else ""
+        if legacy.is_dir() and f"\nname: {name}\n" in text.split("\n---", 1)[0] + "\n":
             shutil.rmtree(legacy)
             print(f"  Removed legacy foundry copy {_LEGACY_SKILLS_DIR.as_posix()}/{name}/ "
                   "(now in .agents/skills/)")
@@ -60,6 +62,9 @@ class CopilotAdapter(CliAdapter):
 
     def supported_artifacts(self) -> set[str]:
         return {"rules", "mcp", "skills"}
+
+    def undeploy(self, project: Path, ctx: DeployContext) -> None:
+        pass  # everything Copilot gets is a shared output, removed with the last reader
 
     def deploy(self, project: Path, sel: Selections, ctx: DeployContext) -> DeployResult:
         _remove_legacy_skills(project)

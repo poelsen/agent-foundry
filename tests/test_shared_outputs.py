@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -13,8 +14,7 @@ import pytest
 import yaml
 
 from foundry import shared
-from foundry.adapters import CopilotAdapter, Selections
-from foundry.adapters.base import AGENTS_MD, AGENTS_SKILLS, MCP_JSON
+from foundry.adapters import ClaudeAdapter, CodexAdapter, CopilotAdapter, Selections
 from foundry.paths import REPO_ROOT
 from foundry.registry import BASE_RULES, CLAUDE_ONLY_RULES, PORTABLE_SKILLS
 from foundry.selection import run_selection
@@ -160,15 +160,61 @@ def test_unmarked_foundry_named_skill_not_pruned(tmp_path: Path):
 # ── Dispatch ──
 
 
-def test_deploy_shared_outputs_writes_only_requested(tmp_path: Path):
+def test_deploy_shared_outputs_writes_only_what_targets_read(tmp_path: Path):
     sel = _selections(skills=["megamind-deep"], mcp_servers=["memory"])
-    shared.deploy_shared_outputs(tmp_path, sel, {MCP_JSON})
+    shared.deploy_shared_outputs(tmp_path, sel, [ClaudeAdapter()], [], {})
     assert json.loads((tmp_path / ".mcp.json").read_text())["mcpServers"]["memory"]
     assert not (tmp_path / "AGENTS.md").exists()
     assert not (tmp_path / ".agents").exists()
-    shared.deploy_shared_outputs(tmp_path, sel, {AGENTS_MD, AGENTS_SKILLS})
+    shared.deploy_shared_outputs(tmp_path, sel, [CodexAdapter()], [], {})
     assert (tmp_path / "AGENTS.md").exists()
     assert (tmp_path / ".agents" / "skills" / "megamind-deep").is_dir()
+
+
+def test_first_run_never_removes_project_configured_servers(tmp_path: Path):
+    """No recorded state, no previous selection: catalog-equal entries are the project's."""
+    from foundry.deploy import selected_mcp_servers, write_mcp_servers
+    catalog = selected_mcp_servers(None)
+    (tmp_path / ".mcp.json").write_text(json.dumps(
+        {"mcpServers": {"memory": catalog["memory"], "vercel": catalog["vercel"]}}))
+    write_mcp_servers(tmp_path, [], {})
+    assert set(json.loads((tmp_path / ".mcp.json").read_text())["mcpServers"]) == {
+        "memory", "vercel"}
+
+
+def test_upgrade_bootstraps_ownership_from_previous_selection(tmp_path: Path):
+    from foundry.deploy import selected_mcp_servers
+    from foundry.orchestrator import _mcp_state
+    catalog = selected_mcp_servers(None)
+    (tmp_path / ".mcp.json").write_text(json.dumps(
+        {"mcpServers": {"memory": catalog["memory"], "railway": catalog["railway"]}}))
+    state = _mcp_state({"mcp_servers": ["memory"]})  # manifest from before deployed_mcp
+    from foundry.deploy import write_mcp_servers
+    write_mcp_servers(tmp_path, [], state)
+    servers = json.loads((tmp_path / ".mcp.json").read_text())["mcpServers"]
+    assert "memory" not in servers   # the foundry wrote it (it was selected) → deselect removes
+    assert "railway" in servers      # hand-added, never selected → the project's
+
+
+def test_removal_never_edits_through_an_agents_md_symlink(tmp_path: Path):
+    claude_md = tmp_path / "CLAUDE.md"
+    header = "# p\n<!-- agent-foundry -->\nRead rules in `.claude/rules/`\n<!-- /agent-foundry -->\n"
+    claude_md.write_text(header)
+    (tmp_path / "AGENTS.md").symlink_to("CLAUDE.md")
+    shared.remove_agents_md(tmp_path, "p")
+    assert claude_md.read_text() == header
+    assert (tmp_path / "AGENTS.md").is_symlink()
+
+
+def test_rendered_block_has_no_claude_provenance():
+    block, _ = shared.render_agents_block(_selections())
+    assert "Claude Opus 4.7" not in block
+
+
+def test_removing_all_shared_skills_removes_empty_root(tmp_path: Path):
+    _deployed(tmp_path, "megamind-deep")
+    shared.remove_shared_skills(tmp_path)
+    assert not (tmp_path / ".agents" / "skills").exists()
 
 
 # ── CLI-gated selection menus ──
@@ -286,3 +332,98 @@ def test_skill_subcommands_only_with_their_skill(tmp_path: Path):
     root = _deployed(tmp_path, "megamind-deep")
     assert (root / "update-codemaps").is_dir()          # standalone command
     assert not (root / "update-foundry-check").exists()  # needs update-foundry
+
+
+# ── Review fixes: ownership, symlinks, encodings, policies ──
+
+
+def test_copied_skill_under_new_name_survives_prune(tmp_path: Path):
+    root = _deployed(tmp_path, "megamind-deep")
+    shutil.copytree(root / "megamind-deep", root / "team-deep")  # marker travels along
+    _deployed(tmp_path)
+    assert (root / "team-deep").is_dir()
+    assert not (root / "megamind-deep").exists()
+
+
+def test_symlinked_agents_md_keeps_claude_header(tmp_path: Path):
+    claude_md = tmp_path / "CLAUDE.md"
+    claude_md.write_text("# p\n<!-- agent-foundry -->\nRead rules in `.claude/rules/`\n"
+                         "<!-- /agent-foundry -->\n")
+    (tmp_path / "AGENTS.md").symlink_to("CLAUDE.md")
+    shared.write_agents_md(tmp_path, _selections(), claude_md_managed=True)
+    assert "`.claude/rules/`" in claude_md.read_text()
+    assert "<!-- rule:" not in claude_md.read_text()
+
+
+def test_non_utf8_agents_md_left_alone(tmp_path: Path, capsys):
+    agents_md = tmp_path / "AGENTS.md"
+    agents_md.write_bytes("# Mine\n".encode("utf-16"))
+    shared.write_agents_md(tmp_path, _selections())
+    assert agents_md.read_bytes() == "# Mine\n".encode("utf-16")
+    assert "isn't UTF-8" in capsys.readouterr().out
+
+
+def test_budget_floor_warns(tmp_path: Path, monkeypatch, capsys):
+    monkeypatch.setattr(shared, "AGENTS_MD_BUDGET", 500)
+    shared.write_agents_md(tmp_path, _selections())
+    assert "over its 500-byte budget" in capsys.readouterr().out
+
+
+def test_user_only_skills_get_codex_policy(tmp_path: Path):
+    root = _deployed(tmp_path, "update-foundry", "megamind-deep")
+    for skill in ("update-foundry", "update-foundry-check", "update-foundry-interactive"):
+        policy = root / skill / "agents" / "openai.yaml"
+        assert yaml.safe_load(policy.read_text()) == {
+            "policy": {"allow_implicit_invocation": False}}, skill
+    assert not (root / "megamind-deep" / "agents").exists()
+    assert not (root / "update-codemaps" / "agents").exists()
+
+
+def test_mcp_json_reconciles_with_recorded_state(tmp_path: Path):
+    state: dict = {}
+    from foundry.deploy import write_mcp_servers
+    write_mcp_servers(tmp_path, ["memory", "firecrawl"], state)
+    path = tmp_path / ".mcp.json"
+    data = json.loads(path.read_text())
+    data["mcpServers"]["firecrawl"]["env"]["FIRECRAWL_API_KEY"] = "real-key"
+    data["mcpServers"]["mine"] = {"command": "my-server"}
+    path.write_text(json.dumps(data))
+    write_mcp_servers(tmp_path, ["firecrawl"], state)
+    servers = json.loads(path.read_text())["mcpServers"]
+    assert servers["firecrawl"]["env"]["FIRECRAWL_API_KEY"] == "real-key"  # key kept
+    assert "memory" not in servers                                          # deselected
+    assert servers["mine"] == {"command": "my-server"}                      # project's own
+
+
+@pytest.mark.parametrize("content", ["{}", '{"mcpServers": {}}'])
+def test_projects_empty_mcp_json_survives(tmp_path: Path, content: str):
+    from foundry.deploy import write_mcp_servers
+    path = tmp_path / ".mcp.json"
+    path.write_text(content)  # e.g. what `claude mcp remove --scope project` leaves
+    write_mcp_servers(tmp_path, [], {})
+    assert path.read_text() == content
+
+
+def test_missing_mcp_json_clears_the_record(tmp_path: Path):
+    from foundry.deploy import write_mcp_servers
+    state = {".mcp.json": {"memory": None}}
+    write_mcp_servers(tmp_path, [], state)
+    assert state[".mcp.json"] == {}
+
+
+def test_removal_skips_a_hard_linked_agents_md(tmp_path: Path):
+    claude_md = tmp_path / "CLAUDE.md"
+    header = "# p\n<!-- agent-foundry -->\nRead rules in `.claude/rules/`\n<!-- /agent-foundry -->\n"
+    claude_md.write_text(header)
+    os.link(claude_md, tmp_path / "AGENTS.md")
+    shared.remove_agents_md(tmp_path, "p")
+    assert claude_md.read_text() == header
+
+
+def test_symlinked_skills_root_left_alone(tmp_path: Path):
+    target = tmp_path / "elsewhere"
+    target.mkdir()
+    (tmp_path / ".agents").mkdir()
+    (tmp_path / ".agents" / "skills").symlink_to(target)
+    shared.remove_shared_skills(tmp_path)
+    assert (tmp_path / ".agents" / "skills").is_symlink() and target.is_dir()

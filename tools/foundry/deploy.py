@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 from pathlib import Path
 
@@ -157,7 +158,9 @@ def generate_settings_json(
         meta = HOOK_SCRIPTS[script]
         post_hooks.append({
             "matcher": EDIT_TOOLS_MATCHER,
-            "hooks": [{"type": "command", "command": f".claude/hooks/library/{script}"}],
+            # Claude Code may run hooks from a subdirectory; anchor to the project.
+            "hooks": [{"type": "command",
+                       "command": f'"$CLAUDE_PROJECT_DIR"/.claude/hooks/library/{script}'}],
             "description": meta["desc"],
         })
 
@@ -424,8 +427,81 @@ def selected_mcp_servers(servers: list[str] | None) -> dict[str, dict]:
     return _substitute_placeholders(selected)
 
 
-def write_mcp_servers(project: Path, servers: list[str]) -> None:
-    """Deep-merge selected MCP servers into <project>/.mcp.json.
+# Catalog placeholders the user is expected to replace (API keys etc.).
+_PLACEHOLDER = re.compile(r"^YOUR_[A-Z0-9_]+_HERE$")
+
+
+def keep_filled_placeholders(rendered: dict, existing: dict | None) -> dict:
+    """``rendered`` with the values a user filled in for placeholder env vars
+    (e.g. a real FIRECRAWL_API_KEY) carried over from ``existing``."""
+    env = rendered.get("env")
+    old_env = existing.get("env") if isinstance(existing, dict) else None
+    if not isinstance(env, dict) or not isinstance(old_env, dict):
+        return rendered
+    return {**rendered, "env": {
+        k: old_env[k] if _PLACEHOLDER.match(str(v)) and old_env.get(k) not in (None, "") else v
+        for k, v in env.items()}}
+
+
+def _has_filled_placeholder(rendered: dict, existing: dict) -> bool:
+    return keep_filled_placeholders(rendered, existing) != rendered
+
+
+def reconcile_mcp_servers(
+    current: dict, catalog: dict[str, dict], selected: list[str], recorded: dict,
+) -> tuple[dict, list[str]]:
+    """Bring the foundry's catalog servers in ``current`` (an mcpServers map,
+    edited in place) up to date with the selection.
+
+    JSON can't carry an ownership marker, so ownership comes from the
+    record the foundry keeps (``recorded``: name → the rendering written
+    last run, or None for "selected last run, rendering unknown" after an
+    upgrade). An entry is the foundry's only if its name is recorded and it
+    still equals the recorded or the current rendering, modulo placeholder
+    values the user filled in. Equality alone never proves ownership — a
+    project may configure a catalog server itself.
+
+    Selected servers are added, or updated when owned (an identical entry
+    the project added is adopted). Deselected owned servers are removed —
+    unless the user filled in a placeholder such as an API key, which is
+    never deleted. Everything else is the project's and is left alone.
+    Returns (the renderings now deployed, to record), and the names kept
+    because the project owns or changed them.
+    """
+    deployed: dict[str, dict] = {}
+    kept: list[str] = []
+    for name, rendered in catalog.items():
+        existing = current.get(name)
+        if existing is None:
+            if name in selected:
+                current[name] = rendered
+                deployed[name] = rendered
+            continue
+        candidates = [rendered] if name in recorded else []
+        if recorded.get(name) is not None:
+            candidates.append(recorded[name])
+        owned = any(keep_filled_placeholders(c, existing) == existing for c in candidates)
+        if name in selected:
+            if owned or keep_filled_placeholders(rendered, existing) == existing:
+                current[name] = keep_filled_placeholders(rendered, existing)
+                deployed[name] = rendered
+            else:
+                kept.append(name)
+        elif owned:
+            if _has_filled_placeholder(rendered, existing):
+                print(f"  Kept deselected MCP server {name}: it holds a value you filled in "
+                      "(e.g. an API key) — remove it yourself if unwanted")
+            else:
+                del current[name]
+                print(f"  Removed deselected foundry MCP server: {name}")
+    return deployed, kept
+
+
+def write_mcp_servers(project: Path, servers: list[str], state: dict | None = None) -> None:
+    """Reconcile the foundry's MCP servers in <project>/.mcp.json.
+
+    ``state`` holds the renderings deployed last run, per config file (it is
+    persisted in the manifest); see :func:`reconcile_mcp_servers`.
 
     Claude Code reads project-scoped MCP servers from <project>/.mcp.json
     (no leading '.claude.' prefix) — the same file `claude mcp add --scope
@@ -438,17 +514,23 @@ def write_mcp_servers(project: Path, servers: list[str]) -> None:
     so users don't lose their selections on re-run, then strip the
     mcpServers key from .claude.json (leaving any unrelated fields alone).
     """
-    selected = selected_mcp_servers(servers)
-    if not selected:
-        return
-
     mcp_json = project / ".mcp.json"
+    if not servers and not mcp_json.exists():
+        if state is not None:
+            state[".mcp.json"] = {}  # nothing of ours there any more
+        return
     data: dict = {}
+    original: dict | None = None
     if mcp_json.exists():
         try:
             data = json.loads(mcp_json.read_text(encoding='utf-8'))
-        except json.JSONDecodeError:
-            data = {}
+            original = json.loads(json.dumps(data))
+        except (json.JSONDecodeError, UnicodeDecodeError) as err:
+            print(f"  ⚠ .mcp.json doesn't parse ({err}) — MCP servers not written")
+            return
+        if not isinstance(data, dict) or not isinstance(data.get("mcpServers", {}), dict):
+            print("  ⚠ .mcp.json has an unexpected shape — MCP servers not written")
+            return
 
     # Migration from the old, broken location: salvage anything we'd
     # written to <project>/.claude.json on a previous foundry version.
@@ -471,8 +553,22 @@ def write_mcp_servers(project: Path, servers: list[str]) -> None:
                 # Legacy file was only mcpServers — remove it entirely
                 legacy.unlink()
 
-    data.setdefault("mcpServers", {}).update(selected)
-    mcp_json.write_text(json.dumps(data, indent=2) + "\n", encoding='utf-8')
+    had_servers = "mcpServers" in data
+    current = data.setdefault("mcpServers", {})
+    before = dict(current)
+    deployed, kept = reconcile_mcp_servers(
+        current, selected_mcp_servers(None), servers, (state or {}).get(".mcp.json", {}))
+    for name in kept:
+        print(f"  Kept the project's own mcpServers.{name} in .mcp.json")
+    if state is not None:
+        state[".mcp.json"] = deployed
+    if not current and not had_servers:
+        data.pop("mcpServers")
+    removed_ours = any(name not in current for name in before)
+    if not current and removed_ours and set(data) == {"mcpServers"}:
+        mcp_json.unlink()  # it held nothing but the foundry's servers
+    elif data != (original or {}):
+        mcp_json.write_text(json.dumps(data, indent=2) + "\n", encoding='utf-8')
 
     if legacy_changed:
         print("  Migrated MCP servers from .claude.json → .mcp.json")
