@@ -145,11 +145,75 @@ def _copilot_cli(prompt: str, model: str) -> str:
     return result.stdout.strip()
 
 
+def _codex_cli(prompt: str, model: str) -> str:
+    """Run a prompt through the OpenAI Codex CLI (`codex exec`), non-interactively.
+
+    Read-only sandbox, ephemeral session, throwaway temp cwd; the prompt goes
+    in on stdin (long skill prompts) and only the final answer is captured
+    via --output-last-message. CODEX_EFFORT sets model_reasoning_effort.
+    """
+    codex_bin = shutil.which("codex")
+    if not codex_bin:
+        raise RuntimeError("codex CLI not found in PATH")
+
+    with tempfile.TemporaryDirectory(prefix="bench-codex-") as td:
+        answer = Path(td) / "answer.txt"
+        cmd = [codex_bin, "exec", "-s", "read-only", "--skip-git-repo-check",
+               "--ephemeral", "-o", str(answer)]
+        if model:
+            cmd += ["-m", model]
+        if effort := os.environ.get("CODEX_EFFORT"):
+            cmd += ["-c", f'model_reasoning_effort="{effort}"']
+        result = subprocess.run(cmd, input=prompt, capture_output=True, text=True,
+                                timeout=1200, cwd=td)
+        text = answer.read_text(encoding="utf-8").strip() if answer.exists() else ""
+
+    if result.returncode != 0 or not text:
+        detail = result.stderr.strip()[-2000:] or result.stdout.strip()[-2000:]
+        raise RuntimeError(f"codex CLI failed ({model}): {detail}")
+    return text
+
+
+def _agy_cli(prompt: str, model: str) -> str:
+    """Run a prompt through the Google Antigravity CLI (`agy -p`), non-interactively.
+
+    Throwaway temp cwd (no workspace customizations), no tool approvals
+    (unapproved tools are soft-denied), JSON output. AGY_EFFORT sets --effort.
+    """
+    agy_bin = shutil.which("agy")
+    if not agy_bin:
+        raise RuntimeError("agy CLI not found in PATH")
+
+    cmd = [agy_bin, "-p", prompt, "--output-format", "json"]
+    if model:
+        cmd += ["--model", model]
+    if effort := os.environ.get("AGY_EFFORT"):
+        cmd += ["--effort", effort]
+    with tempfile.TemporaryDirectory(prefix="bench-agy-") as td:
+        result = subprocess.run(cmd, stdin=subprocess.DEVNULL, capture_output=True,
+                                text=True, timeout=1200, cwd=td)
+    try:
+        data = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        data = {}
+    if result.returncode != 0 or data.get("status") != "SUCCESS":
+        detail = data.get("error") or result.stderr.strip()[-2000:] or result.stdout.strip()[-2000:]
+        raise RuntimeError(f"agy CLI failed ({model}, exit {result.returncode}): {detail}")
+    return (data.get("response") or "").strip()
+
+
+# Backend name → (runner, CLI binary)
+BACKENDS = {
+    "claude": (_claude_cli, "claude"),
+    "copilot": (_copilot_cli, "copilot"),
+    "codex": (_codex_cli, "codex"),
+    "agy": (_agy_cli, "agy"),
+}
+
+
 def _invoke(prompt: str, backend: str, model: str) -> str:
     """Dispatch a prompt to the configured backend CLI."""
-    if backend == "copilot":
-        return _copilot_cli(prompt, model)
-    return _claude_cli(prompt, model)
+    return BACKENDS[backend][0](prompt, model)
 
 
 def _judge_response(
@@ -611,15 +675,15 @@ def main() -> None:
     parser.add_argument("--save", type=str, help="Save results to JSON file")
     parser.add_argument("--compare", type=str, help="Compare with saved baseline JSON")
     parser.add_argument("--workers", type=int, default=1, help="Parallel workers")
-    parser.add_argument("--subject-backend", choices=["claude", "copilot"], default="claude",
+    parser.add_argument("--subject-backend", choices=list(BACKENDS), default="claude",
                         help="CLI that runs the skill under test")
     parser.add_argument("--subject-model", type=str, default=None,
                         help="Model id for the subject backend (e.g. gpt-5.5, claude-opus-4.7)")
-    parser.add_argument("--judge-backend", choices=["claude", "copilot"], default="claude",
+    parser.add_argument("--judge-backend", choices=list(BACKENDS), default="claude",
                         help="CLI that runs the judge (keep fixed for fair cross-model scoring)")
     parser.add_argument("--judge-model", type=str, default=None,
                         help="Model id for the judge backend")
-    parser.add_argument("--judge2-backend", choices=["claude", "copilot"], default=None,
+    parser.add_argument("--judge2-backend", choices=list(BACKENDS), default=None,
                         help="Second judge backend (enables dual-judge + disagreement flagging)")
     parser.add_argument("--judge2-model", type=str, default=None,
                         help="Model id for the second judge")
@@ -637,7 +701,7 @@ def main() -> None:
     JUDGE2_MODEL = args.judge2_model
     JUDGE_DISAGREE_THRESHOLD = args.judge_disagree_threshold
 
-    bin_for = {"claude": "claude", "copilot": "copilot"}
+    bin_for = {name: binary for name, (_, binary) in BACKENDS.items()}
     backends = {SUBJECT_BACKEND, JUDGE_BACKEND}
     if JUDGE2_BACKEND:
         backends.add(JUDGE2_BACKEND)

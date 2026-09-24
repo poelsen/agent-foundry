@@ -78,6 +78,7 @@ from .private import (
 )
 from .registry import (
     BASE_RULES,
+    CLAUDE_ONLY_RULES,
     ENVIRONMENT_SNIPPETS,
     FEATURE_PATHS,
     FEATURE_REQUIRED_SKILLS,
@@ -88,6 +89,8 @@ from .registry import (
     MANIFEST_MIGRATION,
     MODULAR_RULES,
     OPTIONAL_FEATURES,
+    PORTABLE_COMMANDS,
+    PORTABLE_SKILLS,
     SKILL_GROUPS,
     SKILLS,
     WORKFLOW_PLUGINS,
@@ -100,6 +103,7 @@ __all__ = [
     "AGENT_FOUNDRY_MARKER_START",
     # registry
     "BASE_RULES",
+    "CLAUDE_ONLY_RULES",
     "COMMANDS_DIR",
     "ENVIRONMENT_SNIPPETS",
     "FEATURE_PATHS",
@@ -113,6 +117,8 @@ __all__ = [
     "MCP_SERVERS_FILE",
     "MODULAR_RULES",
     "OPTIONAL_FEATURES",
+    "PORTABLE_COMMANDS",
+    "PORTABLE_SKILLS",
     "REPO_ROOT",
     "SKILLS",
     "SKILL_GROUPS",

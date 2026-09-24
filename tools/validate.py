@@ -161,6 +161,19 @@ class Validator:
             if not skill_md.exists():
                 self.error(f"SKILLS references missing: cli/claude/skills/{skill}/SKILL.md")
 
+    def check_registry_portability(self) -> None:
+        """Portable skills/commands and Claude-only rules must name shipped files."""
+        self.check("Registry: portability sets")
+        for skill in sorted(setup_module.PORTABLE_SKILLS):
+            if skill not in setup_module.SKILLS:
+                self.error(f"PORTABLE_SKILLS entry not in SKILLS: {skill}")
+        for command in sorted(setup_module.PORTABLE_COMMANDS):
+            if not (self.root / "cli" / "claude" / "commands" / command).is_file():
+                self.error(f"PORTABLE_COMMANDS references missing: cli/claude/commands/{command}")
+        for rule in sorted(setup_module.CLAUDE_ONLY_RULES):
+            if rule not in setup_module.BASE_RULES:
+                self.error(f"CLAUDE_ONLY_RULES entry not in BASE_RULES: {rule}")
+
     def check_review_process_reviewers(self) -> None:
         """Verify reviewer names in review-process skill resolve to real
         agents/skills. Catches typos like 'architect-pyton' in routing tables.
@@ -180,7 +193,7 @@ class Validator:
             "megamind-deep", "megamind-adversarial",
             "megamind-creative", "megamind-financial",
             "gui-threading", "python-qt-gui",
-            "copilot-cli",
+            "copilot-cli", "codex-cli", "agy-cli",
         }
 
         existing_agents = {p.stem for p in (self.root / "cli" / "claude" / "agents").glob("*.md")}
@@ -411,6 +424,7 @@ class Validator:
         self.check_registry_modular_rules()
         self.check_registry_hooks()
         self.check_registry_skills()
+        self.check_registry_portability()
         self.check_review_process_reviewers()
         self.check_version()
         self.check_setup_parse()

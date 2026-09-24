@@ -258,7 +258,7 @@ def run_selection(
                     # Default-on individual skills (the small always-useful set)
                     always_on = ("update-foundry", "learn", "learn-recall", "snapshot-list",
                                  "private-list", "private-remove", "review-process",
-                                 "copilot-cli")
+                                 "copilot-cli", "codex-cli", "agy-cli")
                     for i, skill in enumerate(SKILLS):
                         if skill in always_on:
                             auto.add(i)

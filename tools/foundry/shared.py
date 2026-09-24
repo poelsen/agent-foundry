@@ -31,7 +31,7 @@ from pathlib import Path
 
 from .adapters.base import AGENTS_MD, AGENTS_SKILLS, MCP_JSON, Selections
 from .convert import command_skill
-from .deploy import write_mcp_servers
+from .deploy import _command_skill_parent, write_mcp_servers
 from .instructions import (
     has_agent_foundry_header,
     prepend_agent_foundry_header,
@@ -59,9 +59,25 @@ _SKILL_MARKER_FILE = ".agent-foundry"
 # Embed priority after the base rules: tooling first, templates last.
 _MODULAR_PRIORITY = ("lang", "platform", "security", "templates")
 
-# SKILL.md frontmatter keys some reader of .agents/skills/ doesn't accept.
-# Copilot CLI has no `model` key (Codex and Antigravity ignore it).
-_UNSUPPORTED_SKILL_FRONTMATTER = ("model",)
+# Claude-only SKILL.md frontmatter keys, dropped from the shared root:
+# Copilot CLI has no `model` key, and `allowed-tools` names Claude tools.
+_UNSUPPORTED_SKILL_FRONTMATTER = ("model", "allowed-tools")
+
+# Claude-specific wording in skill markdown, rewritten for the shared root
+# at deploy time so the Claude sources stay untouched: sibling skills live
+# in .agents/skills/, and "invoke Skill(x)" becomes a pointer to that skill.
+_SHARED_REWRITES = (
+    (re.compile(r"\.claude/skills/"), ".agents/skills/"),
+    (re.compile(r"`Skill\(([a-z][a-z0-9-]*)\)`"),
+     r"the `\1` skill (`.agents/skills/\1/SKILL.md`)"),
+    (re.compile(r"a short `AskUserQuestion` batch"), "one short batch of questions"),
+)
+
+# Codex injects at most this many bytes of an explicitly invoked SKILL.md
+# (MAX_SKILL_PROMPT_BYTES, 0.156.1). Larger skills deploy as a short
+# SKILL.md pointing at the unchanged text in SKILL.full.md.
+_SKILL_PROMPT_LIMIT = 8_000
+_FULL_SKILL = "SKILL.full.md"
 
 
 @dataclass(frozen=True)
@@ -216,7 +232,8 @@ def write_agents_md(
 
 
 def _sanitize_skill_frontmatter(skill_md: Path) -> None:
-    """Drop SKILL.md frontmatter keys some shared-root reader rejects."""
+    """Drop Claude-only frontmatter keys, including multi-line values
+    (an indented block or `- item` list under the key)."""
     if not skill_md.exists():
         return
     text = skill_md.read_text(encoding="utf-8")
@@ -225,10 +242,38 @@ def _sanitize_skill_frontmatter(skill_md: Path) -> None:
     end = text.find("\n---", 3)
     if end == -1:
         return
-    fm, rest = text[:end], text[end:]
-    drop = re.compile(rf"^\s*({'|'.join(_UNSUPPORTED_SKILL_FRONTMATTER)})\s*:.*$\n?",
-                      re.MULTILINE)
-    skill_md.write_text(drop.sub("", fm) + rest, encoding="utf-8")
+    kept, dropping = [], False
+    for line in text[:end].split("\n"):
+        key = line.split(":", 1)[0].strip()
+        if not line[:1].isspace() and not line.startswith("-"):
+            dropping = ":" in line and key in _UNSUPPORTED_SKILL_FRONTMATTER
+        if not dropping:
+            kept.append(line)
+    skill_md.write_text("\n".join(kept) + text[end:], encoding="utf-8")
+
+
+def _rewrite_for_shared_root(skill_dir: Path) -> None:
+    for md in skill_dir.rglob("*.md"):
+        text = original = md.read_text(encoding="utf-8")
+        for pattern, replacement in _SHARED_REWRITES:
+            text = pattern.sub(replacement, text)
+        if text != original:
+            md.write_text(text, encoding="utf-8")
+
+
+def _split_large_skill(skill_dir: Path) -> None:
+    """Keep SKILL.md under Codex's injection limit (see _SKILL_PROMPT_LIMIT)."""
+    skill_md = skill_dir / "SKILL.md"
+    text = skill_md.read_text(encoding="utf-8")
+    if len(text.encode("utf-8")) <= _SKILL_PROMPT_LIMIT:
+        return
+    end = text.find("\n---", 3) if text.startswith("---") else -1
+    frontmatter = text[:end + 4] if end != -1 else ""
+    (skill_dir / _FULL_SKILL).write_text(text, encoding="utf-8")
+    skill_md.write_text(
+        f"{frontmatter}\n\nThis skill's full instructions are in `{_FULL_SKILL}` in this "
+        "directory — split out because some CLIs cut skill files at 8 KB. Read that "
+        "file completely before doing anything else, then follow it.\n", encoding="utf-8")
 
 
 def _claim_skill_dir(dest: Path) -> bool:
@@ -259,7 +304,12 @@ def deploy_shared_skills(project: Path, sel: Selections) -> None:
     skills_root = project / AGENTS_SKILLS_DIR
     wanted = [s for s in sel.skills if s in PORTABLE_SKILLS
               and (REPO_ROOT / "cli" / "claude" / "skills" / s).is_dir()]
-    commands = sorted(COMMANDS_DIR / c for c in PORTABLE_COMMANDS if (COMMANDS_DIR / c).is_file())
+    # A skill's sub-commands (update-foundry-check → update-foundry) only
+    # come along with their skill, as in .claude/commands/.
+    commands = sorted(
+        COMMANDS_DIR / c for c in PORTABLE_COMMANDS
+        if (COMMANDS_DIR / c).is_file()
+        and _command_skill_parent(Path(c).stem) in (None, *wanted))
     keep = set(wanted) | {c.stem for c in commands}
     if skills_root.is_dir():
         for existing in sorted(skills_root.iterdir()):
@@ -273,15 +323,22 @@ def deploy_shared_skills(project: Path, sel: Selections) -> None:
         if not _claim_skill_dir(dest):
             continue
         shutil.copytree(REPO_ROOT / "cli" / "claude" / "skills" / name, dest)
-        _sanitize_skill_frontmatter(dest / "SKILL.md")
-        _mark_skill_dir(dest)
+        _adapt_skill_dir(dest)
     for command in commands:
         dest = skills_root / command.stem
         if not _claim_skill_dir(dest):
             continue
         dest.mkdir(parents=True)
         (dest / "SKILL.md").write_text(command_skill(command), encoding="utf-8")
-        _mark_skill_dir(dest)
+        _adapt_skill_dir(dest)
+
+
+def _adapt_skill_dir(dest: Path) -> None:
+    """Turn a Claude skill copied into the shared root into a portable one."""
+    _sanitize_skill_frontmatter(dest / "SKILL.md")
+    _rewrite_for_shared_root(dest)
+    _split_large_skill(dest)
+    _mark_skill_dir(dest)
 
 
 def deploy_shared_outputs(
