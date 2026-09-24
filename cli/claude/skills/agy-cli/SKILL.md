@@ -10,6 +10,10 @@ non-interactive invocation of the locally installed Antigravity CLI (`agy`),
 so other skills (chiefly `review-process`) can route a prompt to a Gemini
 model.
 
+For work that edits files or runs for a while (implement, fix, refactor), use
+the `delegate` skill instead (`--to agy`): it gives Antigravity its own
+worktree, applies the project's delegation policy, and records the job.
+
 ## Prerequisite check (always do this first)
 
 ```bash

@@ -34,7 +34,6 @@ def _selections(**overrides) -> Selections:
         "hooks": [],
         "plugins": [],
         "mcp_servers": [],
-        "features": [],
         "langs": {"python.md"},
         "project_name": "demo",
         "version": "9999.99.99",

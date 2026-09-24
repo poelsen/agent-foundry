@@ -130,6 +130,16 @@ second cross-model reviewer via `copilot -p`. Requires the `copilot` CLI on
 `PATH`; if absent, review-process falls back to a second Claude run. See the
 top-level [README — Copilot CLI section](../README.md#copilot-cli).
 
+### Delegation
+
+| Skill | Purpose | When to Use |
+|-------|---------|-------------|
+| [delegate](delegate/) | Hand a task to another agent CLI (Claude Code, Codex, Antigravity, Copilot) as a managed job | "Have codex fix this", "ask agy to review", parallel work on other models |
+
+Deploys to every target CLI. Write jobs get their own worktree and branch,
+limits come from `.delegate/policy.json`, and nothing merges without review.
+See [delegate/scripts/README.md](delegate/scripts/README.md).
+
 ### Project Management
 
 Named project contexts let you work on multiple parallel initiatives without losing state. Each project lives in `.claude/prjs/<name>.md` with goals, status, decisions, and key files.

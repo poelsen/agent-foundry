@@ -267,7 +267,6 @@ def cmd_init(
     selected_learned = result.learned
     selected_plugins = result.plugins
     mcp_servers = result.mcp_servers
-    selected_features = result.features
     pending_private = result.pending_private
     existing_private = result.existing_private
     existing_private_prefixes = result.existing_private_prefixes
@@ -281,7 +280,7 @@ def cmd_init(
     sel = Selections(
         base=selected_base, modular=selected_modular, agents=selected_agents,
         skills=selected_skills, learned=selected_learned, hooks=selected_hooks,
-        plugins=selected_plugins, mcp_servers=mcp_servers, features=selected_features,
+        plugins=selected_plugins, mcp_servers=mcp_servers,
         langs=selected_langs, project_name=project_name, version=version,
     )
     ctx = DeployContext(
@@ -315,7 +314,6 @@ def cmd_init(
         "learned_categories": selected_learned,
         "plugins": selected_plugins,
         "mcp_servers": mcp_servers,
-        "features": selected_features,
     }
     if private_sources:
         manifest_data["private_sources"] = private_sources
@@ -351,7 +349,7 @@ def cmd_init(
     # into <project>/.foundry/ so manual re-runs always match this
     # project's version. Migrates away from the legacy .claude/foundry/
     # exploded tree which Claude could traverse and find duplicates of.
-    _install_foundry_payload(project, selected_features)
+    _install_foundry_payload(project)
 
     return True
 

@@ -23,7 +23,7 @@ def _selections(**overrides) -> Selections:
     base = {
         "base": ["coding-style.md"], "modular": {"lang": ["python.md"]},
         "agents": [], "skills": [], "learned": [], "hooks": [], "plugins": [],
-        "mcp_servers": [], "features": [], "langs": {"python.md"},
+        "mcp_servers": [], "langs": {"python.md"},
         "project_name": "demo", "version": "9999.99.99",
     }
     base.update(overrides)

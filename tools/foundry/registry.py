@@ -1,4 +1,4 @@
-"""Static data tables: rules, hooks, skills, plugins, features, templates.
+"""Static data tables: rules, hooks, skills, plugins, templates.
 
 This is a leaf module — it holds only module-level constants and lookup
 tables, with no behavior. The CLAUDE.md header template and environment
@@ -169,7 +169,7 @@ HOOK_SCRIPTS = {
 SKILLS = [
     "clickhouse-io", "gui-threading", "python-qt-gui",
     "megamind-deep", "megamind-creative", "megamind-adversarial", "megamind-financial",
-    "minimax-multimodal", "delegate", "review-process",
+    "delegate", "review-process",
     "update-foundry", "learn", "learn-recall", "snapshot-list",
     "private-list", "private-remove",
     "prj-new", "prj-list", "prj-pause", "prj-resume", "prj-done", "prj-delete",
@@ -204,12 +204,11 @@ SKILL_GROUPS: dict[str, list[str]] = {
 # rewritten, and files over Codex's 8 KB skill limit are split. Excluded:
 # skills tied to Claude-only state (prj-*/snapshot-list/learn* → Claude
 # session ids and .claude/ layouts, private-* → Claude-only private
-# sources, review-process → Claude reviewer agents and prompts) and the
-# MiniMax delegate pair (a secondary Claude Code CLI).
+# sources, review-process → Claude reviewer agents and prompts).
 PORTABLE_SKILLS: set[str] = {
     "megamind-deep", "megamind-creative", "megamind-adversarial", "megamind-financial",
     "clickhouse-io", "gui-threading", "python-qt-gui", "writer", "humanizer",
-    "update-foundry", "copilot-cli", "codex-cli", "agy-cli",
+    "update-foundry", "copilot-cli", "codex-cli", "agy-cli", "delegate",
 }
 
 # Claude slash commands that work on any CLI. Copilot, Codex and Antigravity
@@ -223,41 +222,6 @@ PORTABLE_COMMANDS: set[str] = {
 # Skills that are never shown in the interactive skill menu. None today —
 # kept as an explicit empty set so the menu-build logic stays uniform.
 HIDDEN_SKILLS: set[str] = set()
-
-# Optional feature toggles presented in the setup menu. Each tuple is
-# (key, label, description). When an entry is selected, the mapped file
-# globs under FEATURE_PATHS are included in the foundry self-copy; when
-# deselected, they're excluded. Default for every feature is OFF.
-OPTIONAL_FEATURES: list[tuple[str, str, str]] = [
-    ("minimax-delegate",
-     "MiniMax Delegate",
-     "Run a secondary Claude Code CLI against MiniMax (skills/delegate/)"),
-]
-
-# Relative paths under REPO_ROOT to skip in the foundry self-copy when
-# the matching feature key is NOT selected.
-FEATURE_PATHS: dict[str, list[str]] = {
-    "minimax-delegate": [
-        "cli/claude/commands/delegate.md",
-        "cli/claude/skills/delegate",
-    ],
-}
-
-# Skills that should be auto-added to the selection when a feature is
-# turned on. Still user-visible; they can uncheck if they really want.
-FEATURE_SUGGESTED_SKILLS: dict[str, list[str]] = {
-    "minimax-delegate": ["minimax-multimodal"],
-}
-
-# Skills that MUST be installed when a feature is enabled — the feature
-# is non-functional without them. Auto-added on every run (interactive
-# and non-interactive), even if missing from a stale manifest. The user
-# cannot remove them while keeping the feature enabled. This heals the
-# stale-manifest case where a feature toggle exists but its required
-# skills predate when they were declared as required.
-FEATURE_REQUIRED_SKILLS: dict[str, list[str]] = {
-    "minimax-delegate": ["delegate"],
-}
 
 LSP_PLUGINS = {
     "python.md": ("pyright-lsp", "pyright-langserver"),

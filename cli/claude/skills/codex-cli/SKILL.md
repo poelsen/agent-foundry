@@ -10,6 +10,10 @@ non-interactive invocation of the locally installed Codex CLI, so other skills
 (chiefly `review-process`) can route a prompt to an OpenAI model directly —
 no Copilot subscription needed.
 
+For work that edits files or runs for a while (implement, fix, refactor), use
+the `delegate` skill instead (`--to codex`): it gives Codex its own
+worktree, applies the project's delegation policy, and records the job.
+
 ## Prerequisite check (always do this first)
 
 ```bash
