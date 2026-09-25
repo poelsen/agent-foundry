@@ -41,6 +41,11 @@ class TestHasClaudeFoundryHeader:
         content = "<!-- claude -->\nNot the right marker"
         assert has_agent_foundry_header(content) is False
 
+    def test_detects_legacy_claude_foundry_marker(self):
+        """Headers written before the claude-foundry rename are still ours."""
+        content = "# Project\n\n<!-- claude-foundry -->\nheader\n<!-- /claude-foundry -->\n"
+        assert has_agent_foundry_header(content) is True
+
 
 class TestGenerateClaudeFoundryHeader:
     """Tests for generate_agent_foundry_header function."""
@@ -163,6 +168,16 @@ class TestUpdateClaudeFoundryHeader:
 
         assert result.startswith(AGENT_FOUNDRY_MARKER_START)
         assert "new" in result
+
+    def test_replaces_legacy_claude_foundry_header(self):
+        """A legacy-marked header is replaced, leaving only current markers."""
+        old_header = "<!-- claude-foundry -->\nold\n<!-- /claude-foundry -->"
+        new_header = f"{AGENT_FOUNDRY_MARKER_START}\nnew\n{AGENT_FOUNDRY_MARKER_END}"
+        content = f"# Project\n\n{old_header}\n\nAfter"
+
+        result = update_agent_foundry_header(content, new_header)
+
+        assert result == f"# Project\n\n{new_header}\n\nAfter"
 
 
 class TestPrependClaudeFoundryHeader:

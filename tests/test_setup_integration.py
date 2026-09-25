@@ -123,6 +123,32 @@ After header
         assert "Some intro text here." in new_content
         assert "After header" in new_content
 
+    def test_migrates_legacy_claude_foundry_header(self, temp_project):
+        """A header from before the claude-foundry rename is updated in place
+        with the current markers, not treated as a marker-less CLAUDE.md."""
+        old_content = """# test-project
+
+## Project Boundaries
+Project-owned text
+
+<!-- claude-foundry -->
+## Rules
+Old rules list
+<!-- /claude-foundry -->
+"""
+        (temp_project / "CLAUDE.md").write_text(old_content)
+
+        result = cmd_init(temp_project, interactive=False)
+
+        assert result is True
+        new_content = (temp_project / "CLAUDE.md").read_text()
+        assert "claude-foundry" not in new_content
+        assert "Old rules list" not in new_content
+        assert new_content.count(AGENT_FOUNDRY_MARKER_START) == 1
+        assert new_content.count(AGENT_FOUNDRY_MARKER_END) == 1
+        assert new_content.startswith("# test-project\n\n## Project Boundaries\nProject-owned text\n")
+        assert not (temp_project / "CLAUDE.md.old").exists()
+
 
 class TestExistingClaudeMdWithoutMarker:
     """Tests for projects with existing CLAUDE.md without marker."""

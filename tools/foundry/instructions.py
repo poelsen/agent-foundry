@@ -55,23 +55,30 @@ def generate_agent_foundry_header(
     )
 
 
+# Current markers first, then the ones releases wrote before the
+# claude-foundry → agent-foundry rename. A legacy-marked header is still
+# ours: updating it rewrites the block with the current markers.
+_HEADER_MARKERS = (
+    (AGENT_FOUNDRY_MARKER_START, AGENT_FOUNDRY_MARKER_END),
+    ("<!-- claude-foundry -->", "<!-- /claude-foundry -->"),
+)
+
+
 def has_agent_foundry_header(content: str) -> bool:
-    """Check if content has agent-foundry marker."""
-    return AGENT_FOUNDRY_MARKER_START in content
+    """Check if content has an agent-foundry marker (current or legacy)."""
+    return any(start in content for start, _ in _HEADER_MARKERS)
 
 
 def update_agent_foundry_header(content: str, new_header: str) -> str:
-    """Replace existing agent-foundry header with new one."""
-    start_idx = content.find(AGENT_FOUNDRY_MARKER_START)
-    end_idx = content.find(AGENT_FOUNDRY_MARKER_END)
-
-    if start_idx == -1 or end_idx == -1:
-        return content
-
-    # Include the end marker in the replacement
-    end_idx += len(AGENT_FOUNDRY_MARKER_END)
-
-    return content[:start_idx] + new_header.strip() + content[end_idx:]
+    """Replace existing agent-foundry header (current or legacy) with new one."""
+    for marker_start, marker_end in _HEADER_MARKERS:
+        start_idx = content.find(marker_start)
+        end_idx = content.find(marker_end)
+        if start_idx != -1 and end_idx != -1:
+            # Include the end marker in the replacement
+            end_idx += len(marker_end)
+            return content[:start_idx] + new_header.strip() + content[end_idx:]
+    return content
 
 
 def prepend_agent_foundry_header(content: str, header: str) -> str:
