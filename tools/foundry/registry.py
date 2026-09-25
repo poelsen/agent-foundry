@@ -135,7 +135,9 @@ MODULAR_RULES = {
 # listed here to keep being cleaned out of projects. Rules don't need a
 # set: MANIFEST_MIGRATION below already records retired rule names.
 RETIRED_SKILLS: set[str] = set()
-RETIRED_COMMANDS: set[str] = set()
+RETIRED_COMMANDS: set[str] = {
+    "recall.md",  # became the learn-recall skill
+}
 RETIRED_AGENTS: set[str] = set()
 
 # Migration map: (old_category, old_rule) -> (new_category, new_rule) or None

@@ -144,6 +144,16 @@ class TestProjectOwnedCommands:
 
         assert not (cmd_dir / "megamind-deep.md").exists()
 
+    def test_retired_command_removed(self, project: Path):
+        """/recall shipped until it became the learn-recall skill; listed in
+        RETIRED_COMMANDS, so old projects still get it cleaned out."""
+        cmd_dir = project / ".claude" / "commands"
+        (cmd_dir / "recall.md").write_text("# /recall - Search Learned Skills\n", encoding="utf-8")
+
+        copy_commands(project, [])
+
+        assert not (cmd_dir / "recall.md").exists()
+
     def test_command_prune_is_reported(self, project: Path, capsys):
         cmd_dir = project / ".claude" / "commands"
         (cmd_dir / "update-foundry-check.md").write_text("stale", encoding="utf-8")
