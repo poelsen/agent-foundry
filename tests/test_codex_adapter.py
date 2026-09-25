@@ -190,7 +190,7 @@ def test_dropping_codex_removes_its_config(tmp_path: Path):
     assert (tmp_path / ".codex/hooks.json").exists()
     assert cmd_init(tmp_path, interactive=False, clis=["claude"])
     assert not (tmp_path / ".codex").exists()
-    assert not (tmp_path / "AGENTS.md").exists()
+    assert (tmp_path / "AGENTS.md").exists()  # Claude Code reads it too
 
 
 def test_unparseable_config_left_alone(tmp_path: Path, capsys):

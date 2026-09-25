@@ -68,7 +68,7 @@ first, then broaden based on risk:
 
 Use the project's configured package manager (foundry default: `uv`). Run
 Python via `uv run python` from the project root, or whichever invocation the
-project's `CLAUDE.md` and `pyproject.toml` define.
+project's `AGENTS.md` and `pyproject.toml` define.
 
 ## Python-specific severity adjustments
 

@@ -1,14 +1,18 @@
-"""CLAUDE.md header generation and merge helpers."""
+"""Instruction-file helpers: the marker-wrapped foundry block, and moving a
+project's CLAUDE.md into AGENTS.md.
+
+Every target CLI — Claude Code included — reads AGENTS.md, so that is the
+one instructions file the foundry writes. Claude Code reads AGENTS.md only
+while no CLAUDE.md exists (in the project or any directory above it), so a
+CLAUDE.md is folded into AGENTS.md rather than kept next to it.
+"""
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from .paths import AGENT_FOUNDRY_MARKER_END, AGENT_FOUNDRY_MARKER_START
-from .registry import (
-    AGENT_FOUNDRY_HEADER_TEMPLATE,
-    ENVIRONMENT_SNIPPETS,
-    MODULAR_RULES,
-    RULE_DESCRIPTIONS,
-)
+from .registry import ENVIRONMENT_SNIPPETS, RULE_DESCRIPTIONS
 
 
 def rule_description(rule: str) -> str:
@@ -26,33 +30,6 @@ def render_env_commands(selected_langs: set[str]) -> str:
         if "test" in snippets:
             env_lines.append(f"{snippets['test']}  # Tests")
     return "\n".join(env_lines) if env_lines else "# No language-specific commands configured"
-
-
-def generate_agent_foundry_header(
-    deployed_rules: list[str],
-    selected_langs: set[str],
-) -> str:
-    """Generate the agent-foundry header for CLAUDE.md."""
-    # Sort rules: lang/template/platform first, then base rules alphabetically
-    lang_rules = set(MODULAR_RULES.get("lang", {}).keys())
-    template_rules = set(MODULAR_RULES.get("templates", {}).keys())
-    platform_rules = set(MODULAR_RULES.get("platform", {}).keys())
-    security_rules = set(MODULAR_RULES.get("security", {}).keys())
-    modular_rules = lang_rules | template_rules | platform_rules | security_rules
-
-    modular_first = sorted(r for r in deployed_rules if r in modular_rules)
-    other_rules = sorted(r for r in deployed_rules if r not in modular_rules)
-    ordered_rules = modular_first + other_rules
-
-    rules_lines = [f"- `{rule}` — {rule_description(rule)}" for rule in ordered_rules]
-    rules_list = "\n".join(rules_lines) if rules_lines else "- (none deployed)"
-
-    return AGENT_FOUNDRY_HEADER_TEMPLATE.format(
-        marker_start=AGENT_FOUNDRY_MARKER_START,
-        marker_end=AGENT_FOUNDRY_MARKER_END,
-        rules_list=rules_list,
-        env_commands=render_env_commands(selected_langs),
-    )
 
 
 # Current markers first, then the ones releases wrote before the
@@ -86,25 +63,43 @@ def prepend_agent_foundry_header(content: str, header: str) -> str:
     return header + "\n" + content
 
 
-def generate_claude_md(
-    project_name: str,
-    deployed_rules: list[str],
-    selected_langs: set[str],
-) -> str:
-    """Generate a new CLAUDE.md with agent-foundry header.
+def project_text(content: str) -> str:
+    """The project's own part of an instructions file: everything outside
+    the foundry block, trimmed."""
+    before, _, after = update_agent_foundry_header(content, "\0").partition("\0")
+    return "\n\n".join(part.strip() for part in (before, after) if part.strip())
 
-    Includes a user-editable Environment section above the marker for
-    project-specific build/test/lint commands. This section is never
-    overwritten by setup.py on subsequent runs.
+
+def merge_project_text(agents_md: str, moved: str, project_name: str) -> str:
+    """Add ``moved`` (CLAUDE.md's project text) to AGENTS.md's content.
+
+    The result carries an empty foundry block right after the moved text,
+    for the caller to fill — so the standards follow the project's own
+    instructions, as they did in CLAUDE.md. An AGENTS.md holding only the
+    stub title is replaced; otherwise its own content stays, and a title
+    both files share appears once.
     """
-    header = generate_agent_foundry_header(deployed_rules, selected_langs)
-    return f"""# {project_name}
+    placeholder = f"{AGENT_FOUNDRY_MARKER_START}\n{AGENT_FOUNDRY_MARKER_END}"
+    own = project_text(agents_md)
+    if own in ("", f"# {project_name}"):
+        return f"{moved}\n\n{placeholder}\n"
+    title, _, rest = moved.partition("\n")
+    if title.startswith("# ") and title.strip() == own.partition("\n")[0].strip():
+        moved = rest.strip()
+    if has_agent_foundry_header(agents_md):
+        return update_agent_foundry_header(agents_md, f"{moved}\n\n{placeholder}")
+    return f"{agents_md.rstrip()}\n\n{moved}\n\n{placeholder}\n"
 
-## Environment
 
-```bash
-# Add your project's build, test, and lint commands here
-```
+# Instruction files that make Claude Code skip AGENTS.md when one exists in
+# the project or any directory above it. The user-level
+# ~/.claude/CLAUDE.md doesn't count; it loads alongside AGENTS.md.
+_CLAUDE_MD_NAMES = ("CLAUDE.md", ".claude/CLAUDE.md", "CLAUDE.local.md")
 
-{header}
-"""
+
+def claude_md_blockers(project: Path) -> list[Path]:
+    """Files that stop Claude Code from reading the project's AGENTS.md."""
+    user_memory = (Path.home() / ".claude" / "CLAUDE.md").resolve()
+    return [path for directory in (project, *project.parents)
+            for path in (directory / name for name in _CLAUDE_MD_NAMES)
+            if path.is_file() and path.resolve() != user_memory]

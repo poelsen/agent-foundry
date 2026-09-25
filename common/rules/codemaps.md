@@ -16,9 +16,10 @@ Run /update-codemaps when:
 
 The command checks staleness automatically — only stale codemaps regenerate.
 
-## CLAUDE.md Pattern
+## AGENTS.md Pattern
 
-Projects with codemaps should include:
+The agent-foundry block in AGENTS.md already points to codemaps/INDEX.md —
+don't repeat it. A project without that block should include:
 
 ```
 ## Architecture
