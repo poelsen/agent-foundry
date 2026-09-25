@@ -70,7 +70,7 @@ Escalate to T3 when the change touches:
 
 Project-specific GUI expectations (plugin contracts, recorder/store flows,
 shared dock/title-bar behavior, settings persistence flow, focused-test
-patterns) belong in the project's `CLAUDE.md` or rule files, not here. When
+patterns) belong in the project's `AGENTS.md` or rule files, not here. When
 reviewing, surface project-specific defaults from those sources and cite them
 in the review header.
 

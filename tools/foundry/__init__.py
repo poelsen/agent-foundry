@@ -31,10 +31,11 @@ from .detect import (
     scan_extensions,
 )
 from .instructions import (
-    generate_agent_foundry_header,
-    generate_claude_md,
+    claude_md_blockers,
     has_agent_foundry_header,
+    merge_project_text,
     prepend_agent_foundry_header,
+    project_text,
     update_agent_foundry_header,
 )
 from .manifest import (
@@ -132,6 +133,7 @@ __all__ = [
     "_resolve_repo_root",
     "_substitute_placeholders",
     "ask_int",
+    "claude_md_blockers",
     "clean_private_files",
     # orchestrator
     "cmd_check",
@@ -154,14 +156,14 @@ __all__ = [
     # manifest
     "discover_projects",
     # instructions
-    "generate_agent_foundry_header",
-    "generate_claude_md",
     "generate_settings_json",
     "has_agent_foundry_header",
     "load_manifest",
     "main",
+    "merge_project_text",
     "migrate_manifest",
     "prepend_agent_foundry_header",
+    "project_text",
     "read_version",
     "redeploy_private_sources",
     "resolve_project_path",

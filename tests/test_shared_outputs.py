@@ -164,7 +164,7 @@ def test_deploy_shared_outputs_writes_only_what_targets_read(tmp_path: Path):
     sel = _selections(skills=["megamind-deep"], mcp_servers=["memory"])
     shared.deploy_shared_outputs(tmp_path, sel, [ClaudeAdapter()], [], {})
     assert json.loads((tmp_path / ".mcp.json").read_text())["mcpServers"]["memory"]
-    assert not (tmp_path / "AGENTS.md").exists()
+    assert (tmp_path / "AGENTS.md").exists()
     assert not (tmp_path / ".agents").exists()
     shared.deploy_shared_outputs(tmp_path, sel, [CodexAdapter()], [], {})
     assert (tmp_path / "AGENTS.md").exists()
@@ -363,14 +363,118 @@ def test_copied_skill_under_new_name_survives_prune(tmp_path: Path):
     assert not (root / "megamind-deep").exists()
 
 
-def test_symlinked_agents_md_keeps_claude_header(tmp_path: Path):
+# ── CLAUDE.md → AGENTS.md (Claude Code skips AGENTS.md while CLAUDE.md exists) ──
+
+CLAUDE_HEADER = "<!-- agent-foundry -->\nRead rules in `.claude/rules/`\n<!-- /agent-foundry -->"
+
+
+def test_claude_md_project_text_moves_into_agents_md(tmp_path: Path, capsys):
     claude_md = tmp_path / "CLAUDE.md"
-    claude_md.write_text("# p\n<!-- agent-foundry -->\nRead rules in `.claude/rules/`\n"
-                         "<!-- /agent-foundry -->\n")
+    claude_md.write_text(f"# demo\n\n## Boundaries\nStay in demo/\n\n{CLAUDE_HEADER}\n")
+    shared.write_agents_md(tmp_path, _selections(), absorb_claude_md=True)
+    text = (tmp_path / "AGENTS.md").read_text()
+    assert text.startswith("# demo\n\n## Boundaries\nStay in demo/\n\n<!-- agent-foundry -->\n")
+    assert "<!-- rule: coding-style.md -->" in text
+    assert ".claude/rules/" not in text
+    assert not claude_md.exists()
+    assert "Moved CLAUDE.md into AGENTS.md" in capsys.readouterr().out
+
+
+def test_header_only_claude_md_is_removed(tmp_path: Path):
+    (tmp_path / "CLAUDE.md").write_text(f"# demo\n\n{CLAUDE_HEADER}\n")
+    shared.write_agents_md(tmp_path, _selections(), absorb_claude_md=True)
+    assert (tmp_path / "AGENTS.md").read_text().startswith("# demo\n\n<!-- agent-foundry -->")
+    assert not (tmp_path / "CLAUDE.md").exists()
+
+
+def test_claude_md_merges_into_existing_agents_md(tmp_path: Path):
+    (tmp_path / "AGENTS.md").write_text(f"# demo\n\nAgents notes\n\n{CLAUDE_HEADER}\n")
+    (tmp_path / "CLAUDE.md").write_text(f"# demo\n\nClaude notes\n\n{CLAUDE_HEADER}\n")
+    shared.write_agents_md(tmp_path, _selections(), absorb_claude_md=True)
+    text = (tmp_path / "AGENTS.md").read_text()
+    assert text.startswith("# demo\n\nAgents notes\n\nClaude notes\n\n<!-- agent-foundry -->")
+    assert text.count("# demo") == 1
+    assert text.count("<!-- agent-foundry -->") == 1
+    assert not (tmp_path / "AGENTS.md.old").exists()
+
+
+def test_claude_md_kept_when_claude_code_is_not_a_target(tmp_path: Path):
+    (tmp_path / "CLAUDE.md").write_text(f"# demo\n\n{CLAUDE_HEADER}\n")
+    shared.write_agents_md(tmp_path, _selections())
+    assert (tmp_path / "CLAUDE.md").exists()
+
+
+def test_claude_md_kept_when_agents_md_is_unreadable(tmp_path: Path):
+    """CLAUDE.md goes only once AGENTS.md holds its content."""
+    (tmp_path / "AGENTS.md").write_bytes("# Mine\n".encode("utf-16"))
+    (tmp_path / "CLAUDE.md").write_text("# demo\n\nMine\n")
+    shared.write_agents_md(tmp_path, _selections(), absorb_claude_md=True)
+    assert (tmp_path / "CLAUDE.md").read_text() == "# demo\n\nMine\n"
+
+
+def test_agents_md_symlinked_to_claude_md_becomes_the_file(tmp_path: Path):
+    claude_md = tmp_path / "CLAUDE.md"
+    claude_md.write_text(f"# demo\n\nMine\n\n{CLAUDE_HEADER}\n")
     (tmp_path / "AGENTS.md").symlink_to("CLAUDE.md")
-    shared.write_agents_md(tmp_path, _selections(), claude_md_managed=True)
-    assert "`.claude/rules/`" in claude_md.read_text()
-    assert "<!-- rule:" not in claude_md.read_text()
+    shared.write_agents_md(tmp_path, _selections(), absorb_claude_md=True)
+    agents_md = tmp_path / "AGENTS.md"
+    assert not agents_md.is_symlink()
+    assert agents_md.read_text().startswith("# demo\n\nMine\n\n<!-- agent-foundry -->")
+    assert "<!-- rule:" in agents_md.read_text()
+    assert not claude_md.exists()
+
+
+def test_claude_md_symlinked_to_agents_md_is_unlinked(tmp_path: Path):
+    agents_md = tmp_path / "AGENTS.md"
+    agents_md.write_text(f"# demo\n\nMine\n\n{CLAUDE_HEADER}\n")
+    (tmp_path / "CLAUDE.md").symlink_to("AGENTS.md")
+    shared.write_agents_md(tmp_path, _selections(), absorb_claude_md=True)
+    assert not (tmp_path / "CLAUDE.md").is_symlink()
+    assert not (tmp_path / "CLAUDE.md").exists()
+    assert agents_md.read_text().count("Mine") == 1
+    assert "<!-- rule:" in agents_md.read_text()
+
+
+def test_hard_linked_claude_md_is_unlinked(tmp_path: Path):
+    agents_md = tmp_path / "AGENTS.md"
+    agents_md.write_text(f"# demo\n\nMine\n\n{CLAUDE_HEADER}\n")
+    os.link(agents_md, tmp_path / "CLAUDE.md")
+    shared.write_agents_md(tmp_path, _selections(), absorb_claude_md=True)
+    assert not (tmp_path / "CLAUDE.md").exists()
+    assert agents_md.read_text().count("Mine") == 1
+
+
+def test_warns_about_files_that_hide_agents_md(tmp_path: Path, monkeypatch, capsys):
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    project = tmp_path / "proj"
+    project.mkdir()
+    (project / "CLAUDE.local.md").write_text("mine")
+    shared.write_agents_md(project, _selections(), absorb_claude_md=True)
+    out = capsys.readouterr().out
+    assert "Claude Code skips AGENTS.md while CLAUDE.local.md exists" in out
+    assert (project / "CLAUDE.local.md").exists()
+
+
+# ── Block layout ──
+
+
+def test_block_has_project_docs_and_nested_rule_headings(tmp_path: Path):
+    block, _ = shared.render_agents_block(_selections())
+    assert "### Project Docs" in block
+    assert "`codemaps/INDEX.md`" in block
+    # Rule H1s nest under the block's H2 instead of restarting the outline
+    assert "\n### Coding Style (Core)\n" in block
+    assert "\n# Coding Style" not in block
+
+
+def test_demote_headings_skips_code_fences():
+    body = "# Title\n## Sub\n```bash\n# a comment\n```\n~~~\n## not a heading\n~~~\n#nospace\n"
+    assert shared._demote_headings(body) == (
+        "### Title\n#### Sub\n```bash\n# a comment\n```\n~~~\n## not a heading\n~~~\n#nospace\n")
+
+
+def test_demote_headings_caps_at_h6():
+    assert shared._demote_headings("##### Deep") == "###### Deep"
 
 
 def test_non_utf8_agents_md_left_alone(tmp_path: Path, capsys):

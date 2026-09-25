@@ -16,7 +16,7 @@ Grounded examples from this repo:
 - `tar --force-local` for Windows drive-letter paths (commit `41fc268`)
 
 Where rejected content should go instead:
-- Codebase-specific conventions → `CLAUDE.md` or codemaps
+- Codebase-specific conventions → `AGENTS.md` or codemaps
 - User preferences, project state, team conventions → auto-memory
 
 Rule of thumb: if a developer at a different company on a different project could hit the same issue, it's a `/learn` candidate.

@@ -1,14 +1,16 @@
 """Project files read by more than one CLI, written once per run.
 
-Copilot CLI, Codex and Antigravity all load AGENTS.md and .agents/skills/;
-Claude Code and Copilot both read the workspace .mcp.json. Adapters declare
+Every target CLI loads AGENTS.md; Copilot CLI, Codex and Antigravity also
+load .agents/skills/, and Claude Code and Copilot both read the workspace
+.mcp.json. Adapters declare
 which of these their CLI consumes (``CliAdapter.shared_outputs``) and the
 orchestrator calls :func:`deploy_shared_outputs` once for the union, so no
 two adapters render the same file.
 
 AGENTS.md size budget: Antigravity reads at most 24,000 bytes per rule file
 and Codex stops after 32 KiB of project docs in total, and both truncate
-silently. The foundry block is therefore capped at ``AGENTS_MD_BUDGET``:
+silently. (Claude Code documents no cap.) The foundry block is therefore
+capped at ``AGENTS_MD_BUDGET``:
 rules are embedded in priority order while they fit, and the rest go to
 ``.agents/rules/foundry-<rule>.md`` (with Antigravity trigger frontmatter, so
 it loads them natively) and are listed in AGENTS.md as pointers. Each rule
@@ -40,8 +42,11 @@ from .deploy import (
     write_mcp_servers,
 )
 from .instructions import (
+    claude_md_blockers,
     has_agent_foundry_header,
+    merge_project_text,
     prepend_agent_foundry_header,
+    project_text,
     render_env_commands,
     rule_description,
     update_agent_foundry_header,
@@ -123,21 +128,46 @@ def portable_rules(sel: Selections) -> list[_Rule]:
     return rules
 
 
+_HEADING = re.compile(r"#{1,6}(?=\s)")
+_FENCE = re.compile(r"\s*(```|~~~)")
+
+
+def _demote_headings(body: str, levels: int = 2) -> str:
+    """Shift a rule's markdown headings down ``levels`` so it nests under the
+    block's ``##`` heading. Lines inside code fences are left alone."""
+    lines, fence = [], None
+    for line in body.split("\n"):
+        if m := _FENCE.match(line):
+            fence = None if fence == m.group(1) else fence or m.group(1)
+        elif fence is None and (h := _HEADING.match(line)):
+            line = "#" * min(6, len(h.group()) + levels) + line[h.end():]
+        lines.append(line)
+    return "\n".join(lines)
+
+
 def _render_block(env: str, embedded: list[_Rule], pointers: list[_Rule]) -> str:
     sections = [AGENT_FOUNDRY_MARKER_START,
                 "## Coding Standards (agent-foundry)",
                 "",
                 "These standards are managed by agent-foundry and apply to any "
-                "CLI that reads `AGENTS.md`.",
+                "CLI that reads `AGENTS.md`. Setup rewrites this block on every "
+                "update — keep project-specific instructions outside it.",
                 "",
                 "### Environment",
                 "",
                 "```bash",
                 env,
                 "```",
+                "",
+                "### Project Docs",
+                "",
+                "- `codemaps/INDEX.md` — read before modifying unfamiliar modules; "
+                "run the `update-codemaps` command after significant structural changes",
+                "- `docs/ARCHITECTURE.md` (design decisions) and `docs/DEVELOPMENT.md` "
+                "(setup and workflow), if present",
                 ""]
     for rule in embedded:
-        sections += [f"<!-- rule: {rule.name} -->", rule.body, ""]
+        sections += [f"<!-- rule: {rule.name} -->", _demote_headings(rule.body), ""]
     if pointers:
         sections += ["### More rules", "",
                      "Read the matching file before working in its area:", ""]
@@ -208,30 +238,40 @@ def _write_overflow_rules(project: Path, overflow: list[_Rule]) -> None:
 
 def write_agents_md(
     project: Path, sel: Selections, limits: dict[str, int] | None = None,
-    claude_md_managed: bool = False,
+    absorb_claude_md: bool = False,
 ) -> None:
     """Create or update the foundry block in AGENTS.md (+ rule overflow).
 
     ``limits`` maps a CLI's display name to the AGENTS.md bytes it reads;
     a file over any of them gets a warning, since the CLI truncates it.
-    ``claude_md_managed``: Claude Code is a target too, so CLAUDE.md holds
-    the Claude header — if AGENTS.md is that same file (a symlink, a
-    common way to share one instructions file), the block is skipped
-    rather than overwriting the header with the same markers.
+    ``absorb_claude_md``: Claude Code is a target. It skips AGENTS.md while
+    a CLAUDE.md exists, so CLAUDE.md's project text (everything outside its
+    foundry header) moves into AGENTS.md, and CLAUDE.md is removed once
+    AGENTS.md is written. The Claude adapter has already asked before this
+    runs on a CLAUDE.md the foundry didn't write.
     """
     agents_md = project / "AGENTS.md"
     claude_md = project / "CLAUDE.md"
-    if (claude_md_managed and agents_md.exists() and claude_md.exists()
-            and agents_md.samefile(claude_md)):
-        print("  ⚠ AGENTS.md is the same file as CLAUDE.md — kept the Claude Code header; "
-              "other CLIs read it and follow its pointers to .claude/rules/")
-        return
+    absorb = absorb_claude_md and claude_md.is_file()
+    same_file = absorb and agents_md.exists() and agents_md.samefile(claude_md)
+    moved = ""
+    if same_file and agents_md.is_symlink():
+        # One file under both names (a common way to share it): it stays
+        # as AGENTS.md alone, so a link named AGENTS.md becomes the file.
+        text = agents_md.read_text(encoding="utf-8")
+        agents_md.unlink()
+        agents_md.write_text(text, encoding="utf-8")
+    elif absorb and not same_file:
+        moved = project_text(claude_md.read_text(encoding="utf-8"))
+        if moved == f"# {sel.project_name}":
+            moved = ""
     block, overflow = render_agents_block(sel, AGENTS_MD_BUDGET)
     if len(block.encode("utf-8")) > AGENTS_MD_BUDGET:
         print(f"  ⚠ The agent-foundry block is {len(block.encode('utf-8')):,} bytes, over its "
               f"{AGENTS_MD_BUDGET:,}-byte budget even with every rule as a pointer")
     if not agents_md.exists():
-        agents_md.write_text(f"# {sel.project_name}\n\n{block}\n", encoding="utf-8")
+        agents_md.write_text(f"{moved or f'# {sel.project_name}'}\n\n{block}\n",
+                             encoding="utf-8")
         print("  Created AGENTS.md")
     else:
         try:
@@ -239,8 +279,9 @@ def write_agents_md(
         except UnicodeDecodeError:
             print("  ⚠ AGENTS.md isn't UTF-8 text — left unchanged (re-save it as UTF-8)")
             return
-        if has_agent_foundry_header(existing):
-            agents_md.write_text(update_agent_foundry_header(existing, block),
+        content = merge_project_text(existing, moved, sel.project_name) if moved else existing
+        if has_agent_foundry_header(content):
+            agents_md.write_text(update_agent_foundry_header(content, block),
                                  encoding="utf-8")
             print("  Updated agent-foundry block in AGENTS.md")
         else:
@@ -249,6 +290,17 @@ def write_agents_md(
                                  encoding="utf-8")
             print("  Merged agent-foundry block into AGENTS.md "
                   "(original saved to AGENTS.md.old)")
+    if absorb:
+        claude_md.unlink()
+        what = ("Moved CLAUDE.md into AGENTS.md" if moved
+                else "Removed the CLAUDE.md link" if same_file
+                else "Removed CLAUDE.md (it held only the agent-foundry header)")
+        print(f"  {what} — Claude Code reads AGENTS.md only while no CLAUDE.md exists")
+    if absorb_claude_md:
+        for path in claude_md_blockers(project):
+            shown = path.relative_to(project) if path.is_relative_to(project) else path
+            print(f"  ⚠ Claude Code skips AGENTS.md while {shown} exists "
+                  "— move its content into AGENTS.md and delete it")
     _write_overflow_rules(project, overflow)
     size = len(agents_md.read_bytes())
     for cli, limit in (limits or {}).items():
@@ -454,7 +506,7 @@ def deploy_shared_outputs(
     if AGENTS_MD in outputs:
         limits = {a.display_name: a.agents_md_limit for a in adapters if a.agents_md_limit}
         write_agents_md(project, sel, limits,
-                        claude_md_managed=any(a.id == "claude" for a in adapters))
+                        absorb_claude_md=any(a.id == "claude" for a in adapters))
     elif AGENTS_MD in orphaned:
         remove_agents_md(project, sel.project_name)
     if AGENTS_SKILLS in outputs:

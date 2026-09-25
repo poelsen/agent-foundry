@@ -286,7 +286,7 @@ def test_dropping_agy_removes_its_config(tmp_path: Path):
     assert not list((tmp_path / ".agents/agents").glob("*-python.md"))
     assert (tmp_path / ".agents/agents/team.md").exists()
     assert not (tmp_path / ".agents/hooks.json").exists()
-    assert not (tmp_path / "AGENTS.md").exists()          # no remaining reader
+    assert (tmp_path / "AGENTS.md").exists()              # Claude Code reads it too
     assert not (tmp_path / ".agents/skills/update-codemaps").exists()
 
 

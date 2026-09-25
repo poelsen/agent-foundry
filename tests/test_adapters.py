@@ -77,7 +77,7 @@ def test_supported_artifacts_differ():
 
 
 def test_shared_outputs_declared():
-    assert ClaudeAdapter.shared_outputs == {MCP_JSON}
+    assert ClaudeAdapter.shared_outputs == {AGENTS_MD, MCP_JSON}
     assert CopilotAdapter.shared_outputs == {AGENTS_MD, AGENTS_SKILLS, MCP_JSON}
 
 

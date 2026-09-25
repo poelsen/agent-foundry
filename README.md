@@ -13,7 +13,7 @@ A per-CLI **adapter** renders the selected artifacts into that CLI's conventions
 
 | Target | Reads | Gets |
 |--------|-------|------|
-| **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)** (`claude`) | `.claude/` + `CLAUDE.md` | full fidelity — rules, agents, skills, commands, hooks, settings, MCP |
+| **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)** (`claude`) | `AGENTS.md`, `.claude/` | full fidelity — rules, agents, skills, commands, hooks, settings, MCP |
 | **[GitHub Copilot CLI](https://github.com/github/copilot-cli)** (`copilot`) | `AGENTS.md`, `.mcp.json`, `.agents/skills/` | coding-standard rules (embedded in the cross-tool [`AGENTS.md`](https://agents.md)), MCP servers (workspace `.mcp.json`), and portable skills as native `SKILL.md` skills |
 | **[OpenAI Codex CLI](https://github.com/openai/codex)** (`codex`) | `AGENTS.md`, `.agents/skills/`, `.codex/` | coding-standard rules (`AGENTS.md`), portable skills plus portable commands (`update-codemaps`) as skills, subagents as `.codex/agents/*.toml`, MCP servers in `.codex/config.toml`, formatter hooks in `.codex/hooks.json` |
 | **[Google Antigravity CLI](https://antigravity.google)** (`agy`) | `AGENTS.md`, `.agents/` | coding-standard rules (`AGENTS.md`, overflow rules in `.agents/rules/` load natively), portable skills and commands in `.agents/skills/`, subagents as `.agents/agents/*.md`, MCP servers in `.agents/mcp_config.json`, formatter hooks in `.agents/hooks.json` |
@@ -22,7 +22,7 @@ Pick targets with `--clis claude,copilot,codex,agy` (or the interactive menu, wh
 
 **Shared outputs.** Files that several CLIs read — `AGENTS.md`, `.agents/skills/`, `.mcp.json` — are written once per run for all selected targets, not once per adapter:
 
-- **`AGENTS.md`** gets a marker-wrapped block with the portable coding-standard rules (Claude-only rules such as `agents.md`, `hooks.md`, `performance.md` are left out). The block is capped at 20 KB because other CLIs silently truncate large instruction files (Antigravity at 24,000 bytes per file, Codex at 32 KiB in total). Rules that don't fit go to `.agents/rules/foundry-<rule>.md` — with Antigravity `trigger:` frontmatter, so Antigravity loads them natively — and `AGENTS.md` points to them.
+- **`AGENTS.md`** is every CLI's instructions file, Claude Code's included — see [AGENTS.md Convention](#agentsmd-convention). It gets a marker-wrapped block with the portable coding-standard rules (Claude-only rules such as `agents.md`, `hooks.md`, `performance.md` go to `.claude/rules/` instead, which Claude Code loads alongside `AGENTS.md`). The block is capped at 20 KB because other CLIs silently truncate large instruction files (Antigravity at 24,000 bytes per file, Codex at 32 KiB in total). Rules that don't fit go to `.agents/rules/foundry-<rule>.md` — with Antigravity `trigger:` frontmatter, so Antigravity loads them natively — and `AGENTS.md` points to them.
 - **`.agents/skills/`** is the cross-vendor skill root (Copilot CLI, Codex and Antigravity all load it). Only portable skills go there — megamind ×4, `clickhouse-io`, `gui-threading`, `python-qt-gui`, `writer`, `humanizer`, `update-foundry`, the cross-model CLI references `copilot-cli`, `codex-cli`, `agy-cli`, and `delegate` (see [Delegation](#delegation)) — plus the portable commands (`update-codemaps`, `update-foundry-check`, `update-foundry-interactive`) converted to skills. Deploying adapts them without touching the Claude sources: Claude-only frontmatter (`model`, `allowed-tools`) is dropped, `.claude/skills/` paths and `Skill(x)` calls are rewritten, and a `SKILL.md` over 8 KB (Codex's limit for an explicitly invoked skill) becomes a short pointer to the unchanged text in `SKILL.full.md`. Skills tied to Claude-only state — `prj-*` (Claude session ids), `snapshot-list`, `learn`/`learn-recall`, `private-*`, `review-process` — stay Claude Code-only for now.
 - `.agents/` is shared with other tools, so every file the foundry writes there carries an ownership marker and updates only ever prune marked content.
 
@@ -112,38 +112,34 @@ For batch updates across all known projects:
 python3 <project>/.foundry/setup.py update-all
 ```
 
-## CLAUDE.md Convention
+## AGENTS.md Convention
 
-When `setup.py init` runs, it handles `CLAUDE.md` intelligently:
+`AGENTS.md` is the one instructions file for every target CLI. Claude Code reads it too (since v2.1.277), but **only while no `CLAUDE.md` exists** in the project or any directory above it — so the foundry doesn't write a `CLAUDE.md`, and moves an existing one into `AGENTS.md`.
 
-### For new projects (no CLAUDE.md)
+### The agent-foundry block
 
-Creates a minimal `CLAUDE.md` with a **agent-foundry header** containing:
-- List of deployed rules with descriptions
-- Environment commands for detected languages (setup, test, lint)
-- Pointers to `codemaps/INDEX.md` for architecture
-- Documentation conventions
+`AGENTS.md` holds your project's own instructions plus a block wrapped in marker comments (`<!-- agent-foundry -->` ... `<!-- /agent-foundry -->`) that setup rewrites on every run:
+- Environment commands for detected languages (setup, test)
+- Pointers to `codemaps/INDEX.md` and `docs/`
+- The portable coding-standard rules, inlined (up to 20 KB; the rest go to `.agents/rules/` as pointers)
 
-### For existing projects
+Everything outside the block is yours and is never touched. For a new project, setup creates `AGENTS.md` with just a title and the block.
 
-If `CLAUDE.md` already exists, setup.py offers three options:
+### Moving off CLAUDE.md
 
-| Option | Behavior |
-|--------|----------|
-| **Replace** | Generate new CLAUDE.md, save original as `CLAUDE.md.old` |
-| **Merge** | Prepend agent-foundry header to existing, save original as `CLAUDE.md.old` |
-| **Quit** | Abort setup entirely |
+| Existing file | What setup does |
+|---------------|-----------------|
+| `CLAUDE.md` with the foundry header (current `<!-- agent-foundry -->` or legacy `<!-- claude-foundry -->` markers) | Moves your content (everything outside the header) into `AGENTS.md`, above the foundry block, and deletes `CLAUDE.md` |
+| `CLAUDE.md` without the marker | Interactive: asks to **Move** it into `AGENTS.md` or **Quit**. Non-interactive: skips the project, unless `--force` (asks for confirmation, then moves it) |
+| Empty `CLAUDE.md` | Deletes it |
+| `AGENTS.md` and `CLAUDE.md` linked to each other | Keeps the content as a real `AGENTS.md` and drops the `CLAUDE.md` name |
 
-### Header updates
-
-The agent-foundry header is wrapped in marker comments (`<!-- agent-foundry -->` ... `<!-- /agent-foundry -->`). On subsequent runs:
-- If the marker exists, the header is **updated silently** with current rules/languages
-- If no marker exists, setup.py asks before modifying (interactive) or skips (non-interactive)
+Portable rules an older foundry deployed to `.claude/rules/` are removed there, since Claude Code would otherwise load each rule twice (once from `AGENTS.md`, once from `.claude/rules/`). Setup warns if `.claude/CLAUDE.md`, `CLAUDE.local.md`, or a `CLAUDE.md` in a parent directory would still hide `AGENTS.md` from Claude Code, and if the installed Claude Code is older than 2.1.277.
 
 ### Best practices
 
-- Keep `CLAUDE.md` minimal — just pointers and environment commands
-- The header points Claude to the right places automatically
+- Keep your part of `AGENTS.md` short — project boundaries, conventions the rules don't cover
+- Put detailed documentation in `docs/`; other CLIs truncate large instruction files
 
 ## Documentation Structure
 
@@ -151,16 +147,16 @@ Claude-foundry recommends a three-tier documentation approach:
 
 | Location | Purpose | Maintained by |
 |----------|---------|---------------|
-| `CLAUDE.md` | Pointers and environment setup | agent-foundry (auto-updated) |
+| `AGENTS.md` | Project instructions, environment, coding standards | You + agent-foundry (its block auto-updated) |
 | `codemaps/` | Architecture overview per module | `/update-codemaps` (auto-generated) |
 | `docs/` | Detailed project documentation | You (manual) |
 
-### CLAUDE.md
+### AGENTS.md
 
-Keep minimal. The agent-foundry header provides:
-- Links to `.claude/rules/` for coding standards
-- Environment commands (setup, test, lint)
-- Pointer to `codemaps/INDEX.md`
+Keep your part minimal. The agent-foundry block provides:
+- Environment commands (setup, test)
+- Pointers to `codemaps/INDEX.md` and `docs/`
+- The coding standards
 
 Don't put detailed documentation here — it gets out of sync and wastes context.
 
@@ -181,7 +177,7 @@ Your detailed documentation:
 - `docs/DEVELOPMENT.md` — setup guide, workflow, conventions
 - `docs/API.md` — detailed API documentation
 
-If you have existing documentation in `CLAUDE.md`, migrate it to `docs/` after running setup.py init
+If setup moved a long `CLAUDE.md` into `AGENTS.md`, move its detailed documentation on to `docs/`.
 
 ## Codemaps
 
@@ -360,7 +356,7 @@ A private source follows the same layout as agent-foundry:
 
 ```
 my-company-config/
-├── rule-library/          # Rules deployed to .claude/rules/
+├── rule-library/          # Rules rendered into AGENTS.md
 │   └── templates/
 │       └── custom-dsp.md
 ├── commands/              # Optional slash commands

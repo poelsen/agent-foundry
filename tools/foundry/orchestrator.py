@@ -195,7 +195,8 @@ def cmd_init(
     Args:
         project: Path to the project directory
         interactive: Whether to prompt for choices
-        force: Force update even if CLAUDE.md has no marker (with confirmation)
+        force: Move a CLAUDE.md without the foundry marker into AGENTS.md
+            (with confirmation) instead of skipping the project
         cli_private_sources: List of (path, prefix) tuples from --private/--prefix flags
         clis: Override target CLI ids (e.g. ["claude", "copilot"]); defaults to
             the manifest's saved selection, then ["claude"]
@@ -358,7 +359,8 @@ def cmd_update_all(force: bool = False) -> None:
     """Batch update all known projects.
 
     Args:
-        force: Force update even if CLAUDE.md has no marker (with confirmation per project)
+        force: Move a CLAUDE.md without the foundry marker into AGENTS.md
+            (with confirmation per project) instead of skipping it
     """
     version = read_version()
     print(f"Claude Config v{version} — Update All Projects\n")

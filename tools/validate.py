@@ -321,14 +321,21 @@ class Validator:
                 except json.JSONDecodeError as e:
                     self.error(f"Smoke: settings.json invalid JSON: {e}")
 
-            # Rules — non-interactive with no manifest defaults to all base rules
+            # Rules — non-interactive with no manifest defaults to all base rules:
+            # the Claude-only ones in .claude/rules/, the rest in AGENTS.md
             rules_dir = claude_dir / "rules"
+            agents_md = tmpdir / "AGENTS.md"
+            agents_text = agents_md.read_text() if agents_md.exists() else ""
             if not rules_dir.is_dir():
                 self.error("Smoke: .claude/rules/ not created")
-            else:
-                for rule in setup_module.BASE_RULES:
+            if not agents_text:
+                self.error("Smoke: AGENTS.md not created at project root")
+            for rule in setup_module.BASE_RULES:
+                if rule in setup_module.CLAUDE_ONLY_RULES:
                     if not (rules_dir / rule).exists():
-                        self.error(f"Smoke: base rule not deployed: {rule}")
+                        self.error(f"Smoke: Claude-only rule not in .claude/rules/: {rule}")
+                elif f"<!-- rule: {rule} -->" not in agents_text and f"foundry-{rule}" not in agents_text:
+                    self.error(f"Smoke: base rule not in AGENTS.md: {rule}")
 
             # Commands
             commands_dir = claude_dir / "commands"
@@ -341,9 +348,9 @@ class Validator:
                 if missing_cmds:
                     self.error(f"Smoke: commands not deployed: {', '.join(sorted(missing_cmds))}")
 
-            # CLAUDE.md
-            if not (tmpdir / "CLAUDE.md").exists():
-                self.error("Smoke: CLAUDE.md not created at project root")
+            # Claude Code skips AGENTS.md while a CLAUDE.md exists
+            if (tmpdir / "CLAUDE.md").exists():
+                self.error("Smoke: CLAUDE.md created — it would hide AGENTS.md from Claude Code")
 
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)

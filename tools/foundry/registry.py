@@ -1,41 +1,16 @@
 """Static data tables: rules, hooks, skills, plugins, templates.
 
 This is a leaf module — it holds only module-level constants and lookup
-tables, with no behavior. The CLAUDE.md header template and environment
-snippets live here too since they are static data.
+tables, with no behavior. The environment snippets rendered into AGENTS.md
+live here too since they are static data.
 """
 
 from __future__ import annotations
 
-AGENT_FOUNDRY_HEADER_TEMPLATE = """{marker_start}
-## Rules
-
-Read rules in `.claude/rules/` before making changes:
-{rules_list}
-
-## Foundry Defaults
-
-```bash
-{env_commands}
-```
-
-## Architecture
-
-Read `codemaps/INDEX.md` before modifying unfamiliar modules.
-Run `/update-codemaps` after significant structural changes.
-
-## Documentation
-
-Read `docs/` for detailed project documentation (if it exists).
-- `docs/ARCHITECTURE.md` — design decisions and patterns
-- `docs/DEVELOPMENT.md` — setup and workflow guides
-{marker_end}
-"""
-
 # Only languages with near-universal toolchains get default commands.
 # Languages with fragmented build systems (C, C++, Node.js, React) are
-# omitted — users add their own commands in the ## Environment section
-# above the agent-foundry marker.
+# omitted — users add their own commands to AGENTS.md, outside the
+# agent-foundry block.
 ENVIRONMENT_SNIPPETS = {
     "python.md": {
         "setup": "uv sync --extra dev",
@@ -60,12 +35,13 @@ BASE_RULES = [
 
 # Base rules that describe Claude Code-only machinery (the Task tool and the
 # foundry subagent roster, settings.json hooks, Claude model tiers). They
-# deploy to .claude/rules/ but are never rendered into the shared AGENTS.md,
-# where they would mislead Copilot, Codex, and Antigravity.
+# deploy to .claude/rules/ (which Claude Code loads alongside AGENTS.md) and
+# are never rendered into the shared AGENTS.md, where they would mislead
+# Copilot, Codex, and Antigravity.
 CLAUDE_ONLY_RULES: set[str] = {"agents.md", "hooks.md", "performance.md"}
 
-# One-line descriptions shown next to each rule in the CLAUDE.md header and
-# in the AGENTS.md pointer list. Rules missing here get a title-cased name.
+# One-line descriptions shown next to each rule in the AGENTS.md pointer
+# list and in Antigravity rule frontmatter. Rules missing here get a title-cased name.
 RULE_DESCRIPTIONS: dict[str, str] = {
     # Language/tooling rules
     "python.md": "Python tooling (uv, pytest, ruff)",

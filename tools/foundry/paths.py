@@ -81,7 +81,7 @@ def _resolve_repo_root() -> Path:
 REPO_ROOT = _resolve_repo_root()
 
 
-# ── CLAUDE.md markers ───────────────────────────────────────────────────
+# ── Instruction-file markers (AGENTS.md) ─────────────────────────────────
 
 AGENT_FOUNDRY_MARKER_START = "<!-- agent-foundry -->"
 AGENT_FOUNDRY_MARKER_END = "<!-- /agent-foundry -->"

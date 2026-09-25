@@ -1,4 +1,4 @@
-"""Integration tests for setup.py cmd_init with CLAUDE.md handling."""
+"""Integration tests for setup.py cmd_init: AGENTS.md as the instructions file."""
 
 from __future__ import annotations
 
@@ -10,6 +10,10 @@ import pytest
 # Add tools directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "tools"))
 
+import foundry.adapters.claude as claude_adapter
+from foundry.adapters.base import DeployContext
+from foundry.registry import CLAUDE_ONLY_RULES
+from foundry.shared import AGENTS_MD_BUDGET
 from setup import (
     AGENT_FOUNDRY_MARKER_END,
     AGENT_FOUNDRY_MARKER_START,
@@ -33,50 +37,48 @@ def temp_project(tmp_path):
     return project
 
 
-class TestNewProject:
-    """Tests for initializing a new project without existing CLAUDE.md."""
+def _agents_md(project: Path) -> str:
+    return (project / "AGENTS.md").read_text()
 
-    def test_creates_claude_md_non_interactive(self, temp_project):
-        """New project should get CLAUDE.md created in non-interactive mode."""
+
+class TestNewProject:
+    """Tests for initializing a new project: AGENTS.md is the instructions file."""
+
+    def test_creates_agents_md_non_interactive(self, temp_project):
+        """A new project gets AGENTS.md and no CLAUDE.md."""
         result = cmd_init(temp_project, interactive=False)
 
         assert result is True
-        claude_md = temp_project / "CLAUDE.md"
-        assert claude_md.exists()
-        content = claude_md.read_text()
+        content = _agents_md(temp_project)
         assert has_agent_foundry_header(content)
-        assert "test-project" in content
+        assert content.startswith("# test-project\n")
+        assert not (temp_project / "CLAUDE.md").exists()
 
-    def test_claude_md_has_rules_section(self, temp_project):
-        """New CLAUDE.md should list deployed rules."""
+    def test_agents_md_embeds_rules(self, temp_project):
         cmd_init(temp_project, interactive=False)
 
-        content = (temp_project / "CLAUDE.md").read_text()
-        assert ".claude/rules/" in content
-        assert "## Rules" in content
+        content = _agents_md(temp_project)
+        assert "<!-- rule: coding-style.md -->" in content
+        assert "## Coding Standards (agent-foundry)" in content
 
-    def test_claude_md_has_environment_section(self, temp_project):
-        """New CLAUDE.md should have environment section."""
+    def test_agents_md_has_environment_section(self, temp_project):
         cmd_init(temp_project, interactive=False)
 
-        content = (temp_project / "CLAUDE.md").read_text()
-        assert "## Environment" in content
+        assert "### Environment" in _agents_md(temp_project)
 
-    def test_claude_md_has_architecture_section(self, temp_project):
-        """New CLAUDE.md should have architecture section."""
+    def test_agents_md_has_project_docs_section(self, temp_project):
         cmd_init(temp_project, interactive=False)
 
-        content = (temp_project / "CLAUDE.md").read_text()
+        content = _agents_md(temp_project)
         assert "codemaps/INDEX.md" in content
-        assert "/update-codemaps" in content
+        assert "update-codemaps" in content
 
 
-class TestExistingClaudeMdWithMarker:
-    """Tests for projects with existing CLAUDE.md that has marker."""
+class TestClaudeMdMigration:
+    """Claude Code reads AGENTS.md only while no CLAUDE.md exists, so an
+    existing CLAUDE.md moves into AGENTS.md."""
 
-    def test_updates_header_silently_non_interactive(self, temp_project):
-        """Existing CLAUDE.md with marker should be updated silently."""
-        # Create existing CLAUDE.md with marker
+    def test_marked_claude_md_moves_silently_non_interactive(self, temp_project):
         old_content = f"""# test-project
 
 {AGENT_FOUNDRY_MARKER_START}
@@ -92,18 +94,14 @@ My custom content
         result = cmd_init(temp_project, interactive=False)
 
         assert result is True
-
-        new_content = (temp_project / "CLAUDE.md").read_text()
-        # Header should be updated
-        assert "Old rules list" not in new_content
-        # Custom section should be preserved
-        assert "## Custom Section" in new_content
-        assert "My custom content" in new_content
-        # No backup should be created for marker updates
+        content = _agents_md(temp_project)
+        assert "Old rules list" not in content
+        assert "## Custom Section\nMy custom content" in content
+        assert content.count("# test-project") == 1
+        assert not (temp_project / "CLAUDE.md").exists()
         assert not (temp_project / "CLAUDE.md.old").exists()
 
-    def test_preserves_content_before_header(self, temp_project):
-        """Content before header should be preserved."""
+    def test_content_around_header_is_kept_in_order(self, temp_project):
         old_content = f"""# My Project Title
 
 Some intro text here.
@@ -118,14 +116,12 @@ After header
 
         cmd_init(temp_project, interactive=False)
 
-        new_content = (temp_project / "CLAUDE.md").read_text()
-        assert "# My Project Title" in new_content
-        assert "Some intro text here." in new_content
-        assert "After header" in new_content
+        content = _agents_md(temp_project)
+        assert content.startswith("# My Project Title\n\nSome intro text here.\n\nAfter header\n\n"
+                                  f"{AGENT_FOUNDRY_MARKER_START}\n")
 
     def test_migrates_legacy_claude_foundry_header(self, temp_project):
-        """A header from before the claude-foundry rename is updated in place
-        with the current markers, not treated as a marker-less CLAUDE.md."""
+        """A header from before the claude-foundry rename is foundry-owned too."""
         old_content = """# test-project
 
 ## Project Boundaries
@@ -141,85 +137,128 @@ Old rules list
         result = cmd_init(temp_project, interactive=False)
 
         assert result is True
-        new_content = (temp_project / "CLAUDE.md").read_text()
-        assert "claude-foundry" not in new_content
-        assert "Old rules list" not in new_content
-        assert new_content.count(AGENT_FOUNDRY_MARKER_START) == 1
-        assert new_content.count(AGENT_FOUNDRY_MARKER_END) == 1
-        assert new_content.startswith("# test-project\n\n## Project Boundaries\nProject-owned text\n")
-        assert not (temp_project / "CLAUDE.md.old").exists()
+        content = _agents_md(temp_project)
+        assert "claude-foundry" not in content
+        assert "Old rules list" not in content
+        assert content.count(AGENT_FOUNDRY_MARKER_START) == 1
+        assert content.count(AGENT_FOUNDRY_MARKER_END) == 1
+        assert content.startswith("# test-project\n\n## Project Boundaries\nProject-owned text\n")
+        assert not (temp_project / "CLAUDE.md").exists()
+
+    def test_portable_rules_leave_claude_rules_dir(self, temp_project):
+        """Claude Code loads .claude/rules/ alongside AGENTS.md, so the
+        portable rules live in AGENTS.md only; the Claude-only ones stay."""
+        rules_dir = temp_project / ".claude" / "rules"
+        rules_dir.mkdir(parents=True)
+        (rules_dir / "coding-style.md").write_text("old foundry copy")
+        (rules_dir / "my-team.md").write_text("project-owned")
+
+        cmd_init(temp_project, interactive=False)
+
+        assert not (rules_dir / "coding-style.md").exists()
+        assert (rules_dir / "my-team.md").exists()
+        assert {p.name for p in rules_dir.glob("*.md")} - {"my-team.md"} <= CLAUDE_ONLY_RULES
+        assert (rules_dir / "agents.md").exists()
 
 
 class TestExistingClaudeMdWithoutMarker:
-    """Tests for projects with existing CLAUDE.md without marker."""
+    """A CLAUDE.md the foundry didn't write moves only with consent."""
+
+    OLD = "# My Project\n\nExisting content without marker\n"
 
     def test_non_interactive_skips_without_marker(self, temp_project):
-        """Non-interactive mode should skip entire project without marker."""
-        old_content = """# My Project
-
-Existing content without marker
-"""
-        (temp_project / "CLAUDE.md").write_text(old_content)
+        """Non-interactive mode skips the project and writes nothing."""
+        (temp_project / "CLAUDE.md").write_text(self.OLD)
 
         result = cmd_init(temp_project, interactive=False)
 
         assert result is False
-        # CLAUDE.md should be unchanged
-        assert (temp_project / "CLAUDE.md").read_text() == old_content
-        # No backup created
+        assert (temp_project / "CLAUDE.md").read_text() == self.OLD
+        assert not (temp_project / "AGENTS.md").exists()
         assert not (temp_project / "CLAUDE.md.old").exists()
 
+    def test_force_moves_after_confirmation(self, temp_project, monkeypatch):
+        monkeypatch.setattr(claude_adapter, "confirm", lambda *a, **k: True)
+        (temp_project / "CLAUDE.md").write_text(self.OLD)
 
-class TestRulesInHeader:
-    """Tests for rules list in generated header."""
+        result = cmd_init(temp_project, interactive=False, force=True)
+
+        assert result is True
+        assert _agents_md(temp_project).startswith(
+            f"# My Project\n\nExisting content without marker\n\n{AGENT_FOUNDRY_MARKER_START}\n")
+        assert not (temp_project / "CLAUDE.md").exists()
+
+    def test_force_declined_changes_nothing(self, temp_project, monkeypatch):
+        monkeypatch.setattr(claude_adapter, "confirm", lambda *a, **k: False)
+        (temp_project / "CLAUDE.md").write_text(self.OLD)
+
+        assert cmd_init(temp_project, interactive=False, force=True) is False
+        assert (temp_project / "CLAUDE.md").read_text() == self.OLD
+
+    @pytest.mark.parametrize(("answer", "allowed"), [("m", True), ("", True), ("Q", False)])
+    def test_interactive_move_or_quit(self, temp_project, monkeypatch, answer, allowed):
+        monkeypatch.setattr("builtins.input", lambda *_: answer)
+        (temp_project / "CLAUDE.md").write_text(self.OLD)
+        ctx = DeployContext(interactive=True, force=False, private_prefixes=[],
+                            pending_private=[], existing_private=[], cli_private_sources=[])
+
+        assert claude_adapter._may_move_claude_md(temp_project, ctx) is allowed
+
+    def test_empty_claude_md_is_removed(self, temp_project):
+        """An empty CLAUDE.md holds nothing to lose but still hides AGENTS.md."""
+        (temp_project / "CLAUDE.md").write_text("   \n\n   \n")
+
+        assert cmd_init(temp_project, interactive=False) is True
+        assert not (temp_project / "CLAUDE.md").exists()
+        assert (temp_project / "AGENTS.md").exists()
+
+    def test_non_utf8_claude_md_skips_project(self, temp_project):
+        (temp_project / "CLAUDE.md").write_bytes("# Mine\n".encode("utf-16"))
+
+        assert cmd_init(temp_project, interactive=False) is False
+        assert (temp_project / "CLAUDE.md").exists()
+
+
+class TestRulesInAgentsMd:
+    """Tests for the rules embedded in AGENTS.md."""
 
     def test_python_rules_detected(self, temp_project):
-        """Python project should have Python rules in header."""
-        # Create pyproject.toml to trigger Python detection
         (temp_project / "pyproject.toml").write_text("[project]\nname = 'test'")
 
         cmd_init(temp_project, interactive=False)
 
-        content = (temp_project / "CLAUDE.md").read_text()
-        assert "`python.md`" in content
+        assert "<!-- rule: python.md -->" in _agents_md(temp_project)
 
-    def test_base_rules_in_header(self, temp_project):
-        """Base rules should appear in header."""
+    def test_base_rules_embedded_claude_only_rules_not(self, temp_project):
         cmd_init(temp_project, interactive=False)
 
-        content = (temp_project / "CLAUDE.md").read_text()
-        # At least some base rules should be listed
-        assert "`coding-style.md`" in content or "`security.md`" in content
+        content = _agents_md(temp_project)
+        assert "<!-- rule: security.md -->" in content
+        assert not any(f"<!-- rule: {r} -->" in content for r in CLAUDE_ONLY_RULES)
 
     def test_rust_project_has_cargo_commands(self, temp_project):
-        """Rust project should have cargo commands in environment."""
         (temp_project / "Cargo.toml").write_text('[package]\nname = "test"')
 
         cmd_init(temp_project, interactive=False)
 
-        content = (temp_project / "CLAUDE.md").read_text()
-        assert "cargo" in content
+        assert "cargo" in _agents_md(temp_project)
 
 
 class TestManifestTracking:
     """Tests for manifest and re-initialization."""
 
     def test_reinit_preserves_custom_content(self, temp_project):
-        """Re-init should preserve custom content after header."""
-        # First init
+        """Re-init keeps project content outside the foundry block."""
+        cmd_init(temp_project, interactive=False)
+        content = _agents_md(temp_project)
+        (temp_project / "AGENTS.md").write_text(content + "\n## My Custom Section\n\nCustom stuff here\n")
+
         cmd_init(temp_project, interactive=False)
 
-        # Add custom content after header
-        content = (temp_project / "CLAUDE.md").read_text()
-        content += "\n## My Custom Section\n\nCustom stuff here\n"
-        (temp_project / "CLAUDE.md").write_text(content)
-
-        # Second init (should update header, keep custom)
-        cmd_init(temp_project, interactive=False)
-
-        new_content = (temp_project / "CLAUDE.md").read_text()
+        new_content = _agents_md(temp_project)
         assert "## My Custom Section" in new_content
         assert "Custom stuff here" in new_content
+        assert new_content.count(AGENT_FOUNDRY_MARKER_START) == 1
 
     def test_manifest_created(self, temp_project):
         """Manifest should be created after init."""
@@ -232,79 +271,58 @@ class TestManifestTracking:
 
     def test_reinit_with_manifest(self, temp_project):
         """Re-init with manifest should use saved selections."""
-        # First init creates manifest
         cmd_init(temp_project, interactive=False)
-
-        # Modify manifest to have specific selections
         manifest = load_manifest(temp_project)
         manifest["base_rules"] = ["coding-style.md"]
         save_manifest(temp_project, manifest)
 
-        # Re-init should use manifest
         cmd_init(temp_project, interactive=False)
 
-        # Should still succeed
-        assert (temp_project / "CLAUDE.md").exists()
+        content = _agents_md(temp_project)
+        assert "<!-- rule: coding-style.md -->" in content
+        assert "<!-- rule: security.md -->" not in content
 
 
 class TestContextLoadConfigurations:
-    """Tests for context load of different project configurations."""
+    """Every rule reaches Claude Code exactly once, and AGENTS.md stays
+    under the size the other CLIs read."""
 
-    def test_empty_project_minimal_claude_md(self, temp_project):
-        """Empty project should have minimal CLAUDE.md."""
-        cmd_init(temp_project, interactive=False)
+    def _claude_context(self, project: Path) -> str:
+        rules = sorted((project / ".claude" / "rules").glob("*.md"))
+        return _agents_md(project) + "".join(r.read_text() for r in rules)
 
-        content = (temp_project / "CLAUDE.md").read_text()
-        # Should be reasonably sized
-        assert len(content) < 4000
-        assert content.count("\n") < 100
-
-    def test_python_project_claude_md_size(self, temp_project):
-        """Python project CLAUDE.md should be appropriately sized."""
+    def test_no_rule_loads_twice(self, temp_project):
         (temp_project / "pyproject.toml").write_text("[project]\nname = 'test'")
-        (temp_project / "src").mkdir()
-        (temp_project / "src" / "main.py").write_text("# Python file")
 
         cmd_init(temp_project, interactive=False)
 
-        content = (temp_project / "CLAUDE.md").read_text()
-        assert len(content) < 5000
+        context = self._claude_context(temp_project)
+        for heading in ("Coding Style (Core)", "Git Workflow", "Security Guidelines"):
+            assert context.count(heading) == 1, heading
 
-    def test_multi_language_project(self, temp_project):
-        """Multi-language project should have combined env commands."""
+    def test_agents_md_within_budget(self, temp_project):
         (temp_project / "pyproject.toml").write_text("[project]\nname = 'test'")
         (temp_project / "Cargo.toml").write_text('[package]\nname = "test"')
 
         cmd_init(temp_project, interactive=False)
 
-        content = (temp_project / "CLAUDE.md").read_text()
-        # Should have commands for both
-        assert "uv" in content or "cargo" in content
+        assert len((temp_project / "AGENTS.md").read_bytes()) < AGENTS_MD_BUDGET + 200
+
+    def test_multi_language_project(self, temp_project):
+        (temp_project / "pyproject.toml").write_text("[project]\nname = 'test'")
+        (temp_project / "Cargo.toml").write_text('[package]\nname = "test"')
+
+        cmd_init(temp_project, interactive=False)
+
+        content = _agents_md(temp_project)
+        assert "uv sync" in content
+        assert "cargo build" in content
 
 
 class TestEdgeCases:
     """Edge case tests."""
 
-    def test_empty_claude_md_file_skipped(self, temp_project):
-        """Empty CLAUDE.md without marker should skip entire project."""
-        (temp_project / "CLAUDE.md").write_text("")
-
-        result = cmd_init(temp_project, interactive=False)
-
-        assert result is False
-        # Empty file stays empty (skipped)
-        assert (temp_project / "CLAUDE.md").read_text() == ""
-
-    def test_whitespace_only_claude_md(self, temp_project):
-        """Whitespace-only CLAUDE.md should skip entire project."""
-        (temp_project / "CLAUDE.md").write_text("   \n\n   \n")
-
-        result = cmd_init(temp_project, interactive=False)
-
-        assert result is False
-
     def test_unicode_in_claude_md(self, temp_project):
-        """Unicode in existing CLAUDE.md should be preserved."""
         old_content = f"""# Projekt
 
 {AGENT_FOUNDRY_MARKER_START}
@@ -315,17 +333,15 @@ header
 
 日本語のドキュメント
 """
-        (temp_project / "CLAUDE.md").write_text(old_content)
+        (temp_project / "CLAUDE.md").write_text(old_content, encoding="utf-8")
 
         cmd_init(temp_project, interactive=False)
 
-        new_content = (temp_project / "CLAUDE.md").read_text()
+        new_content = (temp_project / "AGENTS.md").read_text(encoding="utf-8")
         assert "Über das Projekt" in new_content
         assert "日本語のドキュメント" in new_content
 
     def test_large_existing_claude_md(self, temp_project):
-        """Large existing CLAUDE.md should be handled."""
-        # Create a large CLAUDE.md (10KB)
         large_content = f"""# Large Project
 
 {AGENT_FOUNDRY_MARKER_START}
@@ -337,10 +353,9 @@ header
 
         cmd_init(temp_project, interactive=False)
 
-        new_content = (temp_project / "CLAUDE.md").read_text()
+        new_content = _agents_md(temp_project)
         assert "## End" in new_content
-        # Content should be preserved
-        assert "A" * 100 in new_content
+        assert "A" * 10000 in new_content
 
 
 class TestVersionFile:
@@ -618,7 +633,5 @@ class TestGitHubPlatformDetection:
 
         cmd_init(temp_project, interactive=False)
 
-        # Check if github.md was copied
-        rules_dir = temp_project / ".claude" / "rules"
-        github_rule = rules_dir / "github.md"
-        assert github_rule.exists()
+        assert "<!-- rule: github.md -->" in _agents_md(temp_project)
+        assert not (temp_project / ".claude" / "rules" / "github.md").exists()
