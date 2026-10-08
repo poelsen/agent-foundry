@@ -41,6 +41,8 @@ The review should answer four questions:
       were followed and verified.
 - [ ] Decision outcome is explicit: do, do not do, defer, accept risk, or
       experiment.
+- [ ] A review with no material findings says so and lists what was
+      checked, rather than padding the ledger.
 - [ ] Related review-state entries were searched, or "no prior data available"
       was recorded.
 

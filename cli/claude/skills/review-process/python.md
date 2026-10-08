@@ -12,9 +12,9 @@ It extends [SKILL.md](SKILL.md), [general](general.md), and
 | Python architecture, public API, module boundaries | `architect-python` | Python architecture rules |
 | General Python quality after code changes | `code-reviewer-python` | Python quality checklist |
 | User input, secrets, path traversal, deserialization, persistence, sharing | `security-reviewer-python` | Python security rules |
-| New feature, bug fix, regression guard, test strategy | `tdd-guide-python` | Python test checklist |
-| Dead code, duplicate logic, cleanup, migration completeness | `refactor-cleaner-python` | Migration/cleanup checks |
-| Build, lint, type, pytest, dependency, or packaging failure | `build-error-resolver-python` | Existing tool output |
+| New feature, bug fix, regression guard, test strategy | `tdd-guide-python`, report-only | Python test checklist |
+| Dead code, duplicate logic, cleanup, migration completeness | `refactor-cleaner-python`, report-only | Migration/cleanup checks |
+| Build, lint, type, pytest, dependency, or packaging failure | `build-error-resolver-python`, report-only | Existing tool output |
 
 ## Python quality checklist
 

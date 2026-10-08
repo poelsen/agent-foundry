@@ -1,6 +1,6 @@
 ---
 name: copilot-cli
-description: Invocation contract for the local GitHub Copilot CLI — run a one-shot prompt on a non-Claude model (e.g. gpt-5.4) without spending Anthropic tokens. Used by review-process for cross-model review.
+description: Invocation contract for the local GitHub Copilot CLI — run a one-shot prompt on a non-Claude model without spending Anthropic tokens. Used by review-process for cross-model review.
 ---
 
 # copilot-cli — Local GitHub Copilot CLI
@@ -41,7 +41,7 @@ copilot -p "<prompt>" --model <model> --allow-all-tools -s --no-color
 | Flag | Why it is required |
 |------|--------------------|
 | `-p, --prompt <text>` | Non-interactive mode; runs the prompt and exits. |
-| `--model <model>` | Target model family, e.g. `gpt-5.4`. Omit to use the CLI default. |
+| `--model <model>` | Target model ID from your Copilot catalog, or `auto` to let Copilot pick. Omit to use the CLI default. |
 | `--allow-all-tools` | Mandatory for non-interactive runs (else it blocks on a permission prompt). |
 | `-s, --silent` | Emit only the model's response — no banner/spinner — so the output is capturable. |
 | `--no-color` | Strip ANSI codes so captured text is clean. |
@@ -56,10 +56,12 @@ prefer self-contained prompts for reproducibility.
 
 ## Models
 
-Model IDs follow GitHub Copilot naming and depend on the user's subscription.
-Common: `gpt-5.4`, `gpt-5.4-mini`, `claude-opus-4.6`, `claude-sonnet-4.6`,
-`gemini-2.5-pro`, `grok-code-fast-1`. If a model is rejected, surface the CLI's
-error verbatim rather than silently substituting another model.
+Model IDs follow GitHub Copilot naming, depend on the user's subscription, and
+change often, so this file names none. An unavailable ID fails with
+`Model "<id>" from --model flag is not available`; an exhausted plan fails with
+"You have exceeded your monthly quota". Surface either error verbatim rather
+than silently substituting another model, and treat the CLI as unavailable for
+that review.
 
 ## Cost & honesty
 

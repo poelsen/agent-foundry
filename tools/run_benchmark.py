@@ -55,6 +55,10 @@ JUDGE_MODEL = "opus"
 # Optional second judge for dual-judge mode (None = single judge).
 JUDGE2_BACKEND: str | None = None
 JUDGE2_MODEL: str | None = None
+# Per-role reasoning effort; None falls back to the backend's env var.
+SUBJECT_EFFORT: str | None = None
+JUDGE_EFFORT: str | None = None
+JUDGE2_EFFORT: str | None = None
 # Judges "disagree" if pass/fail differs or |scoreA - scoreB| exceeds this.
 JUDGE_DISAGREE_THRESHOLD = 2
 
@@ -74,11 +78,12 @@ def load_skill_content(skill_name: str) -> str | None:
     return parse_skill(path).body
 
 
-def _claude_cli(prompt: str, model: str = "opus") -> str:
+def _claude_cli(prompt: str, model: str = "opus", effort: str | None = None) -> str:
     """Run a prompt through the claude CLI in non-interactive mode.
 
     Uses --output-format json for structured output and --permission-mode
-    bypassPermissions for non-interactive / CI use.
+    bypassPermissions for non-interactive / CI use. BENCH_CLAUDE_EFFORT sets --effort;
+    without it the CLI falls back to the user's settings.json.
     """
     claude_bin = shutil.which("claude")
     if not claude_bin:
@@ -87,16 +92,19 @@ def _claude_cli(prompt: str, model: str = "opus") -> str:
     # Strip ANTHROPIC_API_KEY so the CLI uses OAuth, not a potentially stale key
     env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
 
+    cmd = [
+        claude_bin,
+        "--print",
+        "--output-format", "json",
+        "--model", model,
+        "--no-session-persistence",
+        "--permission-mode", "bypassPermissions",
+        "--tools", "",
+    ]
+    if effort := effort or os.environ.get("BENCH_CLAUDE_EFFORT"):
+        cmd += ["--effort", effort]
     result = subprocess.run(
-        [
-            claude_bin,
-            "--print",
-            "--output-format", "json",
-            "--model", model,
-            "--no-session-persistence",
-            "--permission-mode", "bypassPermissions",
-            "--tools", "",
-        ],
+        cmd,
         input=prompt,
         capture_output=True,
         text=True,
@@ -120,7 +128,7 @@ def _claude_cli(prompt: str, model: str = "opus") -> str:
         return result.stdout.strip()
 
 
-def _copilot_cli(prompt: str, model: str) -> str:
+def _copilot_cli(prompt: str, model: str, effort: str | None = None) -> str:
     """Run a prompt through the GitHub Copilot CLI, non-interactively.
 
     No tools are enabled (pure text generation) and the call runs in a
@@ -130,9 +138,12 @@ def _copilot_cli(prompt: str, model: str) -> str:
     if not copilot_bin:
         raise RuntimeError("copilot CLI not found in PATH")
 
+    cmd = [copilot_bin, "-p", prompt, "--model", model, "-s", "--no-color"]
+    if effort:
+        cmd += ["--reasoning-effort", effort]
     with tempfile.TemporaryDirectory(prefix="bench-copilot-") as td:
         result = subprocess.run(
-            [copilot_bin, "-p", prompt, "--model", model, "-s", "--no-color"],
+            cmd,
             capture_output=True,
             text=True,
             timeout=1200,
@@ -145,7 +156,7 @@ def _copilot_cli(prompt: str, model: str) -> str:
     return result.stdout.strip()
 
 
-def _codex_cli(prompt: str, model: str) -> str:
+def _codex_cli(prompt: str, model: str, effort: str | None = None) -> str:
     """Run a prompt through the OpenAI Codex CLI (`codex exec`), non-interactively.
 
     Read-only sandbox, ephemeral session, throwaway temp cwd; the prompt goes
@@ -162,7 +173,7 @@ def _codex_cli(prompt: str, model: str) -> str:
                "--ephemeral", "-o", str(answer)]
         if model:
             cmd += ["-m", model]
-        if effort := os.environ.get("CODEX_EFFORT"):
+        if effort := effort or os.environ.get("CODEX_EFFORT"):
             cmd += ["-c", f'model_reasoning_effort="{effort}"']
         result = subprocess.run(cmd, input=prompt, capture_output=True, text=True,
                                 timeout=1200, cwd=td)
@@ -174,11 +185,17 @@ def _codex_cli(prompt: str, model: str) -> str:
     return text
 
 
-def _agy_cli(prompt: str, model: str) -> str:
+def _agy_cli(prompt: str, model: str, effort: str | None = None) -> str:
     """Run a prompt through the Google Antigravity CLI (`agy -p`), non-interactively.
 
     Throwaway temp cwd (no workspace customizations), no tool approvals
     (unapproved tools are soft-denied), JSON output. AGY_EFFORT sets --effort.
+    AGY_SKIP_PERMISSIONS=1 adds --dangerously-skip-permissions, for models that
+    insist on running a command first; it runs inside the throwaway cwd but can
+    still execute anything on the machine, so it is opt-in.
+
+    A denied tool can leave agy with no answer while it still reports SUCCESS;
+    an empty response is raised as an error so it is never scored.
     """
     agy_bin = shutil.which("agy")
     if not agy_bin:
@@ -187,8 +204,10 @@ def _agy_cli(prompt: str, model: str) -> str:
     cmd = [agy_bin, "-p", prompt, "--output-format", "json"]
     if model:
         cmd += ["--model", model]
-    if effort := os.environ.get("AGY_EFFORT"):
+    if effort := effort or os.environ.get("AGY_EFFORT"):
         cmd += ["--effort", effort]
+    if os.environ.get("AGY_SKIP_PERMISSIONS") == "1":
+        cmd.append("--dangerously-skip-permissions")
     with tempfile.TemporaryDirectory(prefix="bench-agy-") as td:
         result = subprocess.run(cmd, stdin=subprocess.DEVNULL, capture_output=True,
                                 text=True, timeout=1200, cwd=td)
@@ -199,7 +218,12 @@ def _agy_cli(prompt: str, model: str) -> str:
     if result.returncode != 0 or data.get("status") != "SUCCESS":
         detail = data.get("error") or result.stderr.strip()[-2000:] or result.stdout.strip()[-2000:]
         raise RuntimeError(f"agy CLI failed ({model}, exit {result.returncode}): {detail}")
-    return (data.get("response") or "").strip()
+    response = (data.get("response") or "").strip()
+    if not response:
+        denied = ", ".join(a.get("action", "?") for a in data.get("denied_actions") or [])
+        detail = result.stderr.strip()[-2000:] or "empty response"
+        raise RuntimeError(f"agy CLI gave no answer ({model}; denied: {denied or 'none'}): {detail}")
+    return response
 
 
 # Backend name → (runner, CLI binary)
@@ -211,32 +235,37 @@ BACKENDS = {
 }
 
 
-def _invoke(prompt: str, backend: str, model: str) -> str:
-    """Dispatch a prompt to the configured backend CLI."""
-    return BACKENDS[backend][0](prompt, model)
+def _invoke(prompt: str, backend: str, model: str, effort: str | None = None) -> str:
+    """Dispatch a prompt to the configured backend CLI.
+
+    An explicit effort beats the backend's env var (BENCH_CLAUDE_EFFORT,
+    CODEX_EFFORT, AGY_EFFORT), so subject and judge can share a backend at
+    different efforts.
+    """
+    return BACKENDS[backend][0](prompt, model, effort)
 
 
 def _judge_response(
     challenge: Challenge, response: str, skill_name: str | None,
-    backend: str, model: str,
+    backend: str, model: str, effort: str | None = None,
 ) -> EvalResult:
-    """Score a single subject response with one judge (backend/model)."""
+    """Score a single subject response with one judge (backend/model/effort)."""
     judge_prompt = _build_judge_prompt(challenge, response)
-    judge_text = _invoke(judge_prompt, backend, model)
+    judge_text = _invoke(judge_prompt, backend, model, effort)
     element_scores, anti_scores = _parse_judge_response(challenge, judge_text)
 
     # Separate depth judge call (avoids halo effect from binary scoring)
     depth_scores = []
     if challenge.rubric.depth_elements:
         depth_prompt = _build_depth_judge_prompt(challenge, response)
-        depth_text = _invoke(depth_prompt, backend, model)
+        depth_text = _invoke(depth_prompt, backend, model, effort)
         depth_scores = _parse_depth_response(challenge, depth_text)
 
     # Separate outcome judge call (process-blind, tests decision quality)
     outcome_scores = []
     if challenge.rubric.outcome_elements:
         outcome_prompt = _build_outcome_judge_prompt(challenge, response)
-        outcome_text = _invoke(outcome_prompt, backend, model)
+        outcome_text = _invoke(outcome_prompt, backend, model, effort)
         outcome_scores = _parse_outcome_response(challenge, outcome_text)
 
     return score_response(
@@ -257,12 +286,14 @@ def run_one(challenge: Challenge, skill_name: str | None) -> EvalResult:
     """
     skill_content = load_skill_content(skill_name) if skill_name else None
     subject_prompt = _build_subject_prompt(challenge, skill_content)
-    response = _invoke(subject_prompt, SUBJECT_BACKEND, SUBJECT_MODEL)
+    response = _invoke(subject_prompt, SUBJECT_BACKEND, SUBJECT_MODEL, SUBJECT_EFFORT)
 
-    result = _judge_response(challenge, response, skill_name, JUDGE_BACKEND, JUDGE_MODEL)
+    result = _judge_response(challenge, response, skill_name, JUDGE_BACKEND, JUDGE_MODEL,
+                             JUDGE_EFFORT)
 
     if JUDGE2_BACKEND and JUDGE2_MODEL:
-        r2 = _judge_response(challenge, response, skill_name, JUDGE2_BACKEND, JUDGE2_MODEL)
+        r2 = _judge_response(challenge, response, skill_name, JUDGE2_BACKEND, JUDGE2_MODEL,
+                             JUDGE2_EFFORT)
         agree = (result.passed == r2.passed
                  and abs(result.total_score - r2.total_score) <= JUDGE_DISAGREE_THRESHOLD)
         result = dataclasses.replace(
@@ -278,8 +309,9 @@ def results_to_json(
     challenges: list[Challenge],
     all_results: dict[str, dict[str, list[EvalResult]]],
     skill_modes: list[str | None],
+    errors: dict[str, dict[str, list[str]]] | None = None,
 ) -> dict:
-    """Convert results to a JSON-serializable dict."""
+    """Convert results to a JSON-serializable dict; errored runs are listed per mode."""
     data: dict = {"challenges": {}, "skill_modes": [label(s) for s in skill_modes]}
     for challenge in challenges:
         cdata: dict = {"name": challenge.name, "modes": {}}
@@ -292,6 +324,8 @@ def results_to_json(
                 "elements": {},
                 "anti_patterns": {},
             }
+            if failed := (errors or {}).get(challenge.id, {}).get(key):
+                mode_data["errors"] = failed
             # Dual-judge fields (present only when a second judge ran)
             if any(r.judge2_score is not None for r in results):
                 mode_data["judge2_scores"] = [r.judge2_score for r in results]
@@ -689,10 +723,14 @@ def main() -> None:
                         help="Model id for the second judge")
     parser.add_argument("--judge-disagree-threshold", type=int, default=2,
                         help="Judges disagree if pass/fail differs or score gap exceeds this")
+    for role in ("subject", "judge", "judge2"):
+        parser.add_argument(f"--{role}-effort", type=str, default=None,
+                            help=f"Reasoning effort for the {role} (overrides the backend's env var)")
     args = parser.parse_args()
 
     global SUBJECT_BACKEND, SUBJECT_MODEL, JUDGE_BACKEND, JUDGE_MODEL
     global JUDGE2_BACKEND, JUDGE2_MODEL, JUDGE_DISAGREE_THRESHOLD
+    global SUBJECT_EFFORT, JUDGE_EFFORT, JUDGE2_EFFORT
     SUBJECT_BACKEND = args.subject_backend
     SUBJECT_MODEL = args.subject_model or ("opus" if SUBJECT_BACKEND == "claude" else "gpt-5.5")
     JUDGE_BACKEND = args.judge_backend
@@ -700,6 +738,8 @@ def main() -> None:
     JUDGE2_BACKEND = args.judge2_backend
     JUDGE2_MODEL = args.judge2_model
     JUDGE_DISAGREE_THRESHOLD = args.judge_disagree_threshold
+    SUBJECT_EFFORT, JUDGE_EFFORT, JUDGE2_EFFORT = (
+        args.subject_effort, args.judge_effort, args.judge2_effort)
 
     bin_for = {name: binary for name, (_, binary) in BACKENDS.items()}
     backends = {SUBJECT_BACKEND, JUDGE_BACKEND}
@@ -709,10 +749,14 @@ def main() -> None:
         if not shutil.which(bin_for[backend]):
             print(f"ERROR: {bin_for[backend]} CLI not found in PATH (needed for {backend} backend)")
             sys.exit(1)
-    judges = f"{JUDGE_BACKEND}:{JUDGE_MODEL}"
+    def at(effort: str | None) -> str:
+        return f"@{effort}" if effort else ""
+
+    judges = f"{JUDGE_BACKEND}:{JUDGE_MODEL}{at(JUDGE_EFFORT)}"
     if JUDGE2_BACKEND:
-        judges += f" + {JUDGE2_BACKEND}:{JUDGE2_MODEL} (dual, threshold={JUDGE_DISAGREE_THRESHOLD})"
-    print(f"Subject: {SUBJECT_BACKEND}:{SUBJECT_MODEL}  |  Judge: {judges}")
+        judges += (f" + {JUDGE2_BACKEND}:{JUDGE2_MODEL}{at(JUDGE2_EFFORT)}"
+                   f" (dual, threshold={JUDGE_DISAGREE_THRESHOLD})")
+    print(f"Subject: {SUBJECT_BACKEND}:{SUBJECT_MODEL}{at(SUBJECT_EFFORT)}  |  Judge: {judges}")
 
     challenges = load_challenges(CHALLENGES_DIR)
     if args.challenges:
@@ -742,6 +786,7 @@ def main() -> None:
 
     # Initialize results structure
     all_results: dict[str, dict[str, list[EvalResult]]] = {}
+    errors: dict[str, dict[str, list[str]]] = {}
     for challenge in challenges:
         all_results[challenge.id] = {}
         for skill in skill_modes:
@@ -771,6 +816,8 @@ def main() -> None:
             cid, key, _, result, msg = _run_combo(combo)
             if result:
                 all_results[cid][key].append(result)
+            else:
+                errors.setdefault(cid, {}).setdefault(key, []).append(msg)
             print(msg)
     else:
         # Parallel mode
@@ -781,14 +828,18 @@ def main() -> None:
                 cid, key, run_idx, result, msg = future.result()
                 if result:
                     all_results[cid][key].append(result)
+                else:
+                    errors.setdefault(cid, {}).setdefault(key, []).append(msg)
                 tag = f"[{completed}/{total_combos}]"
                 print(f"  {tag} {cid} + {key} (run {run_idx + 1})... {msg}")
 
     elapsed = time.time() - start
     print(f"\nCompleted in {elapsed:.0f}s ({elapsed / 60:.1f}min)")
+    if n_errors := sum(len(v) for modes in errors.values() for v in modes.values()):
+        print(f"Errored runs: {n_errors} (excluded from scores; listed per mode in the JSON)")
 
     # Build JSON data
-    json_data = results_to_json(challenges, all_results, skill_modes)
+    json_data = results_to_json(challenges, all_results, skill_modes, errors)
 
     # Save if requested
     if args.save:

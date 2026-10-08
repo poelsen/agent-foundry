@@ -44,21 +44,13 @@ Treat GUI and non-GUI as concern modules, not a rigid tree. If a change touches
 multiple concerns, apply all relevant modules and compact reviewer selection as
 described below.
 
-## Historical intent
+## Intent
 
-The original hardening instruction was to run a broad multi-reviewer pass before
-committing risky phases, then triage and implement fixes across all severities.
-The durable intent is:
-
-1. test whether the work is actually correct,
-2. attack failure modes and hidden assumptions,
-3. protect architecture and maintainability,
-4. prevent future regressions,
-5. make explicit decisions about every finding.
-
-The process routes reviewers by risk instead of always running a fixed fleet.
-Most reviews should be small. High-risk or release-level work can still use a
-broader holistic fleet.
+Test whether the work is correct, attack failure modes and hidden assumptions,
+protect architecture, prevent regressions, and decide every finding explicitly.
+Reviewers are routed by risk, not run as a fixed fleet: most reviews are small,
+and release-level work can use a broader one. A review that finds nothing
+material is a valid outcome, not a failed review.
 
 ## Review modes
 
@@ -66,35 +58,36 @@ Every review must declare its mode before findings are produced.
 
 | Mode | Meaning |
 |------|---------|
-| `AUDIT_ONLY` | Findings only. Do not edit files or apply fixes. |
+| `AUDIT_ONLY` | Findings only. Do not edit the artifact under review or apply fixes. |
 | `FIX_AUTHORIZED` | Findings may be fixed after triage. Do not commit unless separately authorized. |
 | `FIX_AND_COMMIT_AUTHORIZED` | Findings may be fixed, validated, and committed. |
 
-If the mode is absent, assume `AUDIT_ONLY`.
+Modes govern the artifact under review. The review's own record in
+`docs/review-state/` is written in every mode, `AUDIT_ONLY` included.
+
+If the invocation does not name a mode, ask for it (see "When to ask the
+user"). Only when nobody can be asked (a subagent or non-interactive run) does
+the mode default to `AUDIT_ONLY`; record that default in the header. T0
+records `Mode: n/a`.
 
 ## Model strategy
 
-Every T1+ review must declare a model strategy because model choice affects
-cost, latency, and finding diversity. The user may specify exact models. If the
-user does not specify models, choose a strategy from the risk tier and record
-it.
+Every T1+ review declares a model strategy; it drives cost, latency, and
+finding diversity.
 
 | Strategy | Use when | Default |
 |----------|----------|---------|
-| `SINGLE_FAST` | T1 reviews where speed/cost matters more than model diversity | One fast/standard model |
-| `DIVERSE_STANDARD` | T2/T3 reviews needing independent judgment without premium cost | Different standard model families where available |
+| `SINGLE_FAST` | T1 reviews where speed/cost matters more than model diversity | The current session model |
+| `DIVERSE_STANDARD` | T2/T3 reviews needing independent judgment without premium cost | At least two runs, different model families where available |
 | `PREMIUM_TARGETED` | Specific high-risk concern needs highest-quality judgment | One premium model on the highest-risk frame only |
 | `MIXED_PREMIUM` | T4 or unusually broad T3 work | Standard models for breadth plus premium model(s) for deep/adversarial/creative synthesis |
 | `USER_SPECIFIED` | User names exact models or cost constraints | Follow the user request, verify actual execution |
 
-Prefer model diversity over duplicating the same frame on the same model. For
-example, a T4 process review can use one model for deep/adversarial cost-aware
-analysis and a different premium model for creative decomposition. Do not
-assume a requested model actually ran: record the requested model, actual
-model/tool evidence, and any substitution.
-
-If model availability or routing is unreliable, mark the affected reviewer as
-substituted or unavailable instead of claiming the intended model was used.
+Prefer model diversity over duplicating the same frame on the same model. Do
+not assume a requested model actually ran: record the requested model, the
+actual model as reported by the run (CLI output or the agent's own report), and
+any substitution. Model versions are deliberately not pinned here; the current
+session model and each CLI's default move faster than this file.
 
 ### Runtime detection (do this before prompting)
 
@@ -115,7 +108,7 @@ fi
 # Local cross-vendor CLIs — the ONLY ways to run non-Claude models. Each has
 # a reference skill with the exact invocation contract:
 #   copilot → Copilot catalog (GPT, Gemini, Grok, …)   see `copilot-cli`
-#   codex   → OpenAI models (GPT-5.x) directly         see `codex-cli`
+#   codex   → OpenAI models directly                   see `codex-cli`
 #   agy     → Google Gemini models                     see `agy-cli`
 copilot_cli=no
 command -v copilot >/dev/null 2>&1 && copilot --version >/dev/null 2>&1 && copilot_cli=yes
@@ -127,98 +120,72 @@ command -v agy >/dev/null 2>&1 && agy --version >/dev/null 2>&1 && agy_cli=yes
 echo "host=$host copilot_cli=$copilot_cli codex_cli=$codex_cli agy_cli=$agy_cli"
 ```
 
-> **Hard requirement:** running a GPT / ChatGPT (or any non-Claude) model as a
-> reviewer **requires a local cross-vendor CLI**: `copilot` (any Copilot-catalog
-> model), `codex` (GPT models via the `codex-cli` skill), or `agy` (Gemini
-> models via the `agy-cli` skill). There is no MCP bridge or extension
-> fallback — that path was retired. If none is installed, non-Claude runs are
-> unavailable; fall back per the `DIVERSE_STANDARD` rule and record it in the
-> header.
-
-The profiles drive which strategies are actually viable:
+> **Hard requirement:** a non-Claude reviewer needs one of these local CLIs;
+> there is no other bridge. A CLI that is missing or fails (quota exhausted,
+> auth error, model rejected) is unavailable for this review: record its error
+> verbatim and fall back per `DIVERSE_STANDARD`.
 
 | Profile | What the user can actually run | Effect on prompt |
 |---------|-------------------------------|------------------|
-| `host=copilot-cli` | Copilot's native model catalog (GPT-5, Gemini, Claude 4.x, Grok, …) directly | All strategies viable. In `USER_SPECIFIED` / "Other", accept any Copilot-catalog model name. The bigger catalog makes `DIVERSE_STANDARD` and `MIXED_PREMIUM` cheap to satisfy. |
-| `host=claude-code` + `copilot_cli=yes` | Anthropic via current session + Agent model overrides; **non-Claude models (GPT-5.4, …) via the `copilot-cli` skill** (`copilot -p … --model …`) | All strategies viable. `PREMIUM_TARGETED` / `MIXED_PREMIUM` and cross-vendor `DIVERSE_STANDARD` resolve through the `copilot-cli` skill. |
-| `host=claude-code` + `copilot_cli=no` + `codex_cli=yes` and/or `agy_cli=yes` | Anthropic via current session; **GPT via the `codex-cli` skill** (`codex exec -m gpt-5.5 …`) and/or **Gemini via the `agy-cli` skill** (`agy -p … --model gemini-3.1-pro-high`) | All strategies viable within those vendors. Cross-vendor `DIVERSE_STANDARD` resolves through whichever CLI is present (prefer `codex` for GPT). |
-| `host=claude-code` + no cross-vendor CLI | Anthropic only (current session + Agent `model:` overrides). **No GPT/ChatGPT models available.** | `SINGLE_FAST` and `DIVERSE_STANDARD` still viable (same-vendor fallback). `PREMIUM_TARGETED` / `MIXED_PREMIUM` and any GPT reviewer are degraded — surface this in the prompt so the user can install the Copilot, Codex or Antigravity CLI or pick a different strategy. |
-| `host=unknown` | Conservative: assume Claude Code without the Copilot CLI. | Same as the row above. |
+| `host=copilot-cli` | Copilot's native model catalog directly | All strategies viable. In `USER_SPECIFIED` / "Other", accept any Copilot-catalog model name. |
+| `host=claude-code` + any cross-vendor CLI | Anthropic via the current session + Agent model overrides; non-Claude models via the `copilot-cli`, `codex-cli` or `agy-cli` skill | All strategies viable within the vendors present. Prefer `codex` for GPT and `agy` for Gemini. |
+| `host=claude-code` + no cross-vendor CLI | Anthropic only (current session + Agent `model:` overrides) | `SINGLE_FAST` and `DIVERSE_STANDARD` still viable (same-vendor fallback). `PREMIUM_TARGETED` / `MIXED_PREMIUM` with a non-Claude model are degraded — say so in the prompt so the user can install a CLI or pick a different strategy. |
+| `host=unknown` | Conservative: assume Claude Code without a cross-vendor CLI. | Same as the row above. |
 
-Record the detected profile in the review header alongside the chosen
-strategy.
+Record the detected profile in the review header (`Runtime profile:`).
 
-### When to ask the user for a strategy
+### When to ask the user
 
-Prompt for **every** review (all tiers, T0 through T4). The prompt makes the
-cost/diversity tradeoff visible at the start instead of buried in the
-header, and prevents Claude from silently defaulting against the user's
-intent on small changes.
+Prompt for every T1+ review. T0 is the author checklist only: record the
+tier and why no trigger applies, and do not prompt.
 
-1. **If the user already specified a strategy or specific models in their
-   invocation** (e.g. `/review-process audit branch — use MIXED_PREMIUM`,
-   or named exact models), record the header as `USER_SPECIFIED` and skip
-   the prompt.
-2. **Otherwise, before producing the review header**, call `AskUserQuestion`
-   with the strategies as options. Put the tier-appropriate recommended
-   strategy first and label it `(Recommended)`. Filter or annotate options
-   based on the detected runtime profile (above). Treat the user's "Other"
-   free-text reply as `USER_SPECIFIED` and use their wording verbatim.
+Before producing the review header, make one `AskUserQuestion` call holding
+each question whose answer the invocation did not already give:
 
-Recommended default per tier (first option in the prompt):
+- **Strategy** — skipped when the invocation names a strategy or exact models
+  (e.g. `/review-process audit branch — use MIXED_PREMIUM`); record
+  `USER_SPECIFIED`. Otherwise list the strategies with the tier-appropriate
+  recommendation first, labelled `(Recommended)`, filtered or annotated by the
+  runtime profile. Treat an "Other" free-text reply as `USER_SPECIFIED` and use
+  the user's wording verbatim.
+- **Mode** — skipped when the invocation names one. Otherwise offer
+  `AUDIT_ONLY`, `FIX_AUTHORIZED`, `FIX_AND_COMMIT_AUTHORIZED` with no
+  recommendation; the mode is the user's authority call.
+
+If both were given, make no call.
+
+Recommended strategy per tier:
 
 | Tier | Recommended default |
 |------|---------------------|
-| T0 | `SINGLE_FAST` (mechanical change — usually skip review or one fast pass) |
 | T1 | `SINGLE_FAST` |
 | T2 | `DIVERSE_STANDARD` |
 | T3 | `DIVERSE_STANDARD` (broader risk surface) or `PREMIUM_TARGETED` (one concentrated high-risk concern) |
 | T4 | `MIXED_PREMIUM` |
 
-#### T0 / T1 concrete model defaults (`SINGLE_FAST`)
+### Concrete runs
 
-When the recommended `SINGLE_FAST` is chosen for T0 or T1, the actual model
-that runs depends on the detected runtime. These are the defaults — surface
-them in the prompt's recommended-option label so the user sees the concrete
-model name, not just the abstract strategy:
+`SINGLE_FAST` runs on the current session model. Do not spawn `Agent` calls
+with a smaller model for T1 — it adds latency without benefit.
 
-| Runtime | T0 / T1 default model | Notes |
-|---------|-----------------------|-------|
-| `host=claude-code` (any `copilot_cli` state) | **Claude Opus 4.7** — current session model | Zero extra cost: the session model is already running. Do not spawn `Agent` calls with `model: sonnet/haiku` for T0/T1 — adds latency without benefit. |
-| `host=copilot-cli` | **GPT-5.4** via Copilot's catalog | Fast, cheap, and the standard mainline Copilot CLI model. |
-| `host=unknown` | Same as `claude-code` (Opus 4.7, current session) | Conservative fallback. |
+`DIVERSE_STANDARD` is a hard "**at least two runs**" strategy with different
+frames (deep/correctness for run A, adversarial/failure-modes for run B, or
+whichever two the routing table calls for — never the same frame twice):
 
-#### T2 concrete model defaults (`DIVERSE_STANDARD`)
+| Runtime | Run A | Run B |
+|---------|-------|-------|
+| `host=claude-code` + a working cross-vendor CLI | Current session model | A non-Claude model through that CLI's skill: the user-named model, else the CLI default when its family is known to differ from run A, else a different-family model from the CLI's catalog |
+| `host=claude-code` + no working cross-vendor CLI | Current session model | The session model again via `Agent` with a fresh context; record "no cross-vendor diversity available" and why |
+| `host=copilot-cli` | Current session model | A catalog model from a different family (never `auto`, which may pick the same family) |
+| `host=unknown` | As `claude-code` without a CLI | Same fallback |
 
-`DIVERSE_STANDARD` is a hard "**at least two model runs**" strategy. If
-genuine cross-vendor diversity is not reachable, fall back to two independent
-runs of the same model (the value is then in independent framings/contexts
-rather than family diversity, but never collapse to a single run).
+For T3-T4, model selection follows the chosen strategy and runtime profile;
+the highest-tier strategies are bespoke per review.
 
-| Runtime | Run A | Run B (fallback rule) |
-|---------|-------|-----------------------|
-| `host=claude-code` + `copilot_cli=yes` | **Claude Opus 4.7** (current session) — deep/correctness frame | **GPT-5.4** via the `copilot-cli` skill (`copilot -p … --model gpt-5.4 --allow-all-tools -s`) — adversarial/failure-modes frame |
-| `host=claude-code` + `copilot_cli=no` + `codex_cli=yes` | **Claude Opus 4.7** (current session) — deep/correctness frame | **GPT-5.5** via the `codex-cli` skill (`codex exec -m gpt-5.5 -s read-only …`) — adversarial/failure-modes frame |
-| `host=claude-code` + `copilot_cli=no` + `codex_cli=no` + `agy_cli=yes` | **Claude Opus 4.7** (current session) — deep/correctness frame | **Gemini 3.1 Pro** via the `agy-cli` skill (`agy -p … --model gemini-3.1-pro-high`) — adversarial/failure-modes frame |
-| `host=claude-code` + no cross-vendor CLI | **Claude Opus 4.7** (current session) — deep/correctness frame | **Claude Opus 4.7** spawned via `Agent` tool with a fresh context — adversarial/failure-modes frame. Non-Claude models are unreachable without a cross-vendor CLI; record "no cross-vendor diversity available (no copilot/codex/agy CLI installed); second-run Opus 4.7" in the review header. |
-| `host=copilot-cli` | **GPT-5.4** via Copilot catalog — deep/correctness frame | **Claude Opus 4.6** via Copilot catalog — adversarial/failure-modes frame |
-| `host=unknown` | Same as `claude-code` + no cross-vendor CLI | Same fallback rule |
-
-Always assign different frames (deep vs adversarial, or whichever two the
-routing table calls for) to the two runs — running the same frame twice on
-two models is wasteful. The point of the dual run is independent
-*perspectives*, not redundant *coverage*.
-
-For T3-T4, model selection follows the chosen strategy (`PREMIUM_TARGETED`,
-`MIXED_PREMIUM`) and the runtime profile — concrete defaults are not pinned
-because the highest-tier strategies are inherently bespoke per review.
-
-If the strategy the user chooses requires a GPT/non-Claude model but no local
-cross-vendor CLI can serve it (`copilot`, `codex` or `agy`), `delegate` is missing, or a
-Copilot-catalog model is not reachable from the current runtime, surface this
-in the review header (`Skipped/unavailable reviewers`) and substitute the
-closest available reviewer (per the `DIVERSE_STANDARD` fallback) rather than
-silently downgrading or pretending the intended model ran.
+If the chosen strategy needs a model the runtime cannot serve, record it under
+`Skipped/unavailable reviewers` and substitute the closest available run per
+the `DIVERSE_STANDARD` fallback rather than silently downgrading or pretending
+the intended model ran.
 
 ## Shared risk tiers
 
@@ -240,9 +207,11 @@ records included and excluded reviewers with reasons.
 |---------|----------------------------|-----------------|
 | Baseline correctness, coherence, evidence quality | `megamind-deep` | Purely mechanical T0 changes |
 | Failure modes, regressions, misuse, hidden assumptions | `megamind-adversarial` | No plausible failure mode beyond local wording/style |
-| Scope control, rollback, fix-now vs defer, practical sequencing | Pragmatic frame | No sequencing, rollout, or cost-of-delay decision exists |
+| Scope control, rollback, fix-now vs defer, practical sequencing, schedule tradeoff | Pragmatic frame | No sequencing, rollout, schedule, or cost-of-delay decision exists |
 | Alternate decompositions, stuck design, new abstraction, T4 review | `megamind-creative` | Mechanical changes or already constrained implementation reviews |
-| Cost, licensing, compliance, business-impact, schedule tradeoff | `megamind-financial` | No material cost, compliance, licensing, or business-risk delta |
+| Material cost, financial model, or financial data system | `megamind-financial` | No material cost or financial-calculation delta |
+| Licensing of new dependencies | `code-reviewer-*` (license check) | No new or upgraded dependency |
+| Compliance, data handling, legal exposure | `security-reviewer-*` for code; the adversarial frame's litigator persona otherwise | No data-handling or legal-exposure delta |
 
 The pragmatic frame checks: smallest safe change, rollback, defer vs fix-now,
 decision latency, reviewer count, and whether the process cost matches the
@@ -267,6 +236,74 @@ Common Python GUI profile: deep + adversarial + a reviewer applying the
 `gui-threading` and/or `python-qt-gui` skills + test/TDD review when behavior
 changed.
 
+## Reviewer contract
+
+Every reviewer prompt (subagent, cross-vendor CLI, or a frame applied in the
+main session) states these terms. Routed skills and agents follow them over
+their own standalone rules (confirmation stops, edit steps, output formats).
+
+1. **Authority.** Reviewers are read-only in every mode. Only the orchestrator
+   applies fixes, and only under `FIX_AUTHORIZED` or
+   `FIX_AND_COMMIT_AUTHORIZED`.
+2. **Scope.** The diff base (`git diff <base>...HEAD` plus staged and unstaged
+   changes, plus untracked files from `git ls-files --others
+   --exclude-standard`, read whole) or the named artifact. Pre-existing problems
+   the change does not touch or worsen go under a separate "Out of scope"
+   heading, not the findings.
+3. **Frame.** The frame or skill to apply, its required visible sections
+   (table below), and its method. A reviewer that cannot read the skill files
+   (a cross-vendor CLI given only a prompt) gets the frame's Process and "As a
+   reviewer frame" text and the severity calibration table pasted into the
+   prompt; one that can read them gets the paths and is told to read them.
+4. **Findings.** Number them `<reviewer letter>-<n>` (e.g. `B-3`) with title,
+   severity, confidence, evidence strength, evidence, impact, and proposed fix.
+   Severity follows [Severity calibration](#severity-calibration): it is set by
+   impact, never by which checklist item fired.
+5. **No quota, no invented issues.** There is no minimum number of findings;
+   zero is valid when the report lists the files, checks, and attacks it
+   covered. Review prompts invite invented problems, most of all on a correct
+   change, so report a finding only when a concrete input or state breaks the
+   code as written, nothing (guard, test, documented contract) already handles
+   it, and the change caused it. Generic advice (retries, metrics, caching) is a
+   suggestion, not a finding. Never inflate a nit's severity.
+6. **Model line.** The report starts with `Model: <id>` as the reviewer knows
+   it; the orchestrator records it next to the requested model.
+
+| Frame | Required visible sections |
+|-------|---------------------------|
+| `megamind-deep` | Assumptions (verified / inferred / uncertain), independent paths with convergence and divergence, gaps found by the critique loop, risks |
+| `megamind-adversarial` | Personas used, pre-mortem, inversion, second-order effects, attacks that produced no finding |
+| `megamind-creative` | Alternative decompositions considered and whether any changes the decision |
+| `megamind-financial` | Section used (F0-F4 for data systems, A-E for cost or model decisions), thresholds or assumptions checked, evidence per finding |
+| Pragmatic | Smallest safe change, rollback, fix-now vs defer |
+| Agents | Files and checklists covered, verdict |
+
+Agent output maps onto the ledger as follows. Agents that normally edit run
+report-only as reviewers.
+
+| Agent | Ledger mapping |
+|-------|----------------|
+| `code-reviewer-*`, `security-reviewer-*` | Same CRITICAL–LOW scale |
+| `e2e-test-*` | Failing or missing flow test → finding; run output → `EXECUTED` evidence |
+| `tdd-guide-*` | Missing or weak test → finding; MEDIUM+ only with a concrete regression scenario |
+| `refactor-cleaner-*` | SAFE / CAREFUL / RISKY is removal confidence → `Confidence`; severity by impact |
+| `architect-*` | Red flag → finding; severity by impact |
+| `build-error-resolver-*` | Tool output → `EXECUTED` evidence |
+
+### Orchestrator acceptance
+
+Before a reviewer report enters the ledger:
+
+1. Check the frame's required sections, and that each one carries evidence
+   from the artifact (file:line, quoted text, or command output), not just a
+   heading. A report that claims a frame without that is re-run once; if it is
+   still missing, record the reviewer as "frame not applied" in the header.
+2. Map every reviewer finding ID to a ledger ID (one-to-one, or merged with the
+   merge recorded under `Reviewer convergence`). No reviewer finding leaves the
+   review without a ledger ID.
+3. Re-grade severity against the calibration table and note any change in the
+   finding's `Evidence` line.
+
 ## T4 requirements
 
 T4 reviews are holistic and must include:
@@ -282,7 +319,7 @@ T4 reviews are holistic and must include:
 - a final closure statement.
 
 Default T4 frames are deep, adversarial, creative, and pragmatic. Add financial
-only for material cost, compliance, licensing, or business-impact risk.
+only for material cost or financial-calculation risk.
 
 ## Review header
 
@@ -294,6 +331,7 @@ Mode: AUDIT_ONLY | FIX_AUTHORIZED | FIX_AND_COMMIT_AUTHORIZED
 Risk tier: T<N>
 Reviewer budget: <max reviewers, max passes>
 Model strategy: SINGLE_FAST | DIVERSE_STANDARD | PREMIUM_TARGETED | MIXED_PREMIUM | USER_SPECIFIED
+Runtime profile: host=<…> copilot_cli=<yes|no> codex_cli=<yes|no> agy_cli=<yes|no>
 Reviewers requested: <list>
 Reviewers actually used: <list with agent IDs, model/tool evidence, or manual actor>
 Requested models: <list or not specified>
@@ -303,6 +341,11 @@ Included triggers: <list>
 Excluded triggers: <list with rationale>
 Prior state searched: <review-state sources/tags, or no prior data available>
 ```
+
+For T2+ reviews, write the header and the full ledger to
+`docs/review-state/T<N>-<YYYY-MM-DD>-<slug>.md` (in every mode, see Review
+modes) and summarise it in chat. A condensed chat table does not replace the
+ledger.
 
 ## Finding ledger
 
@@ -389,8 +432,8 @@ A review is complete when:
 1. all requested reviewers either reported or have a skipped/unavailable
    reason;
 2. model strategy and actual model/tool evidence are recorded;
-3. every finding has severity, confidence, status, disposition, evidence, and
-   guard;
+3. every reviewer finding ID maps to a ledger ID, and every ledger finding has
+   severity, confidence, status, disposition, evidence, and guard;
 4. every CRITICAL/HIGH finding is resolved, mitigated, or approved for
    defer/risk acceptance;
 5. every `DEFER` or `ACCEPT_RISK` has owner, approval, and revisit trigger;
@@ -398,6 +441,8 @@ A review is complete when:
 7. validation required by the domain process has passed or has a documented
    blocker;
 8. at most one re-review pass has run unless new CRITICAL/HIGH findings appear.
+   A re-review pass covers the fixes and their blast radius only; frames do not
+   re-run a full attack on unchanged work.
 
 ## Review state
 
@@ -431,7 +476,7 @@ This skill routes work to reviewers that Foundry already ships:
 - `megamind-deep`, `megamind-adversarial`, `megamind-creative`,
   `megamind-financial` skills
 - `code-reviewer-*`, `security-reviewer-*`, `tdd-guide-*`, `architect-*`,
-  `refactor-cleaner-*`, `build-error-resolver-*` agents
+  `refactor-cleaner-*`, `build-error-resolver-*`, `e2e-test-*` agents
 - `gui-threading` and `python-qt-gui` skills as rule sets for the GUI process
 
 If a referenced reviewer is not installed in the current project, mark it as

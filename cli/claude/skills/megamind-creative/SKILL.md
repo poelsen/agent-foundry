@@ -18,7 +18,7 @@ If the request is too vague to know what "better / faster / fixed" even means �
 
 ## Process
 
-Complete ALL steps before writing code or taking action:
+Work through these steps before writing code or taking action:
 
 1. **Mine** — Before inventing, scan what exists. What patterns, idioms, and recurring approaches already live in this space? What's been tried before? What keeps failing? List at least 3 concrete patterns or prior attempts — step 5's Recombine lens draws on this list. The goal is raw material for recombination, not analysis.
 
@@ -51,6 +51,10 @@ Complete ALL steps before writing code or taking action:
    - **Bold** — Medium risk, novel approach, real upside
    - **Wild** — High risk, genuinely unconventional, challenges assumptions
    For each: one-sentence core idea, key tradeoff, and what makes it interesting. Ask: "Which direction interests you, or should I push further?" Then STOP.
+
+## As a reviewer frame
+
+When a review process runs this skill as a reviewer, its reviewer contract governs output, authority, scope, and finding IDs, and Rules 1 and 9 do not apply. Use steps 1-3 and 7 to look for alternative decompositions of the work under review; show the ones considered, and report one as a finding only when it would change the decision (simpler, safer, or removes a recurring problem). Idea counts and Safe / Bold / Wild apply only to standalone use. "No alternative beats the current design" is a valid result.
 
 ## Anti-Rationalization Guards
 

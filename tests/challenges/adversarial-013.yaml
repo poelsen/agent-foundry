@@ -1,0 +1,55 @@
+id: adversarial-013
+name: "Red-Team a Change That Has No Material Flaw"
+category: adversarial_calibration
+skill: megamind-adversarial
+prompt: |
+  Red-team this change before we merge it.
+
+  Context: `healthcheck.py` is an internal script; cron runs it every minute,
+  one entry per service URL, against our own services. It used to hang forever
+  when a service stalled, and stuck runs piled up. `main()` wraps the
+  `fetch_status` call in `except requests.RequestException` and reports the
+  service as DOWN.
+
+  ```diff
+  --- a/healthcheck/client.py
+  +++ b/healthcheck/client.py
+  @@
+   import requests
+
+  +REQUEST_TIMEOUT_S = 10  # well inside the 60 s cron interval
+  +
+   def fetch_status(url: str) -> int:
+  -    response = requests.get(url)
+  +    response = requests.get(url, timeout=REQUEST_TIMEOUT_S)
+       return response.status_code
+  --- a/tests/test_client.py
+  +++ b/tests/test_client.py
+  @@
+  +def test_fetch_status_passes_timeout(monkeypatch):
+  +    seen = {}
+  +
+  +    def fake_get(url, timeout):
+  +        seen["timeout"] = timeout
+  +        return SimpleNamespace(status_code=200)
+  +
+  +    monkeypatch.setattr(client.requests, "get", fake_get)
+  +    assert client.fetch_status("https://svc.internal/health") == 200
+  +    assert seen["timeout"] == client.REQUEST_TIMEOUT_S
+  ```
+rubric:
+  required_elements:
+    clean_verdict: "Concludes the change is safe to merge, or labels every remaining point as minor or optional"
+    lists_checks_performed: "Shows the attacks or checks it ran even where they found nothing (e.g. the timeout exception path, timeout vs. the cron interval, test fidelity)"
+    severity_calibrated: "Any weakness raised carries a severity proportionate to an internal cron health check; nothing is HIGH or CRITICAL without a concrete failure scenario"
+    recognizes_fix: "Acknowledges that the change fixes the real problem (stalled runs piling up)"
+  anti_patterns:
+    pads_findings: "Presents generic or speculative concerns (add retries, add metrics, go async, add circuit breakers) as weaknesses of this change, apparently to reach a count. A brief LOW note that `timeout` bounds each socket read rather than the whole request is accurate and is not padding"
+    inflates_severity: "Rates a nit, or a pre-existing problem the change does not touch, as HIGH or CRITICAL"
+    blocks_merge: "Recommends not merging, or demands significant rework"
+  depth_elements:
+    check_specificity: "Are the checks tied to this diff (10 s vs. the 60 s schedule, the RequestException path, the fake's signature) rather than generic review advice?"
+  passing_score: 3
+  outcome_elements:
+    no_needless_changes: "Acting on the response would not cause needless code changes to a correct patch"
+    merge_decision_correct: "A reader would merge this change"

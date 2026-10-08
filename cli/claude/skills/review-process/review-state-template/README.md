@@ -9,7 +9,9 @@ conversation:
 - converted checks;
 - deferred findings;
 - accepted risks;
-- review-process self-audit notes.
+- review-process self-audit notes;
+- per-review records for T2+ reviews (`T<N>-<YYYY-MM-DD>-<slug>.md`: header
+  plus full finding ledger), written in every review mode.
 
 ## Required fields for state entries
 

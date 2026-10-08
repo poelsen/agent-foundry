@@ -126,7 +126,7 @@ tests/
 
 ## Architecture Decision Records (ADRs)
 
-For significant architectural decisions, create ADRs:
+For significant architectural decisions, draft ADRs and return the text (you have no write tools; the caller saves them):
 
 ```markdown
 # ADR-001: [Title]

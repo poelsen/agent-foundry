@@ -37,7 +37,7 @@ well-specified do you proceed to the full process below.
 
 ## Process
 
-Complete ALL steps before writing code or taking action:
+Work through these steps before writing code or taking action:
 
 1. **Intent** — What is the user actually trying to achieve? Think beyond the literal words. What's the real problem? What does success look like?
 
@@ -67,6 +67,10 @@ Complete ALL steps before writing code or taking action:
 6. **Recommendation** — Present at least 2 meaningfully different approaches with tradeoffs. State which you recommend and why. Use the convergence/divergence from step 3 to calibrate your confidence: high convergence = recommend firmly; divergence = present options honestly.
 
 7. **Confirm** — Ask: "Is my understanding correct, or should I adjust?" Then STOP.
+
+## As a reviewer frame
+
+When a review process runs this skill as a reviewer, its reviewer contract governs output, authority, scope, and finding IDs, and the scope gate, the confirm step, and Rules 1, 5 and 7 do not apply. Use the three paths as independent ways to verify the change (trace the code, check the tests, compare with the stated intent), not as alternative designs. Show assumptions, the paths' convergence and divergence, critique gaps, and risks, then report findings in the caller's ledger shape. A correct change gets a clean result with the checks listed.
 
 ## Anti-Rationalization Guards
 

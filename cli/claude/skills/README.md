@@ -24,13 +24,13 @@ Skills are reusable knowledge modules that provide domain-specific patterns, bes
 | [megamind-adversarial](megamind-adversarial/) | Red-team — attack the obvious approach, stress-test | When you need to find weaknesses |
 | [megamind-financial](megamind-financial/) | Multi-domain financial analysis — investment valuation (Thorleif Jackson methodology), DK/DE tax planning, mortgage, pension, insurance | Stock valuation, tax optimization, loan analysis, retirement planning |
 
-**Auto-selected:** `megamind-deep`, `megamind-creative`. The adversarial and financial variants are opt-in.
+**Auto-selected:** all four, as the Megamind Reasoning group. When `review-process` uses one as a reviewer frame, its reviewer contract replaces the skill's standalone confirm-and-stop rules.
 
 The `megamind-financial` skill uses country-specific data files in `data/` (e.g., `dk-tax-2026.md`). See [IMPROVEMENT-PROCESS.md](IMPROVEMENT-PROCESS.md) for the annual DK tax data update procedure.
 
 #### Benchmark Results (Opus 4.6, original 30-challenge suite, 5 runs each)
 
-The results below are from the original 30-challenge suite — the 6 categories in the per-category table, 5 challenges each (financial not yet included). The suite has since grown to 109 challenges (current counts under Challenge Categories); for current multi-model results see [docs/BENCHMARKS.md](../../../docs/BENCHMARKS.md). Each challenge has a rubric with required elements and anti-patterns, scored by a Claude-as-judge pipeline.
+The results below are from the original 30-challenge suite — the 6 categories in the per-category table, 5 challenges each (financial not yet included). The suite has since grown to 110 challenges (current counts under Challenge Categories); for current multi-model results see [docs/BENCHMARKS.md](../../../docs/BENCHMARKS.md). Each challenge has a rubric with required elements and anti-patterns, scored by a Claude-as-judge pipeline.
 
 **Overall Performance:**
 
@@ -61,7 +61,7 @@ The results below are from the original 30-challenge suite — the 6 categories 
 **Running the benchmark** (requires `claude` CLI authenticated and in PATH):
 
 ```bash
-# Full run (109 challenges x 5 modes x 5 runs = 2725 combos)
+# Full run (110 challenges x 5 modes x 5 runs = 2750 combos)
 python3 tools/run_benchmark.py --workers 24 --runs 5 --save results/output.json
 
 # Single challenge smoke test
@@ -76,11 +76,11 @@ python3 tools/run_benchmark.py --runs 5 --save results/new.json --compare result
 
 #### Challenge Categories
 
-Challenges are YAML files in `tests/challenges/`. Each defines a prompt, required rubric elements, anti-patterns, and a passing score. Counts are the current suite (109 total); the Elements / Anti-patterns / Passing columns show the original rubric shape, which varies for newer challenges.
+Challenges are YAML files in `tests/challenges/`. Each defines a prompt, required rubric elements, anti-patterns, and a passing score. Counts are the current suite (110 total); the Elements / Anti-patterns / Passing columns show the original rubric shape, which varies for newer challenges.
 
 | Category | Count | Elements | Anti-patterns | Passing | Tests |
 |---|---|---|---|---|---|
-| adversarial | 12 | 8 | 3 | 6 | Red-teaming designs (caching, auth, feature flags, migrations, pipelines) |
+| adversarial | 13 | 8 | 3 | 6 | Red-teaming designs (caching, auth, feature flags, migrations, pipelines), plus one calibration case with no material flaw that penalises padded findings |
 | arch | 5 | 8 | 3 | 6 | Architecture decisions under ambiguity (DR strategy, build vs buy, event-driven, API gateway) |
 | creative | 12 | 8 | 3 | 6 | Creative problem-solving (rate limiting, CLI redesign, onboarding, alert fatigue, code review) |
 | cross | 5 | 10 | 3 | 7 | Cross-cutting concerns (stakeholder conflicts, incidents, security breaches, tech debt) |
@@ -123,7 +123,7 @@ Real-world validation comes from usage by software engineers who report that the
 
 | Skill | Purpose | When to Use |
 |-------|---------|-------------|
-| [copilot-cli](copilot-cli/) | Local GitHub Copilot CLI invocation contract | Running a non-Claude model (e.g. `gpt-5.4`) for cross-model review |
+| [copilot-cli](copilot-cli/) | Local GitHub Copilot CLI invocation contract | Running a non-Claude model for cross-model review |
 
 Reference skill, not a slash command. `review-process` consults it to run a
 second cross-model reviewer via `copilot -p`. Requires the `copilot` CLI on
