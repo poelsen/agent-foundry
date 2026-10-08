@@ -11,7 +11,7 @@ Two phases: build predictions (agent), then evaluate (Docker). Use
 --agent-only / --eval-only to run them separately.
 
 Usage:
-    python3 tools/run_swebench_agentic.py --model gpt-5.5 \
+    python3 tools/run_swebench_agentic.py --model <copilot-model> \
         --instances pallets__flask-5014 psf__requests-6028 --workers 2
 """
 

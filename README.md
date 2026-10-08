@@ -462,8 +462,8 @@ The `megamind-financial` skill uses country-specific data files in `cli/claude/s
 
 Skills are evaluated with a rubric-based judge (prose tasks) and with objective
 test-pass scoring (agentic coding). Subjects run across the model matrix —
-**gpt-5.5, gpt-5.4(-mini), claude-opus-4.7/4.6, claude-sonnet-4.6** — so you can
-pick the right model *and* skill per task. Headlines:
+**gpt-5.5, gpt-5.4(-mini), claude-opus-4.7/4.6, claude-sonnet-4.6**, re-checked in
+2026-10 on **opus-5.5, gpt-6.1-sol, sonnet-5.5, gemini-3.8-flash**. Headlines:
 
 **Which skill for which task** (rubric score, avg across models; each skill wins its own category):
 
@@ -475,13 +475,6 @@ pick the right model *and* skill per task. Headlines:
 | Red-team / design review | **megamind-adversarial** | 7.1 | 5.4 |
 | Vague requests ("make it faster") | **megamind-deep** (scope gate) | ~6.0 | ~0 |
 | Financial (valuation, DK/DE tax) | **megamind-financial** | 7.5 | ~5 |
-
-**Which model.** On **reasoning/financial prose**, Claude (opus-4.7, sonnet-4.6)
-leads at baseline and skilled; the GPTs start lower but gain most from skills. On
-**agentic coding** the ranking flips — gpt-5.5 ≈ 74% on a representative
-SWE-bench Verified sample (our scaffold) and tops the harder DeepSWE benchmark,
-where Claude trails. Pick by task: **Claude for judgment/analysis, gpt-5.5 for
-large multi-file coding.**
 
 **The skill principle.** Skills **add structure on their home task and rarely
 change the conclusion.** A 2026-10 re-check on opus-5.5, gpt-6.1-sol, sonnet-5.5
@@ -528,23 +521,23 @@ python3 tools/run_benchmark.py --runs 3 --save results/out.json
 # Specific skill (baseline auto-included for comparison)
 python3 tools/run_benchmark.py --skill megamind-deep --runs 3
 
-# Multi-model via Copilot, judged by latest opus (claude)
+# Cross-vendor subject via codex, judged by opus (claude)
 python3 tools/run_benchmark.py --challenges scope-001 scope-002 --skill megamind-deep --runs 3 \
-  --subject-backend copilot --subject-model gpt-5.5 \
+  --subject-backend codex --subject-model gpt-6.1-sol --subject-effort high \
   --judge-backend claude --judge-model opus
 
-# Dual-judge (gpt-5.5 + latest opus) — flags disagreements for human review
-... --judge2-backend copilot --judge2-model gpt-5.5 --judge-disagree-threshold 2
+# Dual-judge (opus + a cross-vendor model) — flags disagreements for human review
+... --judge2-backend codex --judge2-model gpt-6.1-sol --judge2-effort xhigh --judge-disagree-threshold 2
 
-# Max reasoning effort (Copilot subjects)
-COPILOT_EFFORT=max python3 tools/run_benchmark.py ...
+# Reasoning effort per role (subject, judge, judge2)
+python3 tools/run_benchmark.py ... --subject-effort max
 ```
 
 **Agentic coding** (objective, test-pass scored — no judge):
 
 ```bash
 # SWE-bench Verified via Copilot + Docker eval
-python3 tools/run_swebench_agentic.py --model gpt-5.5 --instances pallets__flask-5014
+python3 tools/run_swebench_agentic.py --model <copilot-model> --instances pallets__flask-5014
 
 # DeepSWE via Copilot (no API keys) — setup in tools/deepswe/README.md
 ```

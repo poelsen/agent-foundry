@@ -10,8 +10,8 @@ Skill injection: a skill mode writes the skill's SKILL.md into the sandbox at
 .github/skills/<skill>/ (Copilot loads these natively) so the agent can use it.
 
 Usage:
-    python3 tools/run_swe_agentic.py --model gpt-5.5 --skill megamind-deep
-    python3 tools/run_swe_agentic.py --model claude-opus-4.7 --workers 2 --save results/swe-opus47.json
+    python3 tools/run_swe_agentic.py --model <copilot-model> --skill megamind-deep
+    python3 tools/run_swe_agentic.py --model <copilot-model> --workers 2 --save results/swe.json
 """
 
 from __future__ import annotations
@@ -116,7 +116,7 @@ def run_one(task: Path, model: str, skill: str | None) -> dict:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Agentic SWE benchmark (test-pass scored)")
-    ap.add_argument("--model", required=True, help="Copilot model id (e.g. gpt-5.5, claude-opus-4.7)")
+    ap.add_argument("--model", required=True, help="Copilot model id from your catalog")
     ap.add_argument("--skill", nargs="*", default=[None],
                     help="Skill modes to test (baseline always included)")
     ap.add_argument("--tasks", nargs="*", help="Specific task ids")

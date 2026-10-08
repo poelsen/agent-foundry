@@ -4,11 +4,11 @@ Auth is transplanted from the host's interactive `copilot login` session: the
 ~/.copilot/config.json (which holds `copilotTokens` + `loggedInUsers`, ~3.8KB)
 is passed in base64 via the COPILOT_CONFIG_B64 env var and written into the
 sandbox. This is the only file needed for full model access (verified: a fresh
-HOME with just config.json gives `copilot --model gpt-5.5`).
+HOME with just config.json gives `copilot --model <model>`).
 
 Run with:
     export COPILOT_CONFIG_B64=$(base64 -w0 ~/.copilot/config.json)
-    pier run -p deep-swe/tasks/<id> --agent copilot --model gpt-5.5
+    pier run -p deep-swe/tasks/<id> --agent copilot --model <model>
 """
 
 import re

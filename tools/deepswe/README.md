@@ -1,7 +1,7 @@
 # DeepSWE via Copilot CLI (no API keys)
 
 Run the [DeepSWE](https://github.com/datacurve-ai/deep-swe) benchmark with our
-**GitHub Copilot CLI** models (gpt-5.5, etc.) and **no API keys** — auth is
+**GitHub Copilot CLI** models and **no API keys** — auth is
 transplanted from the host's `copilot login` session.
 
 `pier_copilot_agent.py` is a custom [Pier](https://github.com/datacurve-ai/pier)
@@ -12,7 +12,7 @@ injects the host credential instead.
 ## Why it works (the auth crack)
 The interactive `copilot login` session is fully contained in
 `~/.copilot/config.json` (~3.8KB: `copilotTokens` + `loggedInUsers`). Verified:
-a fresh `$HOME` with only that file gives full model access (`--model gpt-5.5`).
+a fresh `$HOME` with only that file gives full model access (`--model <model>`).
 The agent base64-injects it via `COPILOT_CONFIG_B64` into the sandbox — no volume
 mount, no keyring. (`GH_TOKEN` alone only exposes the `default`/`auto` model.)
 
@@ -31,11 +31,11 @@ uv venv .pier-venv && uv pip install --python .pier-venv/bin/python -e ./pier
 ```bash
 export COPILOT_CONFIG_B64=$(base64 -w0 ~/.copilot/config.json)   # auth, required
 # baseline:
-.pier-venv/bin/pier run -p deep-swe/tasks --agent copilot --model gpt-5.5 \
+.pier-venv/bin/pier run -p deep-swe/tasks --agent copilot --model <model> \
     --n-tasks 6 --sample-seed 0
 # with an injected reasoning skill (baseline-vs-skill comparison):
 export COPILOT_SKILL_B64=$(base64 -w0 path/to/megamind-deep/SKILL.md)
-.pier-venv/bin/pier run -p deep-swe/tasks --agent copilot --model gpt-5.5 \
+.pier-venv/bin/pier run -p deep-swe/tasks --agent copilot --model <model> \
     --n-tasks 6 --sample-seed 0
 ```
 Score = task verifier reward (1.0 = resolved). Objective, no judge.

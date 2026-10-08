@@ -176,7 +176,7 @@ class TestUtf8StdioReconfigure:
 
     # Characters that crashed on the original issue's Windows cp1252 console.
     # Keep this list aligned with the issue body.
-    CRASHING_CHARS = ["✓", "✗", "⚠", "—"]
+    CRASHING_CHARS = ("✓", "✗", "⚠", "—")
 
     def test_ensure_utf8_stdio_is_callable_and_safe(self):
         """Calling it on the real stdout/stderr must not raise."""

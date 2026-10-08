@@ -36,7 +36,7 @@ def _script_path(tmp_path: Path, skill: str, script: str) -> Path:
 class TestPrjSkillStructure:
     """Verify all prj-* skills have the required files."""
 
-    PRJ_SKILLS = ["prj-new", "prj-list", "prj-pause", "prj-resume", "prj-done", "prj-delete"]
+    PRJ_SKILLS = ("prj-new", "prj-list", "prj-pause", "prj-resume", "prj-done", "prj-delete")
 
     @pytest.mark.parametrize("skill", PRJ_SKILLS)
     def test_skill_has_skill_md(self, skill: str):
@@ -78,7 +78,7 @@ class TestPrjCommandFiles:
     same name, or the slash menu shows each prj-* twice."""
 
     COMMANDS_DIR = REPO_ROOT / "cli" / "claude" / "commands"
-    PRJ_COMMANDS = ["prj-new", "prj-list", "prj-pause", "prj-resume", "prj-done", "prj-delete"]
+    PRJ_COMMANDS = ("prj-new", "prj-list", "prj-pause", "prj-resume", "prj-done", "prj-delete")
 
     @pytest.mark.parametrize("cmd", PRJ_COMMANDS)
     def test_no_duplicate_wrapper_command(self, cmd: str):
