@@ -23,10 +23,10 @@ Escalate when the change touches:
 | Trigger | Executed reviewer/agent | Rule set to apply |
 |---------|-------------------------|-------------------|
 | CLI/script behavior | `code-reviewer-python` | Scripts and CLI rules |
-| Service/worker lifecycle | `architect-python` or `code-reviewer-python` | Lifecycle/cancellation checks |
+| Service/worker lifecycle | `code-reviewer-python` (`architect-python` when the change reshapes module boundaries) | Lifecycle/cancellation checks |
 | Security-sensitive input, files, network, auth | `security-reviewer-python` | Security checks |
-| Test strategy for CLI/service behavior | `tdd-guide-python` | Pytest/fake/process checks |
-| Build/lint/runtime failure | `build-error-resolver-python` | Existing tool output |
+| Test strategy for CLI/service behavior | `tdd-guide-python`, report-only | Pytest/fake/process checks |
+| Build/lint/runtime failure | `build-error-resolver-python`, report-only | Existing tool output |
 
 ## CLI and script checklist
 

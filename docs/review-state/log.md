@@ -314,48 +314,48 @@ Verification: test_adapters.py::test_private_source_registered_on_non_claude_run
 Type: PROCESS_NOTE
 Source review: docs/review-state/T2-2026-09-24-multi-cli.md (T2, 2026-09-24)
 Tag: process/under-specified
-Status: OPEN
+Status: RESOLVED
 Owner: not-assigned
 Trigger: next review-process structural change
 Evidence: User: "the t2 review process specifically states issues are to be fixed"; SKILL.md: "If the mode is absent, assume AUDIT_ONLY" vs Historical intent "triage and implement fixes across all severities"
 Action: Ask for the mode in the same strategy prompt (or state the default explicitly in the review header prompt) so the user can pick FIX_AUTHORIZED up front
-Verification: Next review-process edit resolves the contradiction between the mode default and the historical intent
+Verification: The mode is asked whenever the invocation does not name one, also when it names a strategy — first passing run: docs/review-state/T4-2026-10-08-review-consistency.md (strategy and mode asked in one call)
 
 ## RS-PN2: Frame skill accepted without evidence it was applied
 
 Type: PROCESS_NOTE
 Source review: docs/review-state/T2-2026-09-24-multi-cli.md (T2, 2026-09-24)
 Tag: process/reviewer-routing
-Status: OPEN
+Status: RESOLVED
 Owner: not-assigned
 Trigger: next review-process structural change
 Evidence: Pass-1 Reviewer B was told to apply megamind-adversarial; its report had no persona attack, pre-mortem, inversion or second-order sections, and the orchestrator accepted it
 Action: Reviewer prompts must require the frame skill's steps as visible sections; the orchestrator checks them before accepting a report and records who applied which skill in the header
-Verification: Every reviewer report in the re-review pass shows its skill's sections
+Verification: Every reviewer report shows its frame's sections with evidence under each, checked before acceptance — first passing run: docs/review-state/T4-2026-10-08-review-consistency.md
 
 ## RS-PN3: Required review-output parts skipped
 
 Type: PROCESS_NOTE
 Source review: docs/review-state/T2-2026-09-24-multi-cli.md (T2, 2026-09-24)
 Tag: process/under-specified
-Status: OPEN
+Status: RESOLVED
 Owner: not-assigned
 Trigger: next review-process structural change
 Evidence: Pass-1 output omitted the runtime detection step and printed a condensed table instead of the full ledger shape (Status, Prevention action, convergence, per-finding Evidence/Impact/guards)
 Action: Record runtime profile in the header; write the full ledger (this directory) and summarise it in chat
-Verification: This record's header and ledger
+Verification: Header carries the runtime profile and the full ledger is written to docs/review-state/ — first passing run: docs/review-state/T4-2026-10-08-review-consistency.md
 
 ## RS-PN4: A reviewer finding was dropped between report and ledger
 
 Type: PROCESS_NOTE
 Source review: docs/review-state/T2-2026-09-24-multi-cli.md (T2, 2026-09-24)
 Tag: process/under-specified
-Status: OPEN
+Status: RESOLVED
 Owner: not-assigned
 Trigger: next review-process structural change
 Evidence: A-13(d) (--private on non-Claude runs) was in Reviewer A's report but missing from the orchestrator's first-pass table
 Action: Map every reviewer finding ID to a ledger ID (merged or separate) before presenting; recorded late as F24
-Verification: Cross-check reviewer IDs against ledger IDs in every review
+Verification: Cross-check reviewer IDs against ledger IDs in every review — first passing run: docs/review-state/T4-2026-10-08-review-consistency.md (mapping line A-1…B-6 → F1…F16)
 
 ## RS-R1: Dropping a target stripped the Claude header through an AGENTS.md symlink
 
@@ -692,3 +692,15 @@ Trigger: any new config writer
 Evidence: R2-2 — empty project files deleted because "empty after reconcile" was taken to mean "held only foundry entries"
 Action: Writers compare against the original content: no change → no write; delete only after removing the foundry's own entries left nothing else
 Verification: test_shared_outputs.py::test_projects_empty_mcp_json_survives; test_agy_adapter.py::test_projects_empty_config_files_survive
+
+## RS-PN5: Adversarial frame required a minimum number of findings
+
+Type: PROCESS_NOTE
+Source review: audit of the review-process family (2026-10-08)
+Tag: process/reviewer-routing
+Status: OPEN
+Owner: not-assigned
+Trigger: a reviewer report pads findings or rates a nit HIGH to look thorough, or a skill or rubric reintroduces a finding minimum
+Evidence: megamind-adversarial required "at least 3 weaknesses" and a second round that "must find NEW weaknesses"; review-process routed it as a standard reviewer at T1-T4, where every finding must be dispositioned and FIX_NOW findings are applied in fix modes; rubrics adversarial-001/002 scored the quota
+Action: removed the quota from megamind-adversarial; review-process "Reviewer contract" states there is no minimum and its "No quota, no invented issues" item requires a concrete trigger that nothing already handles and that the change caused; code-reviewer and security-reviewer apply the same test; rubrics 001/002 score concreteness; calibration challenge adversarial-013 penalises padding. 2026-10-08 runs: every Opus 5.5 and Flash 3.8 mode (baselines included) still padded on adversarial-013, so padding is a model habit, not only a quota effect
+Verification: adversarial-013 (reworked premise) passes for megamind-adversarial without pads_findings or inflates_severity

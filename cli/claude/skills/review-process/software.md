@@ -29,14 +29,16 @@ Escalate the risk tier when a change touches:
 | Non-trivial scope, sequencing, rollback, compatibility | Pragmatic frame | Shared completion and authority policy |
 | Architecture or public API boundary | `architect-*` agent for the stack | Architecture checklist |
 | Security, input, persistence, path, secret, or sharing risk | `security-reviewer-*` agent | Security checklist for the stack |
-| Feature, bug fix, or regression-sensitive change | `tdd-guide-*` agent | Test checklist |
-| Cleanup, migration completeness, dead code, duplicate logic | `refactor-cleaner-*` agent | Code-smell and migration checklist |
-| Build, lint, type, test, dependency, or packaging failure | `build-error-resolver-*` agent | Existing tool output |
+| Feature, bug fix, or regression-sensitive change | `tdd-guide-*` agent, report-only | Test checklist |
+| Cleanup, migration completeness, dead code, duplicate logic | `refactor-cleaner-*` agent, report-only | Code-smell and migration checklist |
+| Build, lint, type, test, dependency, or packaging failure | `build-error-resolver-*` agent, report-only | Existing tool output |
 | New decomposition or T4 review | `megamind-creative` | Alternate decomposition review |
 
 Substitute the language suffix as installed: `-python`, `-typescript`,
 `-python-web`, `-python-qt`. If the agent for the stack is not installed,
-record the gap in the review header.
+record the gap in the review header. Every routed agent runs under the
+[Reviewer contract](SKILL.md#reviewer-contract): read-only, findings in the
+ledger shape, no minimum finding count.
 
 ## Review flow
 

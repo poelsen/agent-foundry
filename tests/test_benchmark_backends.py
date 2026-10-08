@@ -36,6 +36,21 @@ def test_backend_table_covers_all_clis():
     assert set(rb.BACKENDS) == {"claude", "copilot", "codex", "agy"}
 
 
+def test_claude_effort_is_explicit(fake_run, monkeypatch):
+    # Without BENCH_CLAUDE_EFFORT the CLI falls back to the user's settings.json,
+    # so a run is only reproducible when the effort is passed explicitly. (Not
+    # CLAUDE_EFFORT: Claude Code exports that into its own shells.)
+    monkeypatch.delenv("BENCH_CLAUDE_EFFORT", raising=False)
+    fake_run.reply = (0, json.dumps({"type": "result", "result": " hi "}), "")
+    assert rb._invoke("p", "claude", "claude-sonnet-5-5") == "hi"
+    assert "--effort" not in fake_run[0]["cmd"]
+
+    monkeypatch.setenv("BENCH_CLAUDE_EFFORT", "xhigh")
+    rb._invoke("p", "claude", "claude-sonnet-5-5")
+    cmd = fake_run[1]["cmd"]
+    assert cmd[cmd.index("--effort") + 1] == "xhigh"
+
+
 def test_codex_reads_final_answer_file(fake_run, monkeypatch):
     monkeypatch.setenv("CODEX_EFFORT", "high")
 
@@ -52,6 +67,31 @@ def test_codex_reads_final_answer_file(fake_run, monkeypatch):
     assert 'model_reasoning_effort="high"' in call["cmd"]
     assert call["input"] == "long prompt"         # prompt on stdin, not argv
     assert "long prompt" not in call["cmd"]
+
+
+def test_explicit_effort_overrides_env_per_call(fake_run, monkeypatch):
+    # Subject and judge can share a backend (codex subject at high, codex judge
+    # at xhigh), so the effort is passed per call and beats the env var.
+    monkeypatch.setenv("CODEX_EFFORT", "low")
+
+    def reply(cmd, kwargs):
+        Path(cmd[cmd.index("-o") + 1]).write_text("a")
+        return (0, "", "")
+
+    fake_run.reply = reply
+    rb._invoke("p", "codex", "gpt-6.1-sol", effort="high")
+    rb._invoke("p", "codex", "gpt-6.1-sol", effort="xhigh")
+    rb._invoke("p", "codex", "gpt-6.1-sol")
+    efforts = [next(a for a in c["cmd"] if a.startswith("model_reasoning_effort")) for c in fake_run]
+    assert efforts == ['model_reasoning_effort="high"', 'model_reasoning_effort="xhigh"',
+                       'model_reasoning_effort="low"']
+
+
+def test_copilot_effort_flag(fake_run):
+    fake_run.reply = (0, "ok", "")
+    rb._invoke("p", "copilot", "some-model", effort="high")
+    cmd = fake_run[0]["cmd"]
+    assert cmd[cmd.index("--reasoning-effort") + 1] == "high"
 
 
 def test_codex_failure_raises(fake_run):
@@ -76,3 +116,36 @@ def test_agy_api_error_raises(fake_run):
     fake_run.reply = (3, json.dumps({"status": "ERROR", "error": "503 unavailable"}), "")
     with pytest.raises(RuntimeError, match="503 unavailable"):
         rb._invoke("p", "agy", "gemini-3.8-flash-low")
+
+
+def test_agy_denied_tool_with_empty_response_raises(fake_run):
+    # Headless agy auto-denies tools that need approval and can then answer with
+    # nothing while still reporting SUCCESS; that must never be scored as a reply.
+    denied = {"status": "SUCCESS", "response": "",
+              "denied_actions": [{"action": "command", "display_name": "RunCommand"}]}
+    fake_run.reply = (0, json.dumps(denied), "jetski: no output produced")
+    with pytest.raises(RuntimeError, match="no output produced"):
+        rb._invoke("p", "agy", "gemini-3.8-flash-high")
+
+
+def test_agy_skip_permissions_is_opt_in(fake_run, monkeypatch):
+    fake_run.reply = (0, json.dumps({"status": "SUCCESS", "response": "ok"}), "")
+    rb._invoke("p", "agy", "gemini-3.8-flash-high")
+    assert "--dangerously-skip-permissions" not in fake_run[0]["cmd"]
+
+    monkeypatch.setenv("AGY_SKIP_PERMISSIONS", "1")
+    rb._invoke("p", "agy", "gemini-3.8-flash-high")
+    assert "--dangerously-skip-permissions" in fake_run[1]["cmd"]
+
+
+def test_results_json_records_errored_runs():
+    # An errored combo has no EvalResult; without a count the mode's average
+    # silently covers fewer runs than the other modes.
+    from eval_rubric import load_challenge
+    challenge = load_challenge(rb.CHALLENGES_DIR / "scope-001.yaml")
+    all_results = {challenge.id: {"baseline": []}}
+    errors = {challenge.id: {"baseline": ["agy CLI gave no answer"]}}
+    data = rb.results_to_json([challenge], all_results, [None], errors)
+    assert data["challenges"][challenge.id]["modes"]["baseline"]["errors"] == ["agy CLI gave no answer"]
+    clean = rb.results_to_json([challenge], all_results, [None])
+    assert "errors" not in clean["challenges"][challenge.id]["modes"]["baseline"]

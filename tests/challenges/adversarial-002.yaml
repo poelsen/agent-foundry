@@ -13,7 +13,7 @@ prompt: |
 rubric:
   required_elements:
     states_plan: "Clearly restates the proposed plan before attacking it"
-    finds_3_weaknesses: "Identifies at least 3 concrete weaknesses in the plan"
+    concrete_weaknesses: "Every weakness raised against the plan is concrete (a specific scenario plus a severity), and minor ones are labelled minor"
     shared_db_attack: "Specifically attacks the 'share database initially' decision"
     timeline_attack: "Challenges the 3-month timeline with specific reasoning"
     team_size_concern: "Questions whether 4 engineers can handle this scope"

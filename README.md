@@ -307,6 +307,7 @@ The config gate (searched from the edited file up to the repository root) keeps 
 
 ### Upgrading from earlier releases
 
+- **Reviews no longer require a minimum number of findings.** `megamind-adversarial` used to insist on at least three weaknesses; a review that finds nothing material is now a valid result, as long as it lists what it checked. `review-process` gained a reviewer contract that every routed skill and agent follows (read-only reviewers, severity set by impact, every reviewer finding mapped to the ledger), and it no longer pins model versions: it uses the session model and each cross-vendor CLI's default unless you name a model.
 - **Claude Code output limits.** `.claude/settings.json` now caps command output at 16,000 characters (longer output goes to a file with a preview) and blocks `cat` of large files; see [Hooks](#hooks).
 - **Hooks now actually run.** Earlier releases wrote a `settings.json` matcher that never matched, so the selected hooks never fired; they now do, gated as above.
 - **Copilot skills moved** from `.github/skills/` to the shared `.agents/skills/`; the foundry's four old `megamind-*` copies are removed (only when their `SKILL.md` names that skill).
@@ -451,7 +452,7 @@ The megamind skills are reasoning enhancers that improve Claude's performance on
 | **megamind-adversarial** | Red-team — attack the obvious approach, find failure modes, stress-test | Security review, design review, finding weaknesses |
 | **megamind-financial** | Multi-domain financial analysis — investment valuation (Thorleif Jackson methodology), DK/DE tax planning, mortgage, pension, insurance | Stock valuation, tax optimization, loan/mortgage analysis, retirement planning |
 
-`megamind-deep` and `megamind-creative` are auto-selected during `setup.py init`. The adversarial and financial variants are opt-in.
+The Megamind group (all four skills) is on by default in `setup.py init`; see [Skill Selection](#skill-selection-groups-hidden-skills-gating). When `review-process` uses a megamind skill as a reviewer frame, its reviewer contract replaces the skill's standalone confirm-and-stop rules.
 
 The `megamind-financial` skill uses country-specific data files in `cli/claude/skills/megamind-financial/data/` (e.g., `dk-tax-2026.md`). See [cli/claude/skills/IMPROVEMENT-PROCESS.md](cli/claude/skills/IMPROVEMENT-PROCESS.md) for the annual DK tax data update procedure.
 
@@ -482,12 +483,12 @@ SWE-bench Verified sample (our scaffold) and tops the harder DeepSWE benchmark,
 where Claude trails. Pick by task: **Claude for judgment/analysis, gpt-5.5 for
 large multi-file coding.**
 
-**The skill principle.** Skills help **in inverse proportion to model strength** —
-big lift on weaker models/baselines (scope +5–7 on lesser models; financial +2.3
-on Sonnet), little-to-none on frontier models on coding (gpt-5.5 agentic net-0).
-So: **always enable the megamind skills for reasoning/financial/scope** (clear
-win, every model, ~free); for **agentic coding, rely on a strong model** —
-reasoning skills are upside only on weaker ones.
+**The skill principle.** Skills **add structure on their home task and rarely
+change the conclusion.** A 2026-10 re-check on opus-5.5, gpt-6.1-sol, sonnet-5.5
+and gemini-3.8-flash found the home-task lift as large on frontier models as on
+Flash, process-blind outcomes nearly unchanged, and off-domain use often harmful
+([docs/BENCHMARKS.md §5](docs/BENCHMARKS.md)). So: **use the megamind skills by
+fit**, and for **agentic coding, rely on a strong model**.
 
 The **scope gate** (added after benchmarking found vague prompts were the one
 universal weakness) takes every model from cratering (~0, almost never passing)
@@ -552,13 +553,14 @@ python3 tools/run_swebench_agentic.py --model gpt-5.5 --instances pallets__flask
 
 A tiered review-orchestration skill that turns scattered reviewers into a disciplined workflow. Default-on in `setup.py init`; activates on `/review-process` or whenever a change/decision/PR is about to be reviewed.
 
-> **Rollout note for existing projects.** `review-process` is in the `always_on` set, so it auto-appears on the next `/update-foundry` even if it's missing from a stale manifest. The skill is dormant until invoked — adding the files costs ~30 KB on disk and zero runtime overhead until you use `/review-process`. To remove it, delete `.claude/skills/review-process/` and `.claude/commands/review-process.md` after the update; foundry will re-add them on the run after that unless you also remove it from `always_on` in `tools/setup.py`. If this default-on behavior is unwanted, file an issue and we'll move it to a normal opt-in toggle.
+> **Rollout note for existing projects.** `review-process` is in the `always_on` set, so it auto-appears on the next `/update-foundry` even if it's missing from a stale manifest. The skill is dormant until invoked — adding the files costs ~30 KB on disk and zero runtime overhead until you use `/review-process`. To remove it, delete `.claude/skills/review-process/` after the update; foundry will re-add it on the run after that unless you also remove it from `always_on` in `tools/foundry/selection.py`. If this default-on behavior is unwanted, file an issue and we'll move it to a normal opt-in toggle.
 
 ### What it adds
 
 - **Risk tiers T0–T4** — mechanical → normal → integrated → high-risk → release/post-incident
 - **Review modes** — `AUDIT_ONLY`, `FIX_AUTHORIZED`, `FIX_AND_COMMIT_AUTHORIZED`
-- **Model strategies** — `SINGLE_FAST`, `DIVERSE_STANDARD`, `PREMIUM_TARGETED`, `MIXED_PREMIUM`, `USER_SPECIFIED`
+- **Model strategies** — `SINGLE_FAST`, `DIVERSE_STANDARD`, `PREMIUM_TARGETED`, `MIXED_PREMIUM`, `USER_SPECIFIED`; asked once per T1+ review together with the mode, with no pinned model versions (session model, or the cross-vendor CLI's default)
+- **Reviewer contract** — reviewers are read-only, set severity by impact (checklist hits are prompts, not severities), and have no minimum finding count; the orchestrator checks that each frame's sections are present and maps every reviewer finding to a ledger ID
 - **Reviewer routing** — triggers map to existing foundry reviewers (`megamind-*` skills + `code-reviewer-*`, `security-reviewer-*`, `tdd-guide-*`, `architect-*`, `refactor-cleaner-*`, `build-error-resolver-*` agents)
 - **Finding ledger** — every finding gets severity, confidence, evidence strength, disposition, and prevention action
 - **Reviewer compaction** — at most one reviewer per concern; adversarial covers cross-concern interactions
@@ -602,7 +604,7 @@ copilot -p "<prompt>" --model <model> --allow-all-tools -s
   (`copilot` once interactively to sign in). Verify with `copilot --version`.
 - **Token cost:** spends your GitHub Copilot subscription, not Anthropic tokens.
 - **Primary consumer:** `review-process` references it to run a second,
-  cross-model reviewer (e.g. `gpt-5.4`) under the `DIVERSE_STANDARD` strategy.
+  cross-model reviewer (the CLI's default model, or one you name) under the `DIVERSE_STANDARD` strategy.
   If `copilot` is not installed, review-process falls back to a second Claude
   run automatically — the CLI is an enhancement, never a hard dependency.
 

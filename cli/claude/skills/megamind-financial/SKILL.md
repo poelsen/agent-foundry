@@ -370,13 +370,13 @@ Every quantitative finding must be anchored to the nearest **decision boundary**
 
 **Root-cause grouping:** Group by root cause, not symptom. "If I fix A, does B resolve?" → B is a corollary. Report as test case under A. **Corollaries must still be independently verified after fix ships.**
 
-**Severity:** CRITICAL = crosses decision boundary. HIGH = reaches output but doesn't cross, or affects large subset. MEDIUM = precision loss, no classification impact. LOW = <1% of data. INFO = style/observation.
+**Severity:** CRITICAL = crosses decision boundary. HIGH = reaches output but doesn't cross, or affects large subset. MEDIUM = precision loss, no classification impact. LOW = <1% of data. Style observations are not findings; list them separately as notes.
 
 **Mandatory finding template:**
 
 ```
 ### FINDING-<N>: <title>
-**Severity**: CRITICAL | HIGH | MEDIUM | LOW | INFO
+**Severity**: CRITICAL | HIGH | MEDIUM | LOW
 **Entity level**: <F1 level affected>
 **What**: <error + code location>
 **Error magnitude**: <measured | estimated (method)> — <X>% on <metric>
@@ -413,6 +413,10 @@ Classify every numeric constant before evaluating it:
 **Sanity checks:** `price × shares ≈ market_cap` (5%). `EV/EBITDA ÷ P/E` in 0.7-2.0x. `yield × market_cap ≤ 1.2 × net_income`. Source quirks need explicit handling, not silent fallback.
 
 ---
+
+## As a reviewer frame
+
+When a review process runs this skill as a reviewer, its reviewer contract governs output, authority, finding IDs, and the final severity, and Rules 1 and 12 do not apply. For a financial data system, use F0-F4 and carry the threshold inventory, error magnitude, nearest boundary, and blast radius into the caller's Evidence and Impact fields; F3/F4 are evidence, not a separate grade. For a cost or financial-model decision, use the matching Section A-E and show the assumptions and sensitivity checked. A review with no material finding says so and lists what was checked.
 
 ## Rules (Apply to All Sections)
 

@@ -138,23 +138,51 @@ DeepSWE, max effort, baseline vs skill — resolve counts:
 
 ---
 
+## 5. 2026-10 re-check on current models (opus-5.5 judge, 1 run)
+
+Subjects: claude-opus-5.5 (xhigh), gpt-6.1-sol (high, via codex), claude-sonnet-5.5
+(xhigh), gemini-3.8-flash-high (via agy). 5–10 challenges each, pre-change skills;
+gpt-6.1-sol at xhigh as a cross-check judge (agrees with Opus on 73–90% of cells,
+0 to −0.5 points harsher). Home skill on its home challenge, baseline → skill:
+
+| Challenge (home skill) | Opus 5.5 | Sol 6.1 | Sonnet 5.5 | Flash 3.8 |
+|---|---|---|---|---|
+| adversarial-006 (adversarial) | 2 → 8 | 2 → 8 | 2 → 8 | 2 → 7 |
+| adversarial-008 (adversarial) | 6 → 6 | 5 → 6 | 6 → 7 | 4 → 5 |
+| creative-006 (creative) | 3 → 7 | 3 → 8 | 3 → 6 | 3 → 7 |
+| deep-006 (deep) | 6 → 7 | 5 → 7 | 4 → 7 | 2 → 4 |
+| scope-004 (deep's scope gate) | −2 → 6 | −2 → 6 | 0 → 0 | 6 → 6 |
+| Process-blind outcomes, baseline vs best skill | 11/12 vs 11/12 | 10/12 vs 10/12 | 12/14 vs 12/14 | 9/14 vs 8/14 |
+
+- The structure gain on the home task is as large on frontier models as on Flash.
+- Outcomes (does the answer change the decision?) barely move for any model;
+  Sol is the only one where a skill recovered outcomes on its home challenge (twice).
+- Off-domain a skill often hurts (deep on a creative task: Sol −1 with 0/3
+  outcomes, Flash −3).
+- On the clean-change calibration case (adversarial-013) Opus and Flash padded
+  findings in every mode, baselines included: padding is a model habit, not only a
+  quota effect.
+- Single-cell noise is about ±3 (the same Opus baseline scored 2 and 5 in two runs).
+
+---
+
 ## The principle
 
-> **Skills help in inverse proportion to model strength.**
-> Large lift on weak models / weak baselines (scope +5–7 on lesser models;
-> financial +2.3 on Sonnet; gpt-5.4 SWE +3). Small-to-none on frontier models
-> that already do the work themselves (gpt-5.5 coding net-0).
+> **Skills add structure on their home task; they rarely change the conclusion.**
+> The 2026-10 re-check (§5) found the home-task lift as large on frontier models
+> as on Flash, while process-blind outcomes barely moved. Earlier runs (§1–4) showed
+> larger lifts on weaker models and net-0 on frontier agentic coding.
 
-Practical guidance: **always worth enabling the megamind skills** — they help
-clearly on reasoning/financial/scope for every model, and the cost is a one-time
-prompt. For **agentic coding**, lean on the model's own capability (use a strong
-model); skills are upside only on weaker/cheaper models.
+Practical guidance: **use the megamind skills by fit, not always** — on their home
+task they reliably add structure and depth, and off-domain they often hurt. The
+scope gate matters most for models that dive straight into a vague request
+(Opus 5.5, Sol 6.1). For **agentic coding**, lean on the model's own capability.
 
 ---
 
 ## Caveats & honesty
 
-- **Single-run** for reasoning/financial (n=1) → directional, not significance-tested.
+- **Single-run** for reasoning/financial and the §5 re-check (n=1) → directional, not significance-tested.
   Scope used 3 runs (more robust). Agentic runs are single-run; the per-task
   variance is real (a Sonnet baseline measured 3/7 and 5/10 on overlapping tasks).
 - **One judge** for reasoning/financial (opus-4.7). A judge can have stylistic

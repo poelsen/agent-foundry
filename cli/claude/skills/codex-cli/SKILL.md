@@ -39,7 +39,7 @@ cat "$out"
 | Flag | Why it is required |
 |------|--------------------|
 | `exec` | Non-interactive mode; runs the prompt and exits. |
-| `-m <model>` | Target model, e.g. `gpt-5.5`. Omit to use the CLI default. |
+| `-m <model>` | Target model, e.g. `gpt-6.1-sol`. Omit to use the CLI default. |
 | `-c 'model_reasoning_effort="…"'` | `low` / `medium` / `high` / `xhigh`. Omit for the model default. |
 | `-s read-only` | Reviewers read, never write. Codex's default for `exec`, stated explicitly. |
 | `--skip-git-repo-check` | Allows running outside a git repository. |
@@ -57,7 +57,7 @@ on stderr).
 ## Models
 
 List what the user's account can use with `codex debug models`. Common:
-`gpt-5.5`, `gpt-5.6-sol`, `gpt-6-luna`. If a model is rejected, surface the
+`gpt-6.1-sol`, `gpt-6-astra`, `gpt-6-luna`. If a model is rejected, surface the
 CLI's error verbatim rather than silently substituting another model.
 
 ## Cost & honesty
