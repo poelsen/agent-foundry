@@ -48,7 +48,7 @@ Exit codes: 0 succeeded, 1 failed (or timeout/cancelled/lost), 2 usage error,
 ```json
 {
   "job": "fix-auth", "run": 1, "status": "succeeded",
-  "target": "codex", "mode": "write", "model": "gpt-5.5",
+  "target": "codex", "mode": "write", "model": "gpt-6.1-sol",
   "host": "claude", "chain": "claude>codex",
   "workdir": "/home/you/git/app-delegate-fix-auth", "branch": "delegate/fix-auth",
   "exit_code": 0, "duration_s": 212.4,
@@ -121,7 +121,7 @@ wrong types are errors.
   "pass_env": [],
   "targets": {
     "claude":  {"enabled": true, "model": null, "effort": null},
-    "codex":   {"enabled": true, "model": "gpt-5.5", "effort": "high",
+    "codex":   {"enabled": true, "model": "gpt-6.1-sol", "effort": "high",
                 "sandbox": "enforce", "network": false},
     "agy":     {"enabled": true, "model": "gemini-3.1-pro-high"},
     "copilot": {"enabled": false}

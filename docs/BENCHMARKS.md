@@ -20,7 +20,7 @@ decide **which model and which skill to reach for on which kind of task.**
 - **Judge** (prose tasks only): a fixed model scores each response against the
   challenge's rubric (required elements, anti-patterns, depth). Reasoning/financial
   used **opus-4.7**; the scope re-test used **opus-4.8**. Dual-judge
-  (gpt-5.5 + opus, flag disagreements) is supported via `--judge2-*`.
+  (opus + a cross-vendor model, flag disagreements) is supported via `--judge2-*`.
 - **Effort:** reasoning/financial were run at the CLI default; scope and the
   agentic runs at **max** reasoning effort (`--effort max`).
 - **Challenges:** YAML in `tests/challenges/` (rubric per challenge). Categories:
@@ -108,17 +108,6 @@ model fixes a real issue. **Important:** our agent is a bare `copilot -p
 **below** the public tuned-scaffold leaderboards. Use these for *relative*
 model/skill comparison, not as capability ceilings.
 
-### gpt-5.5 baseline solve-rate (our scaffold)
-
-| Benchmark | our gpt-5.5 | published reference |
-|---|---|---|
-| **SWE-bench Verified** (representative random n=50) | **74%** | frontier ~85–88% (tuned); all-model avg 65.5% |
-| **DeepSWE** (n=40, max effort — larger multi-file tasks) | **35%** | DeepSWE ranks gpt-5.5 ~70% (tuned) ≫ opus-4.7 ~54% |
-
-DeepSWE (large, multi-file changes) is much harder than SWE-bench Verified
-(small patches) — and the two leaderboards rank models *oppositely* (Opus tops
-Verified; gpt-5.5 tops DeepSWE). Pick the benchmark that matches your task size.
-
 ### Do reasoning skills help agentic coding? Only weaker models.
 
 DeepSWE, max effort, baseline vs skill — resolve counts:
@@ -196,15 +185,15 @@ scope gate matters most for models that dive straight into a vague request
 ## Reproduce
 
 ```bash
-# Reasoning / financial / scope (prose, rubric-judged) — subject via Copilot, judge via claude
+# Reasoning / financial / scope (prose, rubric-judged) — subject via codex, judge via claude
 python3 tools/run_benchmark.py --challenges scope-001 scope-002 scope-003 scope-004 scope-005 \
   --skill megamind-deep --runs 3 \
-  --subject-backend copilot --subject-model gpt-5.5 \
+  --subject-backend codex --subject-model gpt-6.1-sol --subject-effort high \
   --judge-backend claude --judge-model opus
 
 # Dual-judge (flag disagreements)
 ... --judge-backend claude --judge-model opus \
-    --judge2-backend copilot --judge2-model gpt-5.5
+    --judge2-backend codex --judge2-model gpt-6.1-sol --judge2-effort xhigh
 
 # Agentic SWE-bench Verified (objective, Docker) — see tools/run_swebench_agentic.py
 # Agentic DeepSWE via Copilot (no API keys) — see tools/deepswe/README.md

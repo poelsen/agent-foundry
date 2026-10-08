@@ -109,9 +109,9 @@ def test_long_prompt_passed_as_a_file_pointer(tmp_path: Path, target: str):
 
 
 def test_model_and_effort_passed_through(tmp_path: Path):
-    argv = delegate.build_command(_spec("codex", model="gpt-5.5", effort="high"), "t",
+    argv = delegate.build_command(_spec("codex", model="gpt-6.1-sol", effort="high"), "t",
                                   tmp_path)["argv"]
-    assert argv[argv.index("-m") + 1] == "gpt-5.5"
+    assert argv[argv.index("-m") + 1] == "gpt-6.1-sol"
     assert 'model_reasoning_effort="high"' in argv
 
 
@@ -241,7 +241,7 @@ def test_policy_validation_fails_closed(raw: dict, fragment: str):
 def test_valid_policy_passes():
     delegate.validate_policy({
         "allow_write": False, "max_depth": 2, "pass_env": ["GH_TOKEN"],
-        "targets": {"codex": {"sandbox": "bypass", "model": "gpt-5.5"}},
+        "targets": {"codex": {"sandbox": "bypass", "model": "gpt-6.1-sol"}},
     })
 
 

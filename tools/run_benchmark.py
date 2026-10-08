@@ -234,6 +234,14 @@ BACKENDS = {
     "agy": (_agy_cli, "agy"),
 }
 
+# Model used when --subject-model / --judge-model is omitted.
+DEFAULT_MODELS = {
+    "claude": "opus",
+    "copilot": "auto",
+    "codex": "gpt-6.1-sol",
+    "agy": "gemini-3.1-pro-high",
+}
+
 
 def _invoke(prompt: str, backend: str, model: str, effort: str | None = None) -> str:
     """Dispatch a prompt to the configured backend CLI.
@@ -356,6 +364,15 @@ def results_to_json(
                         "avg": sum(depths) / len(depths) if depths else 0,
                         "scores": depths,
                     }
+            if challenge.rubric.outcome_elements:
+                mode_data["outcomes"] = {
+                    oid: {
+                        "hits": sum(1 for r in results for o in r.outcome_scores
+                                    if o.element_id == oid and o.met),
+                        "total": len(results),
+                    }
+                    for oid in challenge.rubric.outcome_elements
+                }
             cdata["modes"][key] = mode_data
         data["challenges"][challenge.id] = cdata
     return data
@@ -712,7 +729,7 @@ def main() -> None:
     parser.add_argument("--subject-backend", choices=list(BACKENDS), default="claude",
                         help="CLI that runs the skill under test")
     parser.add_argument("--subject-model", type=str, default=None,
-                        help="Model id for the subject backend (e.g. gpt-5.5, claude-opus-4.7)")
+                        help="Model id for the subject backend (default per backend: see DEFAULT_MODELS)")
     parser.add_argument("--judge-backend", choices=list(BACKENDS), default="claude",
                         help="CLI that runs the judge (keep fixed for fair cross-model scoring)")
     parser.add_argument("--judge-model", type=str, default=None,
@@ -732,11 +749,11 @@ def main() -> None:
     global JUDGE2_BACKEND, JUDGE2_MODEL, JUDGE_DISAGREE_THRESHOLD
     global SUBJECT_EFFORT, JUDGE_EFFORT, JUDGE2_EFFORT
     SUBJECT_BACKEND = args.subject_backend
-    SUBJECT_MODEL = args.subject_model or ("opus" if SUBJECT_BACKEND == "claude" else "gpt-5.5")
+    SUBJECT_MODEL = args.subject_model or DEFAULT_MODELS[SUBJECT_BACKEND]
     JUDGE_BACKEND = args.judge_backend
-    JUDGE_MODEL = args.judge_model or ("opus" if JUDGE_BACKEND == "claude" else "gpt-5.5")
+    JUDGE_MODEL = args.judge_model or DEFAULT_MODELS[JUDGE_BACKEND]
     JUDGE2_BACKEND = args.judge2_backend
-    JUDGE2_MODEL = args.judge2_model
+    JUDGE2_MODEL = args.judge2_model or (DEFAULT_MODELS[JUDGE2_BACKEND] if JUDGE2_BACKEND else None)
     JUDGE_DISAGREE_THRESHOLD = args.judge_disagree_threshold
     SUBJECT_EFFORT, JUDGE_EFFORT, JUDGE2_EFFORT = (
         args.subject_effort, args.judge_effort, args.judge2_effort)

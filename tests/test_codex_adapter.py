@@ -125,18 +125,18 @@ def test_mcp_servers_written_in_codex_schema(tmp_path: Path):
 def test_mcp_block_preserves_project_config(tmp_path: Path):
     config = tmp_path / ".codex/config.toml"
     config.parent.mkdir()
-    config.write_text('model = "gpt-5.5"\n\n[profiles.fast]\nmodel_reasoning_effort = "low"\n')
+    config.write_text('model = "gpt-6.1-sol"\n\n[profiles.fast]\nmodel_reasoning_effort = "low"\n')
     for _ in range(2):
         _deploy(tmp_path, mcp_servers=["memory"])
     text = config.read_text()
     assert text.count(codex_mod._BLOCK_START) == 1
     data = tomllib.loads(text)
-    assert data["model"] == "gpt-5.5"
+    assert data["model"] == "gpt-6.1-sol"
     assert data["profiles"]["fast"] == {"model_reasoning_effort": "low"}
     assert "memory" in data["mcp_servers"]
     _deploy(tmp_path, mcp_servers=[])
     assert codex_mod._BLOCK_START not in config.read_text()
-    assert tomllib.loads(config.read_text())["model"] == "gpt-5.5"
+    assert tomllib.loads(config.read_text())["model"] == "gpt-6.1-sol"
 
 
 def test_config_removed_when_only_foundry_block(tmp_path: Path):
@@ -295,10 +295,10 @@ def test_windows_command_has_no_cmd_metacharacters():
 def test_invalid_merge_result_is_refused(tmp_path: Path, monkeypatch, capsys):
     path = tmp_path / ".codex/config.toml"
     path.parent.mkdir()
-    path.write_text('model = "gpt-5.5"\n')
+    path.write_text('model = "gpt-6.1-sol"\n')
     monkeypatch.setattr(codex_mod, "render_mcp_block", lambda servers: "[broken\n")
     _deploy(tmp_path, mcp_servers=["memory"])
-    assert path.read_text() == 'model = "gpt-5.5"\n'
+    assert path.read_text() == 'model = "gpt-6.1-sol"\n'
     assert "would make it invalid" in capsys.readouterr().out
 
 

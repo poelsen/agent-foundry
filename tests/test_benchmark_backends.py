@@ -59,11 +59,11 @@ def test_codex_reads_final_answer_file(fake_run, monkeypatch):
         return (0, "progress noise", "")
 
     fake_run.reply = reply
-    assert rb._invoke("long prompt", "codex", "gpt-5.5") == "the answer"
+    assert rb._invoke("long prompt", "codex", "gpt-6.1-sol") == "the answer"
     call = fake_run[0]
     assert call["cmd"][:2] == ["/usr/bin/codex", "exec"]
     assert {"-s", "read-only", "--skip-git-repo-check", "--ephemeral"} <= set(call["cmd"])
-    assert call["cmd"][call["cmd"].index("-m") + 1] == "gpt-5.5"
+    assert call["cmd"][call["cmd"].index("-m") + 1] == "gpt-6.1-sol"
     assert 'model_reasoning_effort="high"' in call["cmd"]
     assert call["input"] == "long prompt"         # prompt on stdin, not argv
     assert "long prompt" not in call["cmd"]
@@ -97,7 +97,7 @@ def test_copilot_effort_flag(fake_run):
 def test_codex_failure_raises(fake_run):
     fake_run.reply = (1, "", "auth error")
     with pytest.raises(RuntimeError, match="auth error"):
-        rb._invoke("p", "codex", "gpt-5.5")
+        rb._invoke("p", "codex", "gpt-6.1-sol")
 
 
 def test_agy_parses_json_response(fake_run, monkeypatch):
@@ -149,3 +149,20 @@ def test_results_json_records_errored_runs():
     assert data["challenges"][challenge.id]["modes"]["baseline"]["errors"] == ["agy CLI gave no answer"]
     clean = rb.results_to_json([challenge], all_results, [None])
     assert "errors" not in clean["challenges"][challenge.id]["modes"]["baseline"]
+
+
+def test_results_json_records_outcomes():
+    # Outcomes are the process-blind signal; they used to be printed only.
+    from eval_rubric import OutcomeScore, load_challenge, score_response
+    challenge = load_challenge(rb.CHALLENGES_DIR / "adversarial-013.yaml")
+    oids = list(challenge.rubric.outcome_elements)
+    result = score_response(challenge, [], [], outcome_scores=[
+        OutcomeScore(oids[0], True), OutcomeScore(oids[1], False)])
+    data = rb.results_to_json([challenge], {challenge.id: {"baseline": [result]}}, [None])
+    outcomes = data["challenges"][challenge.id]["modes"]["baseline"]["outcomes"]
+    assert outcomes == {oids[0]: {"hits": 1, "total": 1}, oids[1]: {"hits": 0, "total": 1}}
+
+
+def test_every_backend_has_its_own_default_model():
+    assert set(rb.DEFAULT_MODELS) == set(rb.BACKENDS)
+    assert rb.DEFAULT_MODELS["codex"] == "gpt-6.1-sol"
