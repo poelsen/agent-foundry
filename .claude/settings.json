@@ -1,0 +1,47 @@
+{
+  "bashOutputMaxChars": 16000,
+  "enabledPlugins": {
+    "code-review@claude-plugins-official": true,
+    "code-simplifier@claude-plugins-official": true,
+    "feature-dev@claude-plugins-official": true,
+    "pr-review-toolkit@claude-plugins-official": true,
+    "pyright-lsp@claude-plugins-official": true
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/bash-output-guard.py",
+            "timeout": 10
+          }
+        ],
+        "description": "Blocks cat of large files (use Read with offset/limit)"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|MultiEdit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/library/ruff-format.sh"
+          }
+        ],
+        "description": "Python formatting (ruff)"
+      },
+      {
+        "matcher": "Edit|MultiEdit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/library/mypy-check.sh"
+          }
+        ],
+        "description": "Python type checking (mypy)"
+      }
+    ]
+  }
+}
