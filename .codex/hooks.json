@@ -1,0 +1,23 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 's=.codex/hooks/agent-foundry/ruff-format.sh; d=$PWD; while true; do if [ -f \"$d/.codex/hooks.json\" ]; then if [ -f \"$d/$s\" ]; then exec bash \"$d/$s\"; fi; exit 0; fi; if [ \"$d\" = / ]; then exit 0; fi; d=$(dirname \"$d\"); done'",
+            "commandWindows": "bash -c 's=.codex/hooks/agent-foundry/ruff-format.sh; d=$PWD; while true; do if [ -f \"$d/.codex/hooks.json\" ]; then if [ -f \"$d/$s\" ]; then exec bash \"$d/$s\"; fi; exit 0; fi; if [ \"$d\" = / ]; then exit 0; fi; d=$(dirname \"$d\"); done'",
+            "statusMessage": "agent-foundry: Python formatting (ruff)"
+          },
+          {
+            "type": "command",
+            "command": "sh -c 's=.codex/hooks/agent-foundry/mypy-check.sh; d=$PWD; while true; do if [ -f \"$d/.codex/hooks.json\" ]; then if [ -f \"$d/$s\" ]; then exec bash \"$d/$s\"; fi; exit 0; fi; if [ \"$d\" = / ]; then exit 0; fi; d=$(dirname \"$d\"); done'",
+            "commandWindows": "bash -c 's=.codex/hooks/agent-foundry/mypy-check.sh; d=$PWD; while true; do if [ -f \"$d/.codex/hooks.json\" ]; then if [ -f \"$d/$s\" ]; then exec bash \"$d/$s\"; fi; exit 0; fi; if [ \"$d\" = / ]; then exit 0; fi; d=$(dirname \"$d\"); done'",
+            "statusMessage": "agent-foundry: Python type checking (mypy)"
+          }
+        ]
+      }
+    ]
+  }
+}
