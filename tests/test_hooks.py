@@ -304,6 +304,13 @@ def test_settings_always_cap_output_and_guard_cat():
         len(HOOK_SCRIPTS)
 
 
+def test_settings_drop_ai_attribution():
+    # No AI attribution in commits or PRs; object form, since older Claude
+    # Code versions reject a bare boolean and then skip the whole file.
+    assert generate_settings_json([], [])["attribution"] == \
+        {"commit": "", "pr": "", "sessionUrl": False}
+
+
 def test_guard_deployed_even_without_selected_hooks(tmp_path: Path):
     from foundry.deploy import copy_hooks
     copy_hooks(tmp_path, [])

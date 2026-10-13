@@ -147,6 +147,9 @@ EDIT_TOOLS_MATCHER = "Edit|MultiEdit|Write"
 # which would bring on compaction and lose detail sooner.
 BASH_OUTPUT_MAX_CHARS = 16_000
 BASH_GUARD = "bash-output-guard.py"
+# No AI attribution in commits or PRs (matches the git-workflow rule). Object
+# form: older Claude Code versions reject a bare boolean and skip the file.
+NO_ATTRIBUTION = {"commit": "", "pr": "", "sessionUrl": False}
 BASH_GUARD_SRC = REPO_ROOT / "cli" / "claude" / "hooks" / BASH_GUARD
 
 
@@ -155,7 +158,8 @@ def generate_settings_json(
     plugins: list[str],
 ) -> dict:
     """Build .claude/settings.json content."""
-    settings: dict = {"bashOutputMaxChars": BASH_OUTPUT_MAX_CHARS}
+    settings: dict = {"bashOutputMaxChars": BASH_OUTPUT_MAX_CHARS,
+                      "attribution": dict(NO_ATTRIBUTION)}
 
     # Plugins
     if plugins:
