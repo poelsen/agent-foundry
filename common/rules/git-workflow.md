@@ -33,6 +33,7 @@ Delete feature/bugfix branches after merge.
 1. Analyze full commit history with `git diff [base]...HEAD`
 2. Draft comprehensive summary
 3. Include test plan
+4. No AI attribution footer ("Generated with …") or session links
 
 ## Release & Hotfix
 

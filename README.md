@@ -303,6 +303,8 @@ Every Claude Code project also gets two output limits, whatever hooks are select
 
 Other CLIs don't get these; they have no equivalent settings.
 
+`.claude/settings.json` also empties `attribution` (`commit`, `pr`) and turns `sessionUrl` off, so Claude Code adds no AI attribution to commits or pull requests; the git-workflow rule asks the same of every other CLI.
+
 The config gate (searched from the edited file up to the repository root) keeps a project that lints with ruff, formats with black, or isn't formatted at all from getting whole-file ruff rewrites. Check hooks never block an edit: their errors reach Claude Code and Codex as additional context — labelled as tool output and capped at 8,000 characters (Antigravity has no such channel, so they go to its hook log). The scripts need `jq`; without it they print a warning and do nothing. On Windows, the Codex and Antigravity hooks need Git Bash's `bash` and `jq` on `PATH` (untested there so far). To turn hooks off, deselect them in `/update-foundry-interactive` — `settings.json` and `hooks.json` entries are regenerated on every update.
 
 ### Upgrading from earlier releases
