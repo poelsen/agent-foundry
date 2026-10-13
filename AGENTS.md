@@ -87,11 +87,10 @@ Delete feature/bugfix branches after merge.
 [ISSUE-ID] <type>: <subject>
 
 <body - wrap at 72 chars>
-
-AI: <assisting model, e.g. Claude Opus 5.5 or gpt-6.1-sol>
 ```
 
 - Subject: 50 chars target, 70 max, imperative mood
+- No AI attribution: no `AI:`, `Co-Authored-By:` or "Generated with" lines for a model or tool
 - Types: feat, fix, refactor, docs, test, chore, perf, ci
 - ISSUE-ID optional. See `github.md` for `Closes #N` linking.
 
