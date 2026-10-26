@@ -69,7 +69,7 @@ RULE_DESCRIPTIONS: dict[str, str] = {
     "coding-style.md": "Code style guidelines",
     "git-workflow.md": "Git workflow and commit conventions",
     "security.md": "Security checks and practices",
-    "testing.md": "Testing requirements (TDD, 80% coverage)",
+    "testing.md": "Testing (targeted runs, what to write)",
     "architecture.md": "Architecture principles",
     "performance.md": "Performance and model selection",
     "agents.md": "Agent orchestration",

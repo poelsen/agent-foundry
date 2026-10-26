@@ -1,32 +1,30 @@
-# Testing Requirements
+# Testing
 
-## Minimum Test Coverage: 80%
+## What to run, and when
 
-Test Types (ALL required):
-1. **Unit Tests** - Individual functions, utilities, components
-2. **Integration Tests** - API endpoints, database operations
-3. **E2E Tests** - Critical user flows (Playwright)
+- While working, run the tests that cover what you changed, plus a quick sanity check if the project has one. Don't run the whole suite after every edit.
+- Run the full suite before a merge when the change is wide (shared code, data models, build config) or when you can't tell what it touches. Say which run you did.
+- Scheduled or CI runs catch regressions you didn't foresee; that is their job, not every edit's.
+- Use the test command from the Environment section or the project's own notes. Don't invent a different one.
 
-## Test-Driven Development
+## What to write
 
-MANDATORY workflow:
-1. Write test first (RED)
-2. Run test - it should FAIL
-3. Write minimal implementation (GREEN)
-4. Run test - it should PASS
-5. Refactor (IMPROVE)
-6. Verify coverage (80%+)
+- A test for every behaviour you add or fix. Start with the test when it clarifies the behaviour; write it after when the shape of the code isn't clear yet.
+- Test behaviour, not implementation. A test that mirrors the code it tests, or that only asserts the mock was called, proves nothing; leave it out.
+- Keep each test independent of ordering and of other tests' state.
+- Match the project's existing layout and fixtures.
 
-## Troubleshooting Test Failures
+## Coverage
 
-1. Use **tdd-guide** agent
-2. Check test isolation
-3. Verify mocks are correct
-4. Fix implementation, not tests (unless tests are wrong)
+The project's own target applies. Where it has none, keep new code roughly as well covered as the code around it. Coverage is a signal, not a goal: don't write tests to move the number.
 
-## Agent Support
+## When a test fails
 
-- **tdd-guide** - Use PROACTIVELY for new features, enforces write-tests-first
-- **e2e-test-typescript** - Browser E2E with Playwright (TS/JS)
-- **e2e-test-python-web** - Browser E2E with Playwright (Python)
-- **e2e-test-python-qt** - Desktop GUI E2E with pytest-qt (PySide6/PyQt)
+1. Read the failure before changing anything.
+2. Fix the code, not the test, unless the test is wrong.
+3. Check isolation: does it fail alone, and does it fail on a clean checkout?
+
+## Agents
+
+- **tdd-guide** helps when the project runs test-first and the feature's behaviour is unclear.
+- **e2e-test-typescript**, **e2e-test-python-web** (Playwright) and **e2e-test-python-qt** (pytest-qt) help for user-flow tests in a GUI or web app.

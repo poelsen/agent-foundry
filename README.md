@@ -223,7 +223,7 @@ Rules are markdown files loaded by Claude Code at session start. They shape how 
 - `coding-style.md` — KISS/YAGNI/DRY, small functions, minimal diffs
 - `git-workflow.md` — branch naming, commit message format, PR workflow
 - `security.md` — mandatory security checks before commits
-- `testing.md` — TDD workflow, 80% coverage target
+- `testing.md` — targeted test runs, what to write, coverage as a signal
 - `architecture.md` — composition over inheritance, module boundaries
 - `performance.md` — model selection strategy, context window management
 - `agents.md` — when and how to use specialized sub-agents

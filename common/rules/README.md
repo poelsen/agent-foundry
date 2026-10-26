@@ -13,7 +13,7 @@ These rules are selected by default during `setup.py init` and copied to each pr
 | hooks.md | Pre/post tool hooks |
 | performance.md | Model selection, context management |
 | security.md | Security checklist and protocols |
-| testing.md | TDD workflow, 80% coverage |
+| testing.md | What to run and when, what to write |
 | codemaps.md | Codemap system, LSP plugins, architecture docs |
 | skills.md | Learned skill discovery and reuse |
 
