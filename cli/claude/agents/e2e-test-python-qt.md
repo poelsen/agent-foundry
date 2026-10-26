@@ -415,7 +415,7 @@ def test_drag_reorders_items(self, qtbot, make_widget) -> None:
 After test run:
 - ✅ All widget tests passing
 - ✅ Signal/slot connections verified
-- ✅ Coverage ≥ 80%
+- ✅ Coverage meets the project's target
 - ✅ No flaky tests in CI
 - ✅ Headless execution works (xvfb)
 - ✅ Deterministic async (SyncThreadPool)

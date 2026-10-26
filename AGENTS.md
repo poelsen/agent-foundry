@@ -26,10 +26,11 @@ uv run pytest  # Tests
 - Correctness → Clarity → Performance
 - Don't optimize without measurement
 - **KISS**, **YAGNI**, **DRY**
+- No debug leftovers (prints, commented-out code)
 
 #### Functions
 
-- Small and single-purpose (<50 lines)
+- Small and single-purpose (<50 lines), nesting no deeper than 4 levels
 - If "and" in the name, it's doing too much
 - Pure where possible; isolate side effects
 
@@ -50,18 +51,6 @@ uv run pytest  # Tests
 - Self-documenting names reduce comment need
 - "What/why" comments OK; "how" comments are smell
 - Document decisions for non-obvious tradeoffs
-
-#### Core Checklist
-
-Before marking work complete:
-- [ ] Minimal diff (no unrelated changes)
-- [ ] Functions small and focused
-- [ ] No deep nesting (>4 levels)
-- [ ] Proper error handling
-- [ ] No debug statements in production
-- [ ] No hardcoded secrets
-
-See project-specific styles in rule-library/style/.
 
 <!-- rule: git-workflow.md -->
 ### Git Workflow
@@ -191,8 +180,6 @@ When a project starts from nothing, look for a proven skeleton or template for i
 - Colocate related files (component + test + styles)
 - Keep module boundaries visible in directory structure
 
-See project-specific architecture in rule-library/arch/.
-
 <!-- rule: codemaps.md -->
 ### Codemap System
 
@@ -214,17 +201,6 @@ Run /update-codemaps when:
 
 The command checks staleness automatically — only stale codemaps regenerate.
 
-#### AGENTS.md Pattern
-
-The agent-foundry block in AGENTS.md already points to codemaps/INDEX.md —
-don't repeat it. A project without that block should include:
-
-```
-## Architecture
-Read codemaps/INDEX.md before making changes to unfamiliar modules.
-Run /update-codemaps after significant structural changes.
-```
-
 <!-- rule: python.md -->
 ### Language: Python
 
@@ -239,28 +215,6 @@ uv run pytest                         # Test
 uv run ruff check src tests           # Lint
 uv run ruff format src tests          # Format
 ```
-
-#### pyproject.toml Essentials
-
-```toml
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[project]
-name = "myproject"
-version = "0.1.0"
-requires-python = ">=3.11"
-
-[project.optional-dependencies]
-dev = ["pytest>=8", "pytest-cov>=4", "ruff>=0.8"]
-
-[tool.ruff]
-target-version = "py311"
-line-length = 100
-select = ["E", "W", "F", "I", "B", "C4", "UP", "SIM", "PTH", "RUF"]
-```
-
 #### Style
 
 PEP 8, type hints on functions, docstrings for public APIs, f-strings.
@@ -283,7 +237,7 @@ except SpecificError as e:
 
 #### Testing
 
-pytest + fixtures + `parametrize`. Coverage target: 80%+.
+pytest + fixtures + `parametrize`.
 
 <!-- rule: github.md -->
 ### GitHub Platform Rules

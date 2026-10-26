@@ -12,7 +12,7 @@ When a review process or the user asks you to review tests rather than write the
 
 - Enforce tests-before-code methodology
 - Guide through TDD Red-Green-Refactor cycle
-- Ensure 80%+ test coverage
+- Keep coverage at the project's target
 - Write comprehensive test suites (unit, integration, E2E)
 - Catch edge cases before implementation
 
@@ -57,7 +57,7 @@ uv run pytest tests/test_billing.py -x
 ### Step 6: Verify Coverage
 ```bash
 uv run pytest --cov=src --cov-report=term-missing
-# Verify 80%+ coverage
+# Compare against the project's coverage target
 ```
 
 ## Test Types
@@ -231,7 +231,7 @@ tests/
 - [ ] Tests are independent (no shared state)
 - [ ] Test names describe what's being tested
 - [ ] Assertions are specific and meaningful
-- [ ] Coverage is 80%+ (verify with coverage report)
+- [ ] Coverage meets the project's target
 
 ## Anti-Patterns
 
@@ -274,11 +274,7 @@ open htmlcov/index.html
 uv run pytest --cov=src --cov-report=xml --junitxml=results.xml
 ```
 
-Required thresholds:
-- Branches: 80%
-- Functions: 80%
-- Lines: 80%
-- Statements: 80%
+Thresholds come from the project's own configuration.
 
 ---
 
