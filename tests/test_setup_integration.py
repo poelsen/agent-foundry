@@ -444,6 +444,13 @@ class TestMigrateManifest:
         assert "domain" not in result["modular_rules"]
         assert "embedded-c.md" in result["modular_rules"]["templates"]
 
+    def test_retired_base_rule_dropped(self):
+        """A base rule the foundry no longer ships leaves the manifest."""
+        manifest = {"base_rules": ["security.md", "hooks.md"]}
+        result = migrate_manifest(manifest)
+
+        assert result["base_rules"] == ["security.md"]
+
     def test_lang_react_migrates_to_templates(self):
         """lang/react.md should migrate to templates/react-app.md."""
         manifest = {"modular_rules": {"lang": ["python.md", "react.md"]}}

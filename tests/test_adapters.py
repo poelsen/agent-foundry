@@ -264,11 +264,11 @@ def test_copilot_creates_agents_md(tmp_path: Path):
 
 
 def test_copilot_omits_claude_only_rules(tmp_path: Path):
-    _deploy_copilot(tmp_path, _selections(base=["coding-style.md", "agents.md", "hooks.md"]))
+    _deploy_copilot(tmp_path, _selections(base=["coding-style.md", "agents.md", "performance.md"]))
     text = (tmp_path / "AGENTS.md").read_text()
     assert "<!-- rule: coding-style.md -->" in text
     assert "<!-- rule: agents.md -->" not in text  # Task tool / subagent roster
-    assert "<!-- rule: hooks.md -->" not in text   # .claude/settings.json hooks
+    assert "<!-- rule: performance.md -->" not in text   # Claude model tiers
 
 
 def test_copilot_update_is_idempotent(tmp_path: Path):

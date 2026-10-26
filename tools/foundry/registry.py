@@ -30,7 +30,7 @@ ENVIRONMENT_SNIPPETS = {
 
 BASE_RULES = [
     "coding-style.md", "git-workflow.md", "security.md", "testing.md",
-    "architecture.md", "performance.md", "agents.md", "hooks.md", "codemaps.md",
+    "architecture.md", "performance.md", "agents.md", "codemaps.md",
 ]
 
 # Base rules that describe Claude Code-only machinery (the Task tool and the
@@ -38,7 +38,7 @@ BASE_RULES = [
 # deploy to .claude/rules/ (which Claude Code loads alongside AGENTS.md) and
 # are never rendered into the shared AGENTS.md, where they would mislead
 # Copilot, Codex, and Antigravity.
-CLAUDE_ONLY_RULES: set[str] = {"agents.md", "hooks.md", "performance.md"}
+CLAUDE_ONLY_RULES: set[str] = {"agents.md", "performance.md"}
 
 # One-line descriptions shown next to each rule in the AGENTS.md pointer
 # list and in Antigravity rule frontmatter. Rules missing here get a title-cased name.
@@ -74,7 +74,6 @@ RULE_DESCRIPTIONS: dict[str, str] = {
     "performance.md": "Performance and model selection",
     "agents.md": "Agent orchestration",
     "codemaps.md": "Codemap system",
-    "hooks.md": "Hooks system",
 }
 
 MODULAR_RULES = {
@@ -108,8 +107,11 @@ MODULAR_RULES = {
 # only ever delete names they can prove are foundry-owned — the current
 # catalog or these sets — never content the foundry didn't ship. So when
 # a skill/command/agent is renamed or removed, its old name must be
-# listed here to keep being cleaned out of projects. Rules don't need a
-# set: MANIFEST_MIGRATION below already records retired rule names.
+# listed here to keep being cleaned out of projects. Modular rules are
+# recorded in MANIFEST_MIGRATION below; base rules go in RETIRED_RULES.
+RETIRED_RULES: set[str] = {
+    "hooks.md",  # described the foundry's hook library, not how to work
+}
 RETIRED_SKILLS: set[str] = set()
 RETIRED_COMMANDS: set[str] = {
     "recall.md",  # became the learn-recall skill

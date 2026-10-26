@@ -10,7 +10,6 @@ These rules are selected by default during `setup.py init` and copied to each pr
 | architecture.md | Module boundaries, file organization, design principles |
 | coding-style.md | Functions, data/state, error handling, naming |
 | git-workflow.md | Branching, commits, PRs |
-| hooks.md | Pre/post tool hooks |
 | performance.md | Model selection, context management |
 | security.md | Security checklist and protocols |
 | testing.md | What to run and when, what to write |
