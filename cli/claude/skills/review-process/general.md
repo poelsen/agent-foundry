@@ -17,7 +17,7 @@ The review should answer four questions:
 
 ## General flow
 
-1. Declare review mode, risk tier, model strategy, budget, and scope.
+1. Declare review mode, risk tier, budget, and scope.
 2. List assumptions as verified, inferred, or uncertain.
 3. Select reviewers from the canonical routing table.
 4. Review evidence and separate observations from interpretation.
@@ -37,14 +37,10 @@ The review should answer four questions:
 - [ ] Stakeholders or affected users are named where relevant.
 - [ ] Cost, compliance, schedule, or reputation risks are called out when they
       apply.
-- [ ] Model choice matches the risk/cost tradeoff, or user-specified models
-      were followed and verified.
 - [ ] Decision outcome is explicit: do, do not do, defer, accept risk, or
       experiment.
 - [ ] A review with no material findings says so and lists what was
       checked, rather than padding the ledger.
-- [ ] Related review-state entries were searched, or "no prior data available"
-      was recorded.
 
 ## Documentation review appendix
 
@@ -59,19 +55,6 @@ Apply this appendix to docs, policies, and process files.
 - [ ] The document defines stop conditions, not only start conditions.
 - [ ] The document distinguishes facts, decisions, and guidance.
 - [ ] Navigation supports the expected reader path.
-- [ ] Repeated findings from prior doc reviews are represented in review-state.
-
-## Process self-review triggers
-
-Run a T4 review of the review-process family when:
-
-- a new process layer or concern module is added;
-- a major finding was missed by the existing process;
-- review cost repeatedly exceeds the risk of the work;
-- model selection repeatedly produces weak, duplicated, or overpriced review
-  coverage;
-- reviewer routing or model/tool evidence proves unreliable;
-- recurring findings appear without conversion into checks.
 
 ## Output addendum
 

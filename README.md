@@ -469,20 +469,18 @@ A tiered review-orchestration skill that turns scattered reviewers into a discip
 
 ### What it adds
 
-- **Risk tiers T0–T4** — mechanical → normal → integrated → high-risk → release/post-incident
+- **Risk tiers T0–T3** — mechanical → normal → integrated → high-risk; T2 and `AUDIT_ONLY` are the defaults when the invocation names none
 - **Review modes** — `AUDIT_ONLY`, `FIX_AUTHORIZED`, `FIX_AND_COMMIT_AUTHORIZED`
-- **Model strategies** — `SINGLE_FAST`, `DIVERSE_STANDARD`, `PREMIUM_TARGETED`, `MIXED_PREMIUM`, `USER_SPECIFIED`; asked once per T1+ review together with the mode, with no pinned model versions (session model, or the cross-vendor CLI's default)
 - **Reviewer contract** — reviewers are read-only, set severity by impact (checklist hits are prompts, not severities), and have no minimum finding count; the orchestrator checks that each frame's sections are present and maps every reviewer finding to a ledger ID
 - **Reviewer routing** — triggers map to existing foundry reviewers (`megamind-*` skills + `code-reviewer-*`, `security-reviewer-*`, `refactor-cleaner-*`, `e2e-test-*` agents)
-- **Finding ledger** — every finding gets severity, confidence, evidence strength, disposition, and prevention action
+- **Finding ledger** — every finding gets severity, confidence, evidence strength and disposition
 - **Reviewer compaction** — at most one reviewer per concern; adversarial covers cross-concern interactions
-- **Persistent review state** — recurring findings, converted checks, deferrals, and accepted risks live in the project at `docs/review-state/log.md` (seeded on first use from the skill's templates)
 
 ### Layered sub-files (additive)
 
 | File | Applies to |
 |------|-----------|
-| `SKILL.md` | Canonical entry — shared tiers/modes/routing/ledger/state |
+| `SKILL.md` | Canonical entry — shared tiers/modes/routing/ledger |
 | `general.md` | Non-software decisions, plans, documents, policies |
 | `software.md` | Any-language code change (smells, omissions, architecture, tests) |
 | `python.md` | Python code, packaging, scripts, libraries |
