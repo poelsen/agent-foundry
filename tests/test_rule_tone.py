@@ -1,12 +1,11 @@
 """Shipped instructions must not shout.
 
-Current models follow instructions literally: "MANDATORY", "ALWAYS launch"
-and "Use PROACTIVELY" read as compulsions and made a downstream project's
-model over-spawn agents and over-test (issue #21). These tests keep such
-words out of every rule the foundry ships, out of the AGENTS.md block it
-renders, and out of agent description fields (which Claude Code uses to
-decide when to delegate on its own). Prose only: code fences are skipped,
-since examples quote what they must.
+Models follow instructions literally: "MANDATORY", "ALWAYS launch" and
+"Use PROACTIVELY" read as compulsions. These tests keep such words out of
+every rule the foundry ships, out of the AGENTS.md block it renders, and
+out of agent description fields (which Claude Code uses to decide when to
+delegate on its own). Prose only: code fences are skipped, since examples
+quote what they must.
 """
 
 from __future__ import annotations
