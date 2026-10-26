@@ -27,7 +27,13 @@ import pytest
 REPO_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(REPO_ROOT / "tools"))
 
-from setup import copy_agents, copy_commands, copy_rules, copy_skills  # noqa: E402
+from setup import (  # noqa: E402
+    copy_agents,
+    copy_commands,
+    copy_rules,
+    copy_skills,
+    remove_retired_state_dirs,
+)
 
 
 @pytest.fixture
@@ -94,20 +100,14 @@ class TestProjectOwnedSkills:
 
         assert "portfolio-update" in capsys.readouterr().out
 
-    def test_private_and_protected_dirs_not_reported_as_foreign(self, project: Path, capsys):
-        """learned/, learned-local/ and private-prefixed dirs are the project's —
-        they are neither removed nor listed as non-foundry leftovers."""
+    def test_private_prefixed_dirs_not_reported_as_foreign(self, project: Path, capsys):
+        """Private-prefixed dirs are neither removed nor listed as leftovers."""
         skills_dir = project / ".claude" / "skills"
-        for name in ["learned", "learned-local", "company-tool"]:
-            (skills_dir / name).mkdir()
+        (skills_dir / "company-tool").mkdir()
 
         copy_skills(project, [], private_prefixes=["company"])
 
-        out = capsys.readouterr().out
-        assert "company-tool" not in out
-        assert "learned" not in out
-        assert (skills_dir / "learned").is_dir()
-        assert (skills_dir / "learned-local").is_dir()
+        assert "company-tool" not in capsys.readouterr().out
         assert (skills_dir / "company-tool").is_dir()
 
     def test_retired_skills_removed_and_reported(self, project: Path, capsys):
@@ -115,16 +115,43 @@ class TestProjectOwnedSkills:
         of projects that got them from an older version, and the removal is
         printed."""
         skills_dir = project / ".claude" / "skills"
-        for name in ["prj-new", "snapshot-list", "learn", "_lib"]:
+        names = ["prj-new", "snapshot-list", "learn", "_lib", "learned", "learned-local"]
+        for name in names:
             (skills_dir / name).mkdir()
             (skills_dir / name / "SKILL.md").write_text("old", encoding="utf-8")
 
         copy_skills(project, ["megamind-deep"])
 
         out = capsys.readouterr().out
-        for name in ["prj-new", "snapshot-list", "learn", "_lib"]:
+        for name in names:
             assert not (skills_dir / name).exists()
             assert name in out
+
+
+# ── Retired state dirs ────────────────────────────────────────────────
+
+
+class TestRetiredStateDirs:
+    def test_snapshot_and_prj_dirs_removed_and_reported(self, project: Path, capsys):
+        """.claude/snapshots/ and .claude/prjs/ were written by the retired
+        snapshot and prj-* commands; nothing reads them, so an update removes
+        them and says so."""
+        for name in ("snapshots", "prjs"):
+            d = project / ".claude" / name
+            d.mkdir()
+            (d / "note.md").write_text("old", encoding="utf-8")
+
+        remove_retired_state_dirs(project)
+
+        out = capsys.readouterr().out
+        for name in ("snapshots", "prjs"):
+            assert not (project / ".claude" / name).exists()
+            assert name in out
+
+    def test_nothing_to_remove_is_silent(self, project: Path, capsys):
+        remove_retired_state_dirs(project)
+
+        assert capsys.readouterr().out == ""
 
 
 # ── Commands ──────────────────────────────────────────────────────────

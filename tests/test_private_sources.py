@@ -336,25 +336,18 @@ class TestCopySkillsCleanup:
 
         assert own_skill.exists()
 
-    def test_preserves_learned_directory(self, project, tmp_path):
-        learned = project / ".claude" / "skills" / "learned"
-        learned.mkdir(parents=True)
-        (learned / "python").mkdir()
-        (learned / "python" / "pattern.md").write_text("keep")
+    def test_removes_learned_directories(self, project, tmp_path):
+        """learned/ and learned-local/ were written by the retired /learn skill
+        and nothing reads them; the prune removes them like any retired skill."""
+        for name in ("learned", "learned-local"):
+            d = project / ".claude" / "skills" / name / "python"
+            d.mkdir(parents=True)
+            (d / "pattern.md").write_text("old")
 
         copy_skills(project, [])
 
-        assert learned.exists()
-        assert (learned / "python" / "pattern.md").exists()
-
-    def test_preserves_learned_local_directory(self, project, tmp_path):
-        local = project / ".claude" / "skills" / "learned-local"
-        local.mkdir(parents=True)
-        (local / "my-pattern.md").write_text("keep")
-
-        copy_skills(project, [])
-
-        assert local.exists()
+        assert not (project / ".claude" / "skills" / "learned").exists()
+        assert not (project / ".claude" / "skills" / "learned-local").exists()
 
     def test_preserves_private_prefixed_skills(self, project, tmp_path):
         private_skill = project / ".claude" / "skills" / "company-tool"

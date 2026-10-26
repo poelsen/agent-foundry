@@ -25,6 +25,7 @@ from ..deploy import (
     copy_rules,
     copy_skills,
     generate_settings_json,
+    remove_retired_state_dirs,
 )
 from ..instructions import has_agent_foundry_header
 from ..private import (
@@ -157,9 +158,9 @@ class ClaudeAdapter(CliAdapter):
         # Commands (pass selected skills so skill commands are conditionally included)
         copy_commands(project, sel.skills, ctx.private_prefixes)
 
-        # Skills
-        if sel.skills:
-            copy_skills(project, sel.skills, ctx.private_prefixes)
+        # Skills (the prune inside also clears retired skills)
+        copy_skills(project, sel.skills, ctx.private_prefixes)
+        remove_retired_state_dirs(project)
 
         # Hooks
         copy_hooks(project, sel.hooks)

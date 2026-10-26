@@ -132,7 +132,6 @@ def discover_skills(skills_dir: Path) -> list[ParsedSkill]:
     """Discover and parse all skills in a directory.
 
     Looks for directories containing SKILL.md files.
-    Skips directories named 'learned' or 'learned-local'.
     """
     skills: list[ParsedSkill] = []
     if not skills_dir.is_dir():
@@ -140,8 +139,6 @@ def discover_skills(skills_dir: Path) -> list[ParsedSkill]:
 
     for skill_dir in sorted(skills_dir.iterdir()):
         if not skill_dir.is_dir():
-            continue
-        if skill_dir.name in ("learned", "learned-local"):
             continue
         skill_file = skill_dir / "SKILL.md"
         if skill_file.exists():
