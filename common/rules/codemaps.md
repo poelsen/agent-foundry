@@ -6,7 +6,7 @@ Before modifying code in an unfamiliar module:
 1. Read codemaps/INDEX.md for project overview
 2. Read the specific module codemap for context
 
-Do NOT read all codemaps upfront. Read only what you need.
+Don't read all codemaps upfront. Read only what you need.
 
 ## Updating Codemaps
 

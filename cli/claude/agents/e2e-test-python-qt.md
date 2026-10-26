@@ -1,6 +1,6 @@
 ---
 name: e2e-test-python-qt
-description: Python desktop GUI E2E testing specialist using pytest-qt. Use PROACTIVELY for generating, maintaining, and running E2E tests for PySide6/PyQt applications. Manages widget tests, signal verification, and headless CI execution.
+description: Python desktop GUI E2E testing specialist using pytest-qt. Use for writing, maintaining or running E2E tests for PySide6/PyQt applications. Manages widget tests, signal verification, and headless CI execution.
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: opus
 ---

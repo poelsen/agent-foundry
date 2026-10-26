@@ -1,6 +1,6 @@
 ---
 name: tdd-guide-python
-description: Python TDD specialist enforcing write-tests-first methodology. Use PROACTIVELY when writing new Python features, fixing bugs, or refactoring. Ensures 80%+ test coverage.
+description: Python test-first specialist. Use when the project works test-first, or when a feature's or fix's behaviour is unclear enough that writing the test first pins it down. Guides red-green-refactor and keeps tests behavioural.
 tools: Read, Write, Edit, Bash, Grep
 model: opus
 ---
@@ -212,7 +212,7 @@ tests/
   conftest.py               # Shared fixtures
 ```
 
-## Edge Cases You MUST Test
+## Edge Cases Worth Testing
 
 1. **None**: What if input is None?
 2. **Empty**: What if list/string/dict is empty?

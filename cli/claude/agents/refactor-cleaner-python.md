@@ -1,6 +1,6 @@
 ---
 name: refactor-cleaner-python
-description: Python dead code cleanup and consolidation specialist. Use PROACTIVELY for removing unused Python code, duplicates, and refactoring. Runs analysis tools (vulture, ruff, autoflake) to identify dead code and safely removes it.
+description: Python dead code cleanup and consolidation specialist. Use when asked to remove unused Python code or duplicates, or when a refactor has left dead code behind. Runs analysis tools (vulture, ruff, autoflake) to identify dead code and safely removes it.
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: opus
 ---

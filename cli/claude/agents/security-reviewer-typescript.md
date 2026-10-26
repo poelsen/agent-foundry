@@ -1,6 +1,6 @@
 ---
 name: security-reviewer-typescript
-description: TypeScript/JS security specialist. Use PROACTIVELY after writing TS/JS code that handles user input, authentication, API endpoints, or sensitive data. Flags secrets, SSRF, injection, unsafe crypto, and OWASP Top 10 vulnerabilities.
+description: TypeScript/JS security specialist. Use after writing TS/JS code that handles user input, authentication, API endpoints, or sensitive data. Flags secrets, SSRF, injection, unsafe crypto, and OWASP Top 10 vulnerabilities.
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: opus
 ---
@@ -414,7 +414,7 @@ When asked to review a PR, return this summary (post it to the PR only when the 
 
 ## When to Run Security Reviews
 
-**ALWAYS review when:**
+**Review when:**
 - New API endpoints added
 - Authentication/authorization code changed
 - User input handling added
@@ -424,7 +424,7 @@ When asked to review a PR, return this summary (post it to the PR only when the 
 - External API integrations added
 - Dependencies updated
 
-**IMMEDIATELY review when:**
+**Review promptly when:**
 - Production incident occurred
 - Dependency has known CVE
 - User reports security concern

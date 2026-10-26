@@ -1,6 +1,6 @@
 ---
 name: tdd-guide-typescript
-description: TypeScript/JS TDD specialist enforcing write-tests-first methodology. Use PROACTIVELY when writing new TS/JS features, fixing bugs, or refactoring. Ensures 80%+ test coverage.
+description: TypeScript/JS test-first specialist. Use when the project works test-first, or when a feature's or fix's behaviour is unclear enough that writing the test first pins it down. Guides red-green-refactor and keeps tests behavioural.
 tools: Read, Write, Edit, Bash, Grep
 model: opus
 ---
@@ -183,7 +183,7 @@ tests/
     login.spec.ts         # Playwright E2E tests
 ```
 
-## Edge Cases You MUST Test
+## Edge Cases Worth Testing
 
 1. **Null/Undefined**: What if input is null or undefined?
 2. **Empty**: What if array/string is empty?

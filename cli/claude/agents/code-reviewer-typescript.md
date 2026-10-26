@@ -1,6 +1,6 @@
 ---
 name: code-reviewer-typescript
-description: TypeScript/JS code review specialist. Reviews for quality, security, and maintainability. Use immediately after writing or modifying TS/JS code.
+description: TypeScript/JS code review specialist. Reviews for quality, security, and maintainability. Use after a substantial change to TS/JS code, before it is committed or opened as a PR.
 tools: Read, Grep, Glob, Bash
 model: opus
 ---
