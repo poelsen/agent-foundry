@@ -8,6 +8,14 @@
 - **KISS**, **YAGNI**, **DRY**
 - No debug leftovers (prints, commented-out code)
 
+## Working Method
+
+- Reproduce a bug before fixing it
+- Read the code you're changing, and its callers, before editing
+- Smallest change that fixes the cause, not the symptom
+- Verify by running it, and say what you ran
+- State a routine assumption and continue; ask when different readings lead to materially different work
+
 ## Functions
 
 - Small and single-purpose (<50 lines), nesting no deeper than 4 levels

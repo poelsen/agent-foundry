@@ -149,9 +149,8 @@ def _render_block(env: str, embedded: list[_Rule], pointers: list[_Rule]) -> str
     sections = [AGENT_FOUNDRY_MARKER_START,
                 "## Coding Standards (agent-foundry)",
                 "",
-                "These standards are managed by agent-foundry and apply to any "
-                "CLI that reads `AGENTS.md`. Setup rewrites this block on every "
-                "update — keep project-specific instructions outside it.",
+                "Managed by agent-foundry and rewritten on every update; keep "
+                "project-specific instructions outside this block.",
                 "",
                 "### Environment",
                 "",
@@ -161,11 +160,8 @@ def _render_block(env: str, embedded: list[_Rule], pointers: list[_Rule]) -> str
                 "",
                 "### Project Docs",
                 "",
-                "- `codemaps/INDEX.md`, if present — read before modifying unfamiliar "
-                "modules; run the `update-codemaps` command after significant structural "
-                "changes. Don't create codemaps for a project that has none.",
-                "- `docs/ARCHITECTURE.md` (design decisions) and `docs/DEVELOPMENT.md` "
-                "(setup and workflow), if present",
+                "- `codemaps/INDEX.md`, `docs/ARCHITECTURE.md`, `docs/DEVELOPMENT.md` — "
+                "read the ones that exist before working in an unfamiliar area",
                 ""]
     for rule in embedded:
         sections += [f"<!-- rule: {rule.name} -->", _demote_headings(rule.body), ""]

@@ -3,7 +3,7 @@
 <!-- agent-foundry -->
 ## Coding Standards (agent-foundry)
 
-These standards are managed by agent-foundry and apply to any CLI that reads `AGENTS.md`. Setup rewrites this block on every update — keep project-specific instructions outside it.
+Managed by agent-foundry and rewritten on every update; keep project-specific instructions outside this block.
 
 ### Environment
 
@@ -14,8 +14,7 @@ uv run pytest  # Tests
 
 ### Project Docs
 
-- `codemaps/INDEX.md`, if present — read before modifying unfamiliar modules; run the `update-codemaps` command after significant structural changes. Don't create codemaps for a project that has none.
-- `docs/ARCHITECTURE.md` (design decisions) and `docs/DEVELOPMENT.md` (setup and workflow), if present
+- `codemaps/INDEX.md`, `docs/ARCHITECTURE.md`, `docs/DEVELOPMENT.md` — read the ones that exist before working in an unfamiliar area
 
 <!-- rule: coding-style.md -->
 ### Coding Style (Core)
@@ -27,6 +26,14 @@ uv run pytest  # Tests
 - Don't optimize without measurement
 - **KISS**, **YAGNI**, **DRY**
 - No debug leftovers (prints, commented-out code)
+
+#### Working Method
+
+- Reproduce a bug before fixing it
+- Read the code you're changing, and its callers, before editing
+- Smallest change that fixes the cause, not the symptom
+- Verify by running it, and say what you ran
+- State a routine assumption and continue; ask when different readings lead to materially different work
 
 #### Functions
 
@@ -85,14 +92,7 @@ Delete feature/bugfix branches after merge.
 
 #### Pull Requests
 
-1. Analyze full commit history with `git diff [base]...HEAD`
-2. Draft comprehensive summary
-3. Include test plan
-4. No AI attribution footer ("Generated with …") or session links
-
-#### Release & Hotfix
-
-Release: tag on master → hotfix needed: branch from tag → bugfix branch → fix → new tag → cherry-pick to master.
+Summary from the full diff against the base branch, plus what was run to verify it. No AI attribution footer or session links.
 
 <!-- rule: security.md -->
 ### Security Guidelines
@@ -111,6 +111,15 @@ Web-facing code also needs the checks in the REST API template (auth on every en
 #### Secret Management
 
 Use env vars, never hardcode secrets.
+
+#### Never on your own initiative
+
+Ask first, even when it would unblock you:
+
+- Force-push, rewrite shared history, delete branches
+- Delete or overwrite data; migrations or writes against anything shared
+- Rotate or print credentials
+- Stop or restart processes you didn't start
 
 #### Security Response
 
@@ -181,25 +190,12 @@ When a project starts from nothing, look for a proven skeleton or template for i
 - Keep module boundaries visible in directory structure
 
 <!-- rule: codemaps.md -->
-### Codemap System
+### Codemaps
 
-#### Reading Codemaps
+Applies only to projects with a `codemaps/` directory; don't create one unasked.
 
-This applies to projects that have a `codemaps/` directory. Don't create one unasked.
-
-Before modifying code in an unfamiliar module:
-1. Read codemaps/INDEX.md for project overview
-2. Read the specific module codemap for context
-
-Don't read all codemaps upfront. Read only what you need.
-
-#### Updating Codemaps
-
-Run /update-codemaps when:
-- User requests it
-- You've made structural changes (new modules, changed public APIs, new dependencies)
-
-The command checks staleness automatically — only stale codemaps regenerate.
+- Before changing an unfamiliar module, read `codemaps/INDEX.md`, then that module's codemap. Not all of them.
+- After a structural change (new module, changed public API, new dependency), run `/update-codemaps`; it regenerates only stale maps.
 
 <!-- rule: python.md -->
 ### Language: Python
@@ -339,12 +335,5 @@ Same as security.md, plus:
 - Dry-run mode for destructive operations
 - Confirm before irreversible actions
 - Validate inputs early
-
-#### Checklist
-
-- [ ] Works with no arguments (or shows help)
-- [ ] Clear error messages
-- [ ] Non-zero exit on failure
-- [ ] No hardcoded paths
 
 <!-- /agent-foundry -->
