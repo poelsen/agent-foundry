@@ -7,7 +7,13 @@ import subprocess
 from pathlib import Path
 
 from .paths import REPO_ROOT
-from .registry import MANIFEST_MIGRATION, RETIRED_RULES, RETIRED_SKILLS
+from .registry import (
+    MANIFEST_MIGRATION,
+    RETIRED_AGENTS,
+    RETIRED_PLUGINS,
+    RETIRED_RULES,
+    RETIRED_SKILLS,
+)
 
 
 def read_version() -> str:
@@ -132,7 +138,8 @@ def migrate_manifest(manifest: dict) -> dict:
     if changed:
         manifest["modular_rules"] = modular
 
-    for key, retired in (("base_rules", RETIRED_RULES), ("skills", RETIRED_SKILLS)):
+    for key, retired in (("base_rules", RETIRED_RULES), ("skills", RETIRED_SKILLS),
+                         ("agents", RETIRED_AGENTS), ("plugins", RETIRED_PLUGINS)):
         names = manifest.get(key)
         if names and any(name in retired for name in names):
             manifest[key] = [name for name in names if name not in retired]

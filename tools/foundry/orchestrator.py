@@ -16,7 +16,7 @@ from .manifest import (
     read_version,
     save_manifest,
 )
-from .paths import COMMANDS_DIR, REPO_ROOT
+from .paths import REPO_ROOT
 from .payload import _install_foundry_payload
 from .private import discover_private_content, validate_prefix
 from .selection import run_selection
@@ -255,7 +255,8 @@ def cmd_init(
     consumed = set().union(*(a.supported_artifacts() for a in adapters))
 
     # ── Selection phase (precompute + step loop + derive) ──
-    result = run_selection(project, manifest, interactive, cli_private_sources, consumed)
+    result = run_selection(project, manifest, interactive, cli_private_sources, consumed,
+                           clis=tuple(selected_clis))
     if not result.ok:
         return False
 
@@ -330,8 +331,6 @@ def cmd_init(
     print(f"  Hooks: {len(selected_hooks)}" + (
         " (each runs only where the project configures its tool — see the README Hooks section)"
         if selected_hooks else ""))
-    cmd_count = len([f for f in (COMMANDS_DIR).iterdir() if f.suffix == ".md"]) if COMMANDS_DIR.is_dir() else 0
-    print(f"  Commands: {cmd_count}")
     print(f"  Agents: {len(selected_agents)}")
     print(f"  Skills: {len(selected_skills)}")
     print(f"  Plugins: {len(selected_plugins)}")

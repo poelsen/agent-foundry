@@ -55,8 +55,7 @@ _HOOK_MATCHER = "apply_patch|Edit|Write"
 
 # Claude Code wording in agent bodies, rewritten for Codex (skills are
 # invoked as $name there, not /name).
-_REWRITES = (("Claude Code", "Codex"), ("CLAUDE.md", "AGENTS.md"),
-             ("/update-codemaps", "$update-codemaps"))
+_REWRITES = (("Claude Code", "Codex"), ("CLAUDE.md", "AGENTS.md"))
 
 # ── TOML rendering (the standard library only reads TOML) ──
 

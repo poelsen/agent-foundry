@@ -14,7 +14,7 @@ uv run pytest  # Tests
 
 ### Project Docs
 
-- `codemaps/INDEX.md`, `docs/ARCHITECTURE.md`, `docs/DEVELOPMENT.md` — read the ones that exist before working in an unfamiliar area
+- `docs/ARCHITECTURE.md` and `docs/DEVELOPMENT.md`, if present — read before working in an unfamiliar area
 
 <!-- rule: coding-style.md -->
 ### Coding Style (Core)
@@ -155,10 +155,7 @@ The project's own target applies. Where it has none, keep new code roughly as we
 2. Fix the code, not the test, unless the test is wrong.
 3. Check isolation: does it fail alone, and does it fail on a clean checkout?
 
-#### Agents
-
-- **tdd-guide** helps when the project runs test-first and the feature's behaviour is unclear.
-- **e2e-test-typescript**, **e2e-test-python-web** (Playwright) and **e2e-test-python-qt** (pytest-qt) help for user-flow tests in a GUI or web app.
+The **e2e-test-\*** agents help with user-flow tests in a web or GUI app.
 
 <!-- rule: architecture.md -->
 ### Architecture Principles
@@ -188,14 +185,6 @@ When a project starts from nothing, look for a proven skeleton or template for i
 - Organize by feature/domain, not by type
 - Colocate related files (component + test + styles)
 - Keep module boundaries visible in directory structure
-
-<!-- rule: codemaps.md -->
-### Codemaps
-
-Applies only to projects with a `codemaps/` directory; don't create one unasked.
-
-- Before changing an unfamiliar module, read `codemaps/INDEX.md`, then that module's codemap. Not all of them.
-- After a structural change (new module, changed public API, new dependency), run `/update-codemaps`; it regenerates only stale maps.
 
 <!-- rule: python.md -->
 ### Language: Python

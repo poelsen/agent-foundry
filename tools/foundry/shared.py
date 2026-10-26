@@ -32,10 +32,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .adapters.base import AGENTS_MD, AGENTS_SKILLS, MCP_JSON, CliAdapter, Selections
-from .convert import command_skill
 from .deploy import (
     SKILL_COPY_IGNORE,
-    _command_skill_parent,
     _owned_command_names,
     _owned_rule_names,
     _owned_skill_names,
@@ -51,8 +49,8 @@ from .instructions import (
     rule_description,
     update_agent_foundry_header,
 )
-from .paths import AGENT_FOUNDRY_MARKER_END, AGENT_FOUNDRY_MARKER_START, COMMANDS_DIR, REPO_ROOT
-from .registry import CLAUDE_ONLY_RULES, MODULAR_RULES, PORTABLE_COMMANDS, PORTABLE_SKILLS
+from .paths import AGENT_FOUNDRY_MARKER_END, AGENT_FOUNDRY_MARKER_START, REPO_ROOT
+from .registry import CLAUDE_ONLY_RULES, MODULAR_RULES, PORTABLE_SKILLS
 
 # Leaves room for the project's own AGENTS.md content under both the
 # Antigravity (24,000 B/file) and Codex (32 KiB total) limits.
@@ -160,8 +158,8 @@ def _render_block(env: str, embedded: list[_Rule], pointers: list[_Rule]) -> str
                 "",
                 "### Project Docs",
                 "",
-                "- `codemaps/INDEX.md`, `docs/ARCHITECTURE.md`, `docs/DEVELOPMENT.md` — "
-                "read the ones that exist before working in an unfamiliar area",
+                "- `docs/ARCHITECTURE.md` and `docs/DEVELOPMENT.md`, if present — read "
+                "before working in an unfamiliar area",
                 ""]
     for rule in embedded:
         sections += [f"<!-- rule: {rule.name} -->", _demote_headings(rule.body), ""]
@@ -417,8 +415,7 @@ def remove_shared_skills(project: Path) -> None:
 
 
 def deploy_shared_skills(project: Path, sel: Selections) -> None:
-    """Deploy the selected portable skills, plus portable Claude commands
-    converted to skills, to .agents/skills/.
+    """Deploy the selected portable skills to .agents/skills/.
 
     Foundry-marked skill directories that are no longer wanted (or no
     longer portable) are removed. An unmarked directory is the project's
@@ -427,13 +424,7 @@ def deploy_shared_skills(project: Path, sel: Selections) -> None:
     skills_root = project / AGENTS_SKILLS_DIR
     wanted = [s for s in sel.skills if s in PORTABLE_SKILLS
               and (REPO_ROOT / "cli" / "claude" / "skills" / s).is_dir()]
-    # A skill's sub-commands (update-foundry-check → update-foundry) only
-    # come along with their skill, as in .claude/commands/.
-    commands = sorted(
-        COMMANDS_DIR / c for c in PORTABLE_COMMANDS
-        if (COMMANDS_DIR / c).is_file()
-        and _command_skill_parent(Path(c).stem) in (None, *wanted))
-    keep = set(wanted) | {c.stem for c in commands}
+    keep = set(wanted)
     # Pruning needs both proofs: a name the foundry ships (or shipped) and
     # the marker — a copy of a foundry skill under a new name keeps the
     # marker but is the project's.
@@ -452,16 +443,6 @@ def deploy_shared_skills(project: Path, sel: Selections) -> None:
         shutil.copytree(REPO_ROOT / "cli" / "claude" / "skills" / name, dest,
                         ignore=SKILL_COPY_IGNORE)
         _adapt_skill_dir(dest)
-    for command in commands:
-        dest = skills_root / command.stem
-        if not _claim_skill_dir(dest):
-            continue
-        dest.mkdir(parents=True)
-        (dest / "SKILL.md").write_text(command_skill(command), encoding="utf-8")
-        # A skill's sub-commands inherit its user-only policy.
-        parent = _command_skill_parent(command.stem)
-        _adapt_skill_dir(dest, user_invoked_only=bool(parent) and _user_invoked_only(
-            REPO_ROOT / "cli" / "claude" / "skills" / parent / "SKILL.md"))
 
 
 def _user_invoked_only(skill_md: Path) -> bool:

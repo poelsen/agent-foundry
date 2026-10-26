@@ -8,9 +8,9 @@ disable-model-invocation: true
 
 ## Usage
 
-- `/update-foundry` — Check for updates and apply if available
-- `/update-foundry-check` — Check only (separate command)
-- `/update-foundry-interactive` — Full interactive menu (separate command)
+- `/update-foundry` — check for a newer release and apply it
+- `/update-foundry --check` — report only
+- `/update-foundry --interactive` — full menu to add or change selections
 
 ## Instructions
 

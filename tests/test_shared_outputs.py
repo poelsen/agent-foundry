@@ -244,14 +244,26 @@ def test_copilot_only_menus_skip_claude_artifacts(tmp_path: Path, monkeypatch):
         assert claude_only not in asked
 
 
+def test_cross_cli_skills_follow_selected_clis(tmp_path: Path):
+    """The CLI reference skills and delegate come on only with a non-Claude target."""
+    claude_only = run_selection(tmp_path, None, interactive=False, cli_private_sources=None,
+                                clis=("claude",))
+    assert not {"copilot-cli", "codex-cli", "agy-cli", "delegate"} & set(claude_only.skills)
+    with_codex = run_selection(tmp_path, None, interactive=False, cli_private_sources=None,
+                               clis=("claude", "codex"))
+    assert {"codex-cli", "delegate"} <= set(with_codex.skills)
+    assert "copilot-cli" not in with_codex.skills
+    assert "megamind-financial" not in with_codex.skills
+
+
 def test_skipped_menus_keep_manifest_choices(tmp_path: Path, monkeypatch):
     _record_menus(monkeypatch)
-    manifest = {"hooks": ["ruff-format.sh"], "agents": ["doc-updater.md"], "skills": []}
+    manifest = {"hooks": ["ruff-format.sh"], "agents": ["code-reviewer-python.md"], "skills": []}
     result = run_selection(tmp_path, manifest, interactive=True, cli_private_sources=None,
                            consumed={"rules", "mcp", "skills"})
     # Not asked, but carried through so re-adding Claude later restores them
     assert result.hooks == ["ruff-format.sh"]
-    assert result.agents == ["doc-updater.md"]
+    assert result.agents == ["code-reviewer-python.md"]
 
 
 def test_all_menus_shown_without_consumed_filter(tmp_path: Path, monkeypatch):
@@ -324,8 +336,6 @@ def test_update_foundry_portable_with_script(tmp_path: Path):
     assert "bash .agents/skills/update-foundry/scripts/update-foundry.sh" in skill
     script = root / "update-foundry" / "scripts" / "update-foundry.sh"
     assert os.access(script, os.X_OK)
-    check = (root / "update-foundry-check" / "SKILL.md").read_text()
-    assert ".agents/skills/update-foundry/scripts/update-foundry.sh --check" in check
 
 
 def test_delegate_portable_with_runner(tmp_path: Path):
@@ -344,12 +354,6 @@ def test_local_env_files_never_deploy(tmp_path: Path, monkeypatch):
     root = _deployed(tmp_path / "proj", "delegate")
     assert not (root / "delegate" / "scripts" / ".env").exists()
     assert not (root / "delegate" / "scripts" / "__pycache__").exists()
-
-
-def test_skill_subcommands_only_with_their_skill(tmp_path: Path):
-    root = _deployed(tmp_path, "megamind-deep")
-    assert (root / "update-codemaps").is_dir()          # standalone command
-    assert not (root / "update-foundry-check").exists()  # needs update-foundry
 
 
 # ── Review fixes: ownership, symlinks, encodings, policies ──
@@ -461,7 +465,7 @@ def test_warns_about_files_that_hide_agents_md(tmp_path: Path, monkeypatch, caps
 def test_block_has_project_docs_and_nested_rule_headings(tmp_path: Path):
     block, _ = shared.render_agents_block(_selections())
     assert "### Project Docs" in block
-    assert "`codemaps/INDEX.md`" in block
+    assert "`docs/ARCHITECTURE.md`" in block
     # Rule H1s nest under the block's H2 instead of restarting the outline
     assert "\n### Coding Style (Core)\n" in block
     assert "\n# Coding Style" not in block
@@ -493,12 +497,9 @@ def test_budget_floor_warns(tmp_path: Path, monkeypatch, capsys):
 
 def test_user_only_skills_get_codex_policy(tmp_path: Path):
     root = _deployed(tmp_path, "update-foundry", "megamind-deep")
-    for skill in ("update-foundry", "update-foundry-check", "update-foundry-interactive"):
-        policy = root / skill / "agents" / "openai.yaml"
-        assert yaml.safe_load(policy.read_text()) == {
-            "policy": {"allow_implicit_invocation": False}}, skill
+    policy = root / "update-foundry" / "agents" / "openai.yaml"
+    assert yaml.safe_load(policy.read_text()) == {"policy": {"allow_implicit_invocation": False}}
     assert not (root / "megamind-deep" / "agents").exists()
-    assert not (root / "update-codemaps" / "agents").exists()
 
 
 def test_mcp_json_reconciles_with_recorded_state(tmp_path: Path):

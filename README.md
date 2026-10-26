@@ -13,9 +13,9 @@ A per-CLI **adapter** renders the selected artifacts into that CLI's conventions
 
 | Target | Reads | Gets |
 |--------|-------|------|
-| **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)** (`claude`) | `AGENTS.md`, `.claude/` | full fidelity — rules, agents, skills, commands, hooks, settings, MCP |
+| **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)** (`claude`) | `AGENTS.md`, `.claude/` | full fidelity — rules, agents, skills, hooks, settings, MCP |
 | **[GitHub Copilot CLI](https://github.com/github/copilot-cli)** (`copilot`) | `AGENTS.md`, `.mcp.json`, `.agents/skills/` | coding-standard rules (embedded in the cross-tool [`AGENTS.md`](https://agents.md)), MCP servers (workspace `.mcp.json`), and portable skills as native `SKILL.md` skills |
-| **[OpenAI Codex CLI](https://github.com/openai/codex)** (`codex`) | `AGENTS.md`, `.agents/skills/`, `.codex/` | coding-standard rules (`AGENTS.md`), portable skills plus portable commands (`update-codemaps`) as skills, subagents as `.codex/agents/*.toml`, MCP servers in `.codex/config.toml`, formatter hooks in `.codex/hooks.json` |
+| **[OpenAI Codex CLI](https://github.com/openai/codex)** (`codex`) | `AGENTS.md`, `.agents/skills/`, `.codex/` | coding-standard rules (`AGENTS.md`), portable skills, subagents as `.codex/agents/*.toml`, MCP servers in `.codex/config.toml`, formatter hooks in `.codex/hooks.json` |
 | **[Google Antigravity CLI](https://antigravity.google)** (`agy`) | `AGENTS.md`, `.agents/` | coding-standard rules (`AGENTS.md`, overflow rules in `.agents/rules/` load natively), portable skills and commands in `.agents/skills/`, subagents as `.agents/agents/*.md`, MCP servers in `.agents/mcp_config.json`, formatter hooks in `.agents/hooks.json` |
 
 Pick targets with `--clis claude,copilot,codex,agy` (or the interactive menu, which comes first so later menus only offer what the chosen CLIs can use). Selected items a CLI can't consume (Copilot has no subagent/hook equivalent; Claude-only skills and rules) are listed in a "Not deployed" report at the end of the run, never silently dropped.
@@ -23,7 +23,7 @@ Pick targets with `--clis claude,copilot,codex,agy` (or the interactive menu, wh
 **Shared outputs.** Files that several CLIs read — `AGENTS.md`, `.agents/skills/`, `.mcp.json` — are written once per run for all selected targets, not once per adapter:
 
 - **`AGENTS.md`** is every CLI's instructions file, Claude Code's included — see [AGENTS.md Convention](#agentsmd-convention). It gets a marker-wrapped block with the portable coding-standard rules (the Claude-only `agents.md` rule goes to `.claude/rules/` instead, which Claude Code loads alongside `AGENTS.md`). The block is capped at 20 KB because other CLIs silently truncate large instruction files (Antigravity at 24,000 bytes per file, Codex at 32 KiB in total). Rules that don't fit go to `.agents/rules/foundry-<rule>.md` — with Antigravity `trigger:` frontmatter, so Antigravity loads them natively — and `AGENTS.md` points to them.
-- **`.agents/skills/`** is the cross-vendor skill root (Copilot CLI, Codex and Antigravity all load it). Only portable skills go there — megamind ×4, `clickhouse-io`, `gui-threading`, `python-qt-gui`, `writer`, `humanizer`, `update-foundry`, the cross-model CLI references `copilot-cli`, `codex-cli`, `agy-cli`, and `delegate` (see [Delegation](#delegation)) — plus the portable commands (`update-codemaps`, `update-foundry-check`, `update-foundry-interactive`) converted to skills. Deploying adapts them without touching the Claude sources: Claude-only frontmatter (`model`, `allowed-tools`) is dropped, `.claude/skills/` paths and `Skill(x)` calls are rewritten, and a `SKILL.md` over 8 KB (Codex's limit for an explicitly invoked skill) becomes a short pointer to the unchanged text in `SKILL.full.md`. Skills tied to Claude-only state — `private-*` (private sources), `review-process` (Claude reviewer agents) — stay Claude Code-only.
+- **`.agents/skills/`** is the cross-vendor skill root (Copilot CLI, Codex and Antigravity all load it). Only portable skills go there — megamind ×4, `clickhouse-io`, `gui-threading`, `python-qt-gui`, `writer`, `humanizer`, `update-foundry`, the cross-model CLI references `copilot-cli`, `codex-cli`, `agy-cli`, and `delegate` (see [Delegation](#delegation)). Deploying adapts them without touching the Claude sources: Claude-only frontmatter (`model`, `allowed-tools`) is dropped, `.claude/skills/` paths and `Skill(x)` calls are rewritten, and a `SKILL.md` over 8 KB (Codex's limit for an explicitly invoked skill) becomes a short pointer to the unchanged text in `SKILL.full.md`. Skills tied to Claude-only state — `private-*` (private sources), `review-process` (Claude reviewer agents) — stay Claude Code-only.
 - `.agents/` is shared with other tools, so every file the foundry writes there carries an ownership marker and updates only ever prune marked content.
 
 **Codex specifics.** Codex reads `AGENTS.md` and `.agents/skills/` in any project, but everything under `.codex/` (agents, MCP servers, hooks) only once the project is trusted — setup prints how to trust it (`codex` → accept the prompt, or `[projects."<path>"] trust_level = "trusted"` in `~/.codex/config.toml`). Hooks additionally stay inert until you approve each one in Codex's `/hooks`. The foundry only rewrites its own marked block in `.codex/config.toml`, its own agent files and its own hook group, so project settings in those files survive updates. Agents without write tools (architect, code-reviewer) run in Codex's `read-only` sandbox.
@@ -62,7 +62,7 @@ python3 tools/setup.py init /path/to/your/project
    - **Hooks** — language-specific formatters and type checkers
    - **Agents** — specialized sub-agents matched to your languages
    - **Skills** — domain knowledge modules
-   - **Plugins** — LSP servers, workflow plugins
+   - **Plugins** — LSP servers
 3. Hands the selections to each chosen CLI's adapter, which deploys them into that CLI's layout (`.claude/` for Claude Code, `AGENTS.md` for Copilot, …)
 4. Saves selections — including the chosen `clis` — to `.claude/setup-manifest.json` for future updates
 
@@ -74,8 +74,8 @@ From any configured project, run the `update-foundry` skill from any target CLI 
 
 ```
 /update-foundry                # Check for new release, download, and apply
-/update-foundry-check          # Just check if an update is available
-/update-foundry-interactive    # Full interactive menu to add/change selections
+/update-foundry --check        # Just check if an update is available
+/update-foundry --interactive  # Full interactive menu to add/change selections
 ```
 
 `/update-foundry` checks the GitHub releases API, downloads the latest tarball to **`<project>/.foundry/foundry.tar.gz`**, refreshes the sibling `setup.py`, and runs it non-interactively using the saved manifest. Works the same regardless of how you bootstrapped.
@@ -120,7 +120,7 @@ python3 <project>/.foundry/setup.py update-all
 
 `AGENTS.md` holds your project's own instructions plus a block wrapped in marker comments (`<!-- agent-foundry -->` ... `<!-- /agent-foundry -->`) that setup rewrites on every run:
 - Environment commands for detected languages (setup, test)
-- Pointers to `codemaps/INDEX.md` and `docs/`
+- Pointers to `docs/`
 - The portable coding-standard rules, inlined (up to 20 KB; the rest go to `.agents/rules/` as pointers)
 
 Everything outside the block is yours and is never touched. For a new project, setup creates `AGENTS.md` with just a title and the block.
@@ -143,32 +143,21 @@ Portable rules an older foundry deployed to `.claude/rules/` are removed there, 
 
 ## Documentation Structure
 
-Claude-foundry recommends a three-tier documentation approach:
+Claude-foundry recommends a two-tier documentation approach:
 
 | Location | Purpose | Maintained by |
 |----------|---------|---------------|
 | `AGENTS.md` | Project instructions, environment, coding standards | You + agent-foundry (its block auto-updated) |
-| `codemaps/` | Architecture overview per module | `/update-codemaps` (auto-generated) |
 | `docs/` | Detailed project documentation | You (manual) |
 
 ### AGENTS.md
 
 Keep your part minimal. The agent-foundry block provides:
 - Environment commands (setup, test)
-- Pointers to `codemaps/INDEX.md` and `docs/`
+- Pointers to `docs/`
 - The coding standards
 
 Don't put detailed documentation here — it gets out of sync and wastes context.
-
-### codemaps/
-
-Auto-generated architecture docs. Run `/update-codemaps` to create/refresh. Each module gets:
-- Purpose and responsibilities
-- Key components with file:line references
-- Public API surface
-- Dependencies and data flow
-
-Claude reads these before modifying unfamiliar code.
 
 ### docs/
 
@@ -179,25 +168,6 @@ Your detailed documentation:
 
 If setup moved a long `CLAUDE.md` into `AGENTS.md`, move its detailed documentation on to `docs/`.
 
-## Codemaps
-
-Codemaps are auto-generated architecture documentation. Each module gets a markdown file describing key components, public APIs, dependencies, and data flow.
-
-### Using codemaps
-
-1. Run `/update-codemaps` to generate or refresh architecture docs
-2. Files are created in `codemaps/` with an `INDEX.md` overview
-3. The command checks staleness — only stale codemaps regenerate
-
-### When to update
-
-Run `/update-codemaps` after:
-- Adding new modules or packages
-- Changing public APIs
-- Adding significant new dependencies
-
-Claude automatically reads `codemaps/INDEX.md` before modifying unfamiliar modules (per the `codemaps.md` rule).
-
 ## What Gets Installed
 
 Everything is copied into `<project>/.claude/`:
@@ -205,12 +175,11 @@ Everything is copied into `<project>/.claude/`:
 | Component | Source | What it does |
 |-----------|--------|--------------|
 | **Rules** | `common/rules/` + `common/rule-library/` | Markdown files that instruct the agent on coding standards, security, git workflow, testing methodology (cross-CLI) |
-| **Agents** | `cli/claude/agents/` | Specialized sub-agents for TDD, code review, security analysis, architecture design (Claude Code) |
-| **Commands** | `cli/claude/commands/` | Slash commands: `/update-foundry`, `/update-codemaps` |
+| **Agents** | `cli/claude/agents/` | Specialized sub-agents for code review, security analysis, E2E tests and dead-code cleanup (Claude Code) |
 | **Skills** | `cli/claude/skills/` | Domain knowledge modules (megamind reasoning, writing pipeline with voice presets, GUI threading, ClickHouse) |
 | **Hooks** | `cli/claude/hooks/library/` | Shell scripts that run before/after Claude Code tool calls (formatters, type checkers) |
 | **MCP servers** | `common/mcp/` | Cross-vendor MCP configs (deployed to `.mcp.json`) |
-| **Plugins** | configured in `settings.json` | LSP servers and workflow plugins (feature-dev, PR review toolkit) |
+| **Plugins** | configured in `settings.json` | LSP servers |
 | **Copilot CLI** | `cli/claude/skills/copilot-cli/` | Thin reference skill for the local GitHub Copilot CLI — lets review-process run non-Claude models. See [Copilot CLI](#copilot-cli). |
 | **Delegation** | `cli/claude/skills/delegate/` | Any target CLI hands tasks to any other (Claude Code, Codex, Antigravity, Copilot) as managed jobs: own worktree, policy, audit log, review gate. See [Delegation](#delegation). |
 
@@ -226,7 +195,6 @@ Rules are markdown files loaded by Claude Code at session start. They shape how 
 - `testing.md` — targeted test runs, what to write, coverage as a signal
 - `architecture.md` — composition over inheritance, module boundaries
 - `agents.md` — when and how to use specialized sub-agents
-- `codemaps.md` — architecture documentation system
 
 **Modular rules** (`common/rule-library/`) are selected per-project:
 
@@ -237,34 +205,16 @@ Rules are markdown files loaded by Claude Code at session start. They shape how 
 | `platform/` | GitHub (auto-detected) |
 | `security/` | Sandbox, internal, enterprise |
 
-## Commands
-
-Slash commands are available inside Claude Code after running `setup.py init`:
-
-| Command | What it does |
-|---------|--------------|
-| `/update-foundry` | Checks GitHub for a newer release and applies it. See [Updating](#updating). |
-| `/update-foundry-check` | Checks if an update is available without applying changes. |
-| `/update-foundry-interactive` | Full interactive menu to add or change component selections. |
-| `/update-codemaps` | Generates or refreshes architecture documentation per module. |
-| `/review-process` | Runs a tiered review (risk-tier T0-T4, mode, reviewer routing, finding ledger). See [Review Process](#review-process). |
-| `/private-list` | Lists registered private config sources with status. |
-| `/private-remove` | Removes a private source by prefix. `/private-remove company` removes all `company-*` files. |
-
 ## Agents
 
 Agents are specialized sub-agents that Claude Code launches for specific tasks. During `setup.py init`, agents are selected based on your project's languages.
 
 | Agent | Purpose | Languages |
 |-------|---------|-----------|
-| `architect-*` | System design and architectural decisions | Python, TypeScript |
-| `tdd-guide-*` | Test-driven development (write tests first) | Python, TypeScript |
 | `code-reviewer-*` | Code quality, security, maintainability review | Python, TypeScript |
 | `security-reviewer-*` | OWASP scanning, vulnerability detection | Python, TypeScript |
-| `build-error-resolver-*` | Fix build/lint/type errors with minimal diffs | Python, TypeScript |
 | `e2e-test-*` | End-to-end browser or GUI testing | Python (Playwright + pytest-qt), TypeScript (Playwright) |
 | `refactor-cleaner-*` | Dead code removal, consolidation | Python, TypeScript |
-| `doc-updater` | Documentation and codemap updates | All |
 
 ## Hooks
 
@@ -311,10 +261,10 @@ The skill menu in `setup.py init` presents related skills as **groups**, not ind
 
 | Group | Members | Default |
 |-------|---------|---------|
-| **Megamind Reasoning** | `megamind-deep`, `megamind-creative`, `megamind-adversarial`, `megamind-financial` | on |
+| **Megamind Reasoning** | `megamind-deep`, `megamind-creative`, `megamind-adversarial` | on |
 | **Writing** | `writer`, `humanizer` | off (opt-in) |
 
-Megamind Reasoning is **on by default**; Writing is **off by default** — toggle it on to deploy the drafting pipeline (`writer` drafts in the author's voice with ten selectable presets, then invokes `humanizer` for the anti-AI audit; the pair deploys together because the hand-off requires both). Ungrouped skills appear as individual entries. `update-foundry`, `private-list`, `private-remove`, `review-process`, `copilot-cli`, `codex-cli`, `agy-cli` and `delegate` are on by default; `clickhouse-io`, `gui-threading` and `python-qt-gui` are off unless detection or you turn them on.
+Megamind Reasoning is **on by default**; Writing is **off by default** — toggle it on to deploy the drafting pipeline (`writer` drafts in the author's voice with ten selectable presets, then invokes `humanizer` for the anti-AI audit; the pair deploys together because the hand-off requires both). Ungrouped skills appear as individual entries. `update-foundry`, `private-list`, `private-remove`, `review-process`, `copilot-cli`, `codex-cli`, `agy-cli` and `delegate` are on by default; `megamind-financial`, `clickhouse-io`, `gui-threading` and `python-qt-gui` are off unless detection or you turn them on; `copilot-cli`, `codex-cli`, `agy-cli` and `delegate` come on with the matching target CLI.
 
 The manifest still stores individual skill names (not group names), so existing projects keep working without migration.
 
@@ -396,7 +346,6 @@ agent-foundry/
 ├── cli/                          # CLI-specific artifacts
 │   └── claude/                   # Claude Code only
 │       ├── agents/               # Sub-agent definitions
-│       ├── commands/             # Slash commands
 │       ├── skills/               # Domain skills
 │       └── hooks/library/        # Per-language hook scripts
 └── tools/
@@ -404,7 +353,6 @@ agent-foundry/
     └── foundry/                  # The deployment package
         ├── orchestrator.py       # Selects artifacts, dispatches to adapters
         ├── adapters/             # One per CLI: base, claude, copilot, codex, antigravity
-        ├── convert.py            # Parses Claude-format sources for conversion
         ├── shared.py             # Files several CLIs read (AGENTS.md, .agents/, .mcp.json)
         ├── registry.py  detect.py  manifest.py  …
         └── …
@@ -525,7 +473,7 @@ A tiered review-orchestration skill that turns scattered reviewers into a discip
 - **Review modes** — `AUDIT_ONLY`, `FIX_AUTHORIZED`, `FIX_AND_COMMIT_AUTHORIZED`
 - **Model strategies** — `SINGLE_FAST`, `DIVERSE_STANDARD`, `PREMIUM_TARGETED`, `MIXED_PREMIUM`, `USER_SPECIFIED`; asked once per T1+ review together with the mode, with no pinned model versions (session model, or the cross-vendor CLI's default)
 - **Reviewer contract** — reviewers are read-only, set severity by impact (checklist hits are prompts, not severities), and have no minimum finding count; the orchestrator checks that each frame's sections are present and maps every reviewer finding to a ledger ID
-- **Reviewer routing** — triggers map to existing foundry reviewers (`megamind-*` skills + `code-reviewer-*`, `security-reviewer-*`, `tdd-guide-*`, `architect-*`, `refactor-cleaner-*`, `build-error-resolver-*` agents)
+- **Reviewer routing** — triggers map to existing foundry reviewers (`megamind-*` skills + `code-reviewer-*`, `security-reviewer-*`, `refactor-cleaner-*`, `e2e-test-*` agents)
 - **Finding ledger** — every finding gets severity, confidence, evidence strength, disposition, and prevention action
 - **Reviewer compaction** — at most one reviewer per concern; adversarial covers cross-concern interactions
 - **Persistent review state** — recurring findings, converted checks, deferrals, and accepted risks live in the project at `docs/review-state/log.md` (seeded on first use from the skill's templates)
@@ -545,8 +493,6 @@ Always start with the general process and add every more-specific sub-file whose
 
 ### Relationship to other foundry artifacts
 
-- Complements `pr-review-toolkit` (which reviews already-created PRs) — this skill governs pre-commit / pre-PR review.
-- Complements the `code-review` plugin (single-shot review) — this skill is a tiered governance process.
 - Routes work to skills/agents foundry already ships; if a referenced reviewer isn't installed, the review header records it as unavailable.
 
 ## Copilot CLI

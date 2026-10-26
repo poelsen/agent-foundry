@@ -76,37 +76,30 @@ def test_every_foundry_agent_converts_to_valid_toml(agent: str):
 
 
 def test_read_only_agent_gets_read_only_sandbox(tmp_path: Path):
-    _deploy(tmp_path, agents=["code-reviewer-python.md", "tdd-guide-python.md"])
+    _deploy(tmp_path, agents=["code-reviewer-python.md", "security-reviewer-python.md"])
     reviewer = _toml(tmp_path / ".codex/agents/code-reviewer-python.toml")
     assert reviewer["sandbox_mode"] == "read-only"       # tools: Read, Grep, Glob, Bash
-    assert "sandbox_mode" not in _toml(tmp_path / ".codex/agents/tdd-guide-python.toml")
+    assert "sandbox_mode" not in _toml(tmp_path / ".codex/agents/security-reviewer-python.toml")
     assert "model" not in reviewer                        # Claude model names dropped
-
-
-def test_agent_bodies_rewritten_for_codex(tmp_path: Path):
-    _deploy(tmp_path, agents=["doc-updater.md"])
-    role = _toml(tmp_path / ".codex/agents/doc-updater.toml")
-    assert "$update-codemaps" in role["developer_instructions"]
-    assert "/update-codemaps" not in role["developer_instructions"]
 
 
 def test_deselected_agent_pruned_project_agent_kept(tmp_path: Path):
     own = tmp_path / ".codex/agents/team-helper.toml"
     own.parent.mkdir(parents=True)
     own.write_text('name = "team-helper"\n')
-    _deploy(tmp_path, agents=["doc-updater.md"])
-    assert (tmp_path / ".codex/agents/doc-updater.toml").exists()
+    _deploy(tmp_path, agents=["refactor-cleaner-python.md"])
+    assert (tmp_path / ".codex/agents/refactor-cleaner-python.toml").exists()
     _deploy(tmp_path, agents=[])
-    assert not (tmp_path / ".codex/agents/doc-updater.toml").exists()
+    assert not (tmp_path / ".codex/agents/refactor-cleaner-python.toml").exists()
     assert own.read_text() == 'name = "team-helper"\n'
 
 
 def test_unmarked_same_name_agent_not_overwritten(tmp_path: Path):
-    own = tmp_path / ".codex/agents/doc-updater.toml"
+    own = tmp_path / ".codex/agents/refactor-cleaner-python.toml"
     own.parent.mkdir(parents=True)
-    own.write_text('name = "doc-updater"\n')
-    _deploy(tmp_path, agents=["doc-updater.md"])
-    assert own.read_text() == 'name = "doc-updater"\n'
+    own.write_text('name = "refactor-cleaner-python"\n')
+    _deploy(tmp_path, agents=["refactor-cleaner-python.md"])
+    assert own.read_text() == 'name = "refactor-cleaner-python"\n'
 
 
 # ── MCP → .codex/config.toml ──
@@ -177,9 +170,9 @@ def test_filled_in_key_in_managed_block_survives(tmp_path: Path):
 
 
 def test_copied_agent_survives_prune(tmp_path: Path):
-    _deploy(tmp_path, agents=["doc-updater.md"])
+    _deploy(tmp_path, agents=["refactor-cleaner-python.md"])
     agents = tmp_path / ".codex/agents"
-    (agents / "team-doc.toml").write_text((agents / "doc-updater.toml").read_text())
+    (agents / "team-doc.toml").write_text((agents / "refactor-cleaner-python.toml").read_text())
     _deploy(tmp_path, agents=[])
     assert (agents / "team-doc.toml").exists()
 
@@ -343,7 +336,7 @@ def test_unexpected_hooks_json_shape_left_alone(tmp_path: Path):
 
 
 def test_trust_hint_when_untrusted(tmp_path: Path, capsys):
-    _deploy(tmp_path, agents=["doc-updater.md"], hooks=["ruff-format.sh"])
+    _deploy(tmp_path, agents=["refactor-cleaner-python.md"], hooks=["ruff-format.sh"])
     out = capsys.readouterr().out
     assert "only in trusted projects" in out
     assert f'[projects."{tmp_path}"]' in out
@@ -356,7 +349,7 @@ def test_no_trust_hint_when_trusted(tmp_path: Path, capsys, monkeypatch):
     (home / "config.toml").write_text(f'[projects."{tmp_path}"]\ntrust_level = "trusted"\n')
     monkeypatch.setenv("CODEX_HOME", str(home))
     assert codex_mod.project_trusted(tmp_path)
-    _deploy(tmp_path, agents=["doc-updater.md"])
+    _deploy(tmp_path, agents=["refactor-cleaner-python.md"])
     assert "only in trusted projects" not in capsys.readouterr().out
 
 
@@ -368,15 +361,12 @@ def test_no_trust_hint_without_codex_dir_content(tmp_path: Path, capsys):
 # ── Shared outputs for Codex ──
 
 
-def test_codex_gets_agents_md_and_command_skills(tmp_path: Path):
+def test_codex_gets_agents_md_and_portable_skills(tmp_path: Path):
     _deploy(tmp_path, skills=["megamind-deep", "review-process"])
     assert "<!-- agent-foundry -->" in (tmp_path / "AGENTS.md").read_text()
     skills = tmp_path / ".agents/skills"
     assert (skills / "megamind-deep/SKILL.md").exists()
     assert not (skills / "review-process").exists()
-    command = (skills / "update-codemaps/SKILL.md").read_text()
-    assert command.startswith("---\nname: update-codemaps\ndescription: ")
-    assert "**Model:**" not in command
 
 
 def test_agents_md_over_codex_limit_warns(tmp_path: Path, capsys):

@@ -34,7 +34,7 @@ class TestSkillGroupsShape:
     def test_megamind_group_contains_all_4_skills(self):
         members = setup_py.SKILL_GROUPS["Megamind Reasoning"]
         assert set(members) == {
-            "megamind-deep", "megamind-creative", "megamind-adversarial", "megamind-financial",
+            "megamind-deep", "megamind-creative", "megamind-adversarial",
         }
 
     def test_copilot_is_not_a_group(self):

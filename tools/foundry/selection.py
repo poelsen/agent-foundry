@@ -25,7 +25,6 @@ from .registry import (
     MODULAR_RULES,
     SKILL_GROUPS,
     SKILLS,
-    WORKFLOW_PLUGINS,
 )
 
 # Artifact type each selection step picks, matched against the selected
@@ -63,6 +62,7 @@ def run_selection(
     interactive: bool,
     cli_private_sources: list[tuple[str, str]] | None,
     consumed: set[str] | None = None,
+    clis: tuple[str, ...] = ("claude",),
 ) -> SelectionResult:
     """Run the precompute + selection loop + derive phases of ``cmd_init``.
 
@@ -72,6 +72,8 @@ def run_selection(
         interactive: Whether to prompt for choices.
         cli_private_sources: (path, prefix) tuples from --private/--prefix flags.
         consumed: Artifact types the selected CLIs can consume (None = all).
+        clis: Selected CLI ids; the cross-CLI skills default on only for
+            the CLIs that are targets.
             Steps for other types are not shown; they resolve from the
             manifest/defaults as in a non-interactive run, so switching
             target CLIs later doesn't lose the saved choices.
@@ -248,9 +250,12 @@ def run_selection(
                         if skill == "python-qt-gui" and "desktop-gui-qt.md" in sfd:
                             auto.add(i)
                     # Default-on individual skills (the small always-useful set)
-                    always_on = ("update-foundry", "private-list", "private-remove",
-                                 "review-process", "copilot-cli", "codex-cli", "agy-cli",
-                                 "delegate")
+                    always_on = {"update-foundry", "private-list", "private-remove",
+                                 "review-process"}
+                    others = [c for c in clis if c != "claude"]
+                    always_on |= {f"{c}-cli" for c in others}
+                    if others:
+                        always_on.add("delegate")
                     for i, skill in enumerate(SKILLS):
                         if skill in always_on:
                             auto.add(i)
@@ -308,8 +313,7 @@ def run_selection(
                             if plugin not in seen_lsp:
                                 lsp_plugins.append((plugin, binary))
                                 seen_lsp.add(plugin)
-                    all_plugins = ([(p, f"LSP: {b}") for p, b in lsp_plugins] +
-                                   [(p, d) for p, d in WORKFLOW_PLUGINS])
+                    all_plugins = [(p, f"LSP: {b}") for p, b in lsp_plugins]
                     plugin_display = [f"{p} — {d}" for p, d in all_plugins]
                     if saved_plugin_names is not None:
                         auto = {i for i, (p, _) in enumerate(all_plugins)

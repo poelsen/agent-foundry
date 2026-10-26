@@ -70,8 +70,7 @@ class TestNewProject:
         cmd_init(temp_project, interactive=False)
 
         content = _agents_md(temp_project)
-        assert "codemaps/INDEX.md" in content
-        assert "update-codemaps" in content
+        assert "docs/ARCHITECTURE.md" in content
 
 
 class TestClaudeMdMigration:
@@ -450,6 +449,14 @@ class TestMigrateManifest:
         result = migrate_manifest(manifest)
 
         assert result["base_rules"] == ["security.md"]
+
+    def test_retired_agents_and_plugins_dropped(self):
+        manifest = {"agents": ["code-reviewer-python.md", "architect-python.md", "doc-updater.md"],
+                    "plugins": ["pyright-lsp", "feature-dev", "code-review"]}
+        result = migrate_manifest(manifest)
+
+        assert result["agents"] == ["code-reviewer-python.md"]
+        assert result["plugins"] == ["pyright-lsp"]
 
     def test_retired_skills_and_learned_categories_dropped(self):
         """An older project's manifest names skills and a selection step that

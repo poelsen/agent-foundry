@@ -293,16 +293,16 @@ def test_copilot_preserves_user_content(tmp_path: Path):
 
 
 def test_claude_skips_nothing():
-    sel = _selections(agents=["doc-updater.md"], hooks=["ruff-format.sh"],
-                      skills=["review-process"], plugins=["feature-dev"])
+    sel = _selections(agents=["refactor-cleaner-python.md"], hooks=["ruff-format.sh"],
+                      skills=["review-process"], plugins=["pyright-lsp"])
     assert ClaudeAdapter().skipped(sel) == []
 
 
 def test_copilot_reports_unsupported_and_claude_only():
-    sel = _selections(base=["coding-style.md", "agents.md"], agents=["doc-updater.md"],
+    sel = _selections(base=["coding-style.md", "agents.md"], agents=["refactor-cleaner-python.md"],
                       hooks=["ruff-format.sh"], skills=["megamind-deep", "review-process"])
     by_artifact = {s.artifact: s for s in CopilotAdapter().skipped(sel)}
-    assert by_artifact["agents"].items == ["doc-updater.md"]
+    assert by_artifact["agents"].items == ["refactor-cleaner-python.md"]
     assert not by_artifact["agents"].claude_only
     assert by_artifact["hooks"].items == ["ruff-format.sh"]
     assert by_artifact["skills"].items == ["review-process"]  # megamind-deep is portable
@@ -311,7 +311,7 @@ def test_copilot_reports_unsupported_and_claude_only():
 
 
 def test_skipped_report_printed(tmp_path: Path, capsys):
-    sel = _selections(agents=["doc-updater.md"], skills=["review-process"])
+    sel = _selections(agents=["refactor-cleaner-python.md"], skills=["review-process"])
     _deploy_copilot(tmp_path, sel)
     out = capsys.readouterr().out
     assert "Not deployed" in out
