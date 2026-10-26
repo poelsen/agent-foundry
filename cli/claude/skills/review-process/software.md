@@ -31,7 +31,7 @@ Escalate the risk tier when a change touches:
 | Security, input, persistence, path, secret, or sharing risk | `security-reviewer-*` agent | Security checklist for the stack |
 | Feature, bug fix, or regression-sensitive change | `code-reviewer-*` agent, report-only | Test checklist |
 | Cleanup, migration completeness, dead code, duplicate logic | `refactor-cleaner-*` agent, report-only | Code-smell and migration checklist |
-| New decomposition or T4 review | `megamind-creative` | Alternate decomposition review |
+| New decomposition | `megamind-creative` | Alternate decomposition review |
 
 Substitute the language suffix as installed: `-python`, `-typescript`,
 `-python-web`, `-python-qt`. If the agent for the stack is not installed,
@@ -43,12 +43,12 @@ ledger shape, no minimum finding count.
 
 1. Declare review mode, risk tier, budget, and triggers.
 2. Select reviewers using shared routing plus software triggers.
-3. Pre-review T3/T4 plans for architecture, rollback, migration, and tests.
+3. Pre-review T3 plans for architecture, rollback, migration, and tests.
 4. Post-review changed files plus integration contracts.
 5. Triage findings with the shared ledger.
 6. Apply fixes only when the review mode authorizes edits.
 7. Validate with existing project checks.
-8. Promote recurring findings into review-state checks.
+8. Turn recurring findings into checks (see below).
 
 ## Code-smell checklist
 
@@ -131,8 +131,6 @@ Recurring software findings should become one of:
 - code template or example;
 - review checklist item;
 - architecture documentation.
-
-Every conversion must create or update a review-state entry.
 
 ## Commit message template
 
