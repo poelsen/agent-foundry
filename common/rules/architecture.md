@@ -1,16 +1,8 @@
 # Architecture Principles
 
-## Project Discovery
+## Starting a new project
 
-When implementing new functionality:
-1. Search for battle-tested skeleton projects
-2. Use parallel agents to evaluate options:
-   - Security assessment
-   - Extensibility analysis
-   - Relevance scoring
-   - Implementation planning
-3. Clone best match as foundation
-4. Iterate within proven structure
+When a project starts from nothing, look for a proven skeleton or template for its kind before writing the layout by hand. This doesn't apply to adding functionality to an existing project.
 
 ## Design Principles
 
