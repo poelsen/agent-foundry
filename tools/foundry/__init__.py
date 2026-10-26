@@ -19,6 +19,7 @@ from .deploy import (
     copy_rules,
     copy_skills,
     generate_settings_json,
+    remove_retired_state_dirs,
     write_mcp_servers,
 )
 from .detect import (
@@ -160,6 +161,7 @@ __all__ = [
     "project_text",
     "read_version",
     "redeploy_private_sources",
+    "remove_retired_state_dirs",
     "resolve_project_path",
     "save_manifest",
     "scan_extensions",

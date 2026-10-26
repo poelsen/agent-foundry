@@ -22,6 +22,7 @@ from .registry import (
     RETIRED_COMMANDS,
     RETIRED_RULES,
     RETIRED_SKILLS,
+    RETIRED_STATE_DIRS,
     SKILLS,
 )
 
@@ -337,16 +338,14 @@ def copy_skills(
     skills_dir = project / ".claude" / "skills"
     skills_dir.mkdir(parents=True, exist_ok=True)
     wanted = set(skills)
-    # Remove stale foundry skills not in current selection. Skip the
-    # project's own pattern dirs (learned/, learned-local/), private-prefixed
-    # dirs, and any skill the foundry never shipped.
-    protected = {"learned", "learned-local"}
+    # Remove stale foundry skills not in current selection. Skip
+    # private-prefixed dirs and any skill the foundry never shipped.
     owned = _owned_skill_names()
     foreign: list[str] = []
     for existing in sorted(skills_dir.iterdir()):
         if not existing.is_dir():
             continue
-        if existing.name in protected or existing.name in wanted:
+        if existing.name in wanted:
             continue
         if any(existing.name.startswith(f"{p}-") for p in private_prefixes):
             continue
@@ -365,6 +364,16 @@ def copy_skills(
             if dest.exists():
                 shutil.rmtree(dest)
             shutil.copytree(src, dest, ignore=SKILL_COPY_IGNORE)
+
+
+def remove_retired_state_dirs(project: Path) -> None:
+    """Remove .claude/ dirs that retired commands wrote into (RETIRED_STATE_DIRS).
+    Nothing reads them any more; every removal is printed."""
+    for name in RETIRED_STATE_DIRS:
+        path = project / ".claude" / name
+        if path.is_dir():
+            shutil.rmtree(path)
+            print(f"  Removed retired foundry state: .claude/{name}/")
 
 
 def install_hook_scripts(dest: Path, hooks: list[str]) -> None:

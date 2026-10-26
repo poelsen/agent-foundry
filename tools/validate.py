@@ -117,7 +117,7 @@ class Validator:
         self.check("Markdown: skills (frontmatter)")
         skills_dir = self.root / "cli" / "claude" / "skills"
         for skill_dir in sorted(skills_dir.iterdir()):
-            if not skill_dir.is_dir() or skill_dir.name in ("learned", "learned-local"):
+            if not skill_dir.is_dir():
                 continue
             if skill_dir.name.startswith("_"):
                 continue

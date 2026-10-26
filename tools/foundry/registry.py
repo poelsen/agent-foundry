@@ -110,11 +110,14 @@ MODULAR_RULES = {
 # recorded in MANIFEST_MIGRATION below; base rules go in RETIRED_RULES.
 RETIRED_RULES: set[str] = {"hooks.md", "performance.md", "skills.md"}
 # Session and project bookkeeping that Claude Code now does natively
-# (resume, fork, named sessions, memory), plus their shared script dir.
+# (resume, fork, named sessions, memory), their shared script dir, and
+# the pattern dirs the learn skill wrote into.
 RETIRED_SKILLS: set[str] = {
     "prj-new", "prj-list", "prj-pause", "prj-resume", "prj-done", "prj-delete",
-    "snapshot-list", "learn", "learn-recall", "_lib",
+    "snapshot-list", "learn", "learn-recall", "_lib", "learned", "learned-local",
 }
+# .claude/ dirs the retired snapshot and prj-* commands wrote into.
+RETIRED_STATE_DIRS: tuple[str, ...] = ("snapshots", "prjs")
 RETIRED_COMMANDS: set[str] = {"recall.md", "snapshot.md", "snapshot-restore.md"}
 RETIRED_AGENTS: set[str] = set()
 

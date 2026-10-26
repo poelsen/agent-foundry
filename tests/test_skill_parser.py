@@ -187,18 +187,6 @@ class TestDiscoverSkills:
         assert skills[0].name == "alpha"
         assert skills[1].name == "beta"
 
-    def test_skips_learned_directories(self, tmp_path):
-        for name in ("learned", "learned-local", "real-skill"):
-            d = tmp_path / name
-            d.mkdir()
-            (d / "SKILL.md").write_text(
-                f"---\nname: {name}\ndescription: Skill {name}\n---\n\n# {name}\n"
-            )
-
-        skills = discover_skills(tmp_path)
-        assert len(skills) == 1
-        assert skills[0].name == "real-skill"
-
     def test_skips_directories_without_skill_md(self, tmp_path):
         (tmp_path / "has-skill").mkdir()
         (tmp_path / "has-skill" / "SKILL.md").write_text(
