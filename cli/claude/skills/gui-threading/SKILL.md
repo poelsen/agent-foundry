@@ -39,7 +39,7 @@ The UI thread has exactly two responsibilities:
 1. **Render** - Display data from models
 2. **React** - Respond to user input, trigger commands
 
-The UI thread MUST NOT:
+The UI thread must not:
 - Execute backend operations (file I/O, network, database)
 - Perform heavy computations
 - Block waiting for results
@@ -79,7 +79,7 @@ Backend → Controller → Models → Views
            └── Commands ──────────┘
 ```
 
-Views NEVER write directly to backend or models. Views emit commands/actions that the controller processes.
+Views never write directly to backend or models. Views emit commands/actions that the controller processes.
 
 ### Why
 
@@ -147,7 +147,7 @@ Worker objects:
 
 ### The Rule
 
-Data passed between threads MUST be immutable. Workers create snapshots; UI reads snapshots.
+Data passed between threads must be immutable. Workers create snapshots; UI reads snapshots.
 
 ### Why
 
@@ -198,7 +198,7 @@ Refresh triggers:
 - Filesystem changes (debounced)
 - Post-operation refresh
 
-NEVER refresh on a timer/interval.
+Never refresh on a timer/interval.
 
 ### Why
 

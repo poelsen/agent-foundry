@@ -26,7 +26,7 @@ Skills are reusable knowledge modules that provide domain-specific patterns, bes
 
 **Auto-selected:** all four, as the Megamind Reasoning group. When `review-process` uses one as a reviewer frame, its reviewer contract replaces the skill's standalone confirm-and-stop rules.
 
-The `megamind-financial` skill uses country-specific data files in `data/` (e.g., `dk-tax-2026.md`). See [IMPROVEMENT-PROCESS.md](IMPROVEMENT-PROCESS.md) for the annual DK tax data update procedure.
+The `megamind-financial` skill uses country-specific data files in `data/` (e.g., `dk-tax-2026.md`). See [docs/MEGAMIND-IMPROVEMENT.md](../../../docs/MEGAMIND-IMPROVEMENT.md) for the annual DK tax data update procedure.
 
 #### Benchmark Results (Opus 4.6, original 30-challenge suite, 5 runs each)
 

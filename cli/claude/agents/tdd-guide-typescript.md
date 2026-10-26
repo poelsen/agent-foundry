@@ -15,7 +15,7 @@ When a review process or the user asks you to review tests rather than write the
 
 - Enforce tests-before-code methodology
 - Guide through TDD Red-Green-Refactor cycle
-- Ensure 80%+ test coverage
+- Keep coverage at the project's target
 - Write comprehensive test suites (unit, integration, E2E)
 - Catch edge cases before implementation
 
@@ -64,7 +64,7 @@ npx vitest run
 ### Step 6: Verify Coverage
 ```bash
 npx vitest run --coverage    # or: npx jest --coverage
-# Verify 80%+ coverage
+# Compare against the project's coverage target
 ```
 
 ## Test Types
@@ -205,7 +205,7 @@ tests/
 - [ ] Tests are independent (no shared state)
 - [ ] Test names describe what's being tested
 - [ ] Assertions are specific and meaningful
-- [ ] Coverage is 80%+ (verify with coverage report)
+- [ ] Coverage meets the project's target
 
 ## Anti-Patterns
 
@@ -248,11 +248,7 @@ npx vitest --watch            # or: npx jest --watch
 npx vitest run --coverage --reporter=junit
 ```
 
-Required thresholds:
-- Branches: 80%
-- Functions: 80%
-- Lines: 80%
-- Statements: 80%
+Thresholds come from the project's own configuration.
 
 ---
 

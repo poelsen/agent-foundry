@@ -83,4 +83,3 @@ fn read_config(path: &Path) -> Result<Config, AppError> {
 - Integration tests: `tests/` directory (separate compilation)
 - Property-based testing with `proptest`
 - Coverage: `cargo llvm-cov` or `cargo tarpaulin`
-- Target 80%+ coverage

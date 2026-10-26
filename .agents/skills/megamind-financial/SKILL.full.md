@@ -142,7 +142,7 @@ Use at least 2: DCF, comparables, earnings power, asset-based, or pre-earnings f
 
 Tax rules are 100% country-specific. Identify the jurisdiction before any analysis. Common frameworks:
 
-**Denmark (DK):** Rates below are from `data/dk-tax-2026.md`. When updating, update BOTH the data file AND these inline values (see `IMPROVEMENT-PROCESS.md` at the skills root of the agent-foundry repo; not deployed to projects).
+**Denmark (DK):** Rates below are from `data/dk-tax-2026.md`. When updating, change both the data file and these inline values.
 - **2026 MAJOR CHANGE: 4-bracket system.** Bundskat 12.09% + Mellemskat 7.5% (above DKK 641,200) + Topskat 7.5% (above DKK 777,900) + Toptopskat 5% (above DKK 2,592,700). AM-bidrag 8%. Personfradrag DKK 54,100.
 - Aktieindkomst: 27% up to DKK 79,400 (2026), 42% above. Married couples: DKK 158,800 combined.
 - Pension: ratepension fradrag up to DKK 68,700/year. Aldersopsparing DKK 9,900/year (>7yr to retirement) / DKK 64,200 (<7yr). PAL-skat 15.3%.

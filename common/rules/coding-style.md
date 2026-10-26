@@ -6,10 +6,11 @@
 - Correctness → Clarity → Performance
 - Don't optimize without measurement
 - **KISS**, **YAGNI**, **DRY**
+- No debug leftovers (prints, commented-out code)
 
 ## Functions
 
-- Small and single-purpose (<50 lines)
+- Small and single-purpose (<50 lines), nesting no deeper than 4 levels
 - If "and" in the name, it's doing too much
 - Pure where possible; isolate side effects
 
@@ -30,15 +31,3 @@
 - Self-documenting names reduce comment need
 - "What/why" comments OK; "how" comments are smell
 - Document decisions for non-obvious tradeoffs
-
-## Core Checklist
-
-Before marking work complete:
-- [ ] Minimal diff (no unrelated changes)
-- [ ] Functions small and focused
-- [ ] No deep nesting (>4 levels)
-- [ ] Proper error handling
-- [ ] No debug statements in production
-- [ ] No hardcoded secrets
-
-See project-specific styles in rule-library/style/.

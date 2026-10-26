@@ -11,28 +11,6 @@ uv run pytest                         # Test
 uv run ruff check src tests           # Lint
 uv run ruff format src tests          # Format
 ```
-
-## pyproject.toml Essentials
-
-```toml
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[project]
-name = "myproject"
-version = "0.1.0"
-requires-python = ">=3.11"
-
-[project.optional-dependencies]
-dev = ["pytest>=8", "pytest-cov>=4", "ruff>=0.8"]
-
-[tool.ruff]
-target-version = "py311"
-line-length = 100
-select = ["E", "W", "F", "I", "B", "C4", "UP", "SIM", "PTH", "RUF"]
-```
-
 ## Style
 
 PEP 8, type hints on functions, docstrings for public APIs, f-strings.
@@ -55,4 +33,4 @@ except SpecificError as e:
 
 ## Testing
 
-pytest + fixtures + `parametrize`. Coverage target: 80%+.
+pytest + fixtures + `parametrize`.

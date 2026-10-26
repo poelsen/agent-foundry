@@ -425,7 +425,7 @@ The megamind skills are reasoning enhancers that improve Claude's performance on
 
 The Megamind group (all four skills) is on by default in `setup.py init`; see [Skill Selection](#skill-selection-groups-hidden-skills-gating). When `review-process` uses a megamind skill as a reviewer frame, its reviewer contract replaces the skill's standalone confirm-and-stop rules.
 
-The `megamind-financial` skill uses country-specific data files in `cli/claude/skills/megamind-financial/data/` (e.g., `dk-tax-2026.md`). See [cli/claude/skills/IMPROVEMENT-PROCESS.md](cli/claude/skills/IMPROVEMENT-PROCESS.md) for the annual DK tax data update procedure.
+The `megamind-financial` skill uses country-specific data files in `cli/claude/skills/megamind-financial/data/` (e.g., `dk-tax-2026.md`). See [cli/claude/skills/MEGAMIND-IMPROVEMENT.md](docs/MEGAMIND-IMPROVEMENT.md) for the annual DK tax data update procedure.
 
 ### Benchmarks — model × task performance
 

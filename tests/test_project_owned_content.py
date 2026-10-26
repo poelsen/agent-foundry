@@ -245,9 +245,8 @@ class TestProjectOwnedRules:
 
         assert not (rules_dir / "hooks.md").exists()
 
-    def test_catalog_readme_is_not_treated_as_foundry_rule(self, project: Path):
-        """common/rules/README.md documents the catalog and is never deployed —
-        a project's own README.md in .claude/rules/ must not be deleted."""
+    def test_readme_is_not_treated_as_foundry_rule(self, project: Path):
+        """A project's own README.md in .claude/rules/ is never a foundry rule."""
         rules_dir = project / ".claude" / "rules"
         (rules_dir / "README.md").write_text("# my notes\n", encoding="utf-8")
 

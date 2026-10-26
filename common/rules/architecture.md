@@ -25,5 +25,3 @@ When a project starts from nothing, look for a proven skeleton or template for i
 - Organize by feature/domain, not by type
 - Colocate related files (component + test + styles)
 - Keep module boundaries visible in directory structure
-
-See project-specific architecture in rule-library/arch/.

@@ -17,14 +17,3 @@ Run /update-codemaps when:
 - You've made structural changes (new modules, changed public APIs, new dependencies)
 
 The command checks staleness automatically — only stale codemaps regenerate.
-
-## AGENTS.md Pattern
-
-The agent-foundry block in AGENTS.md already points to codemaps/INDEX.md —
-don't repeat it. A project without that block should include:
-
-```
-## Architecture
-Read codemaps/INDEX.md before making changes to unfamiliar modules.
-Run /update-codemaps after significant structural changes.
-```
