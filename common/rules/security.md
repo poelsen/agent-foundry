@@ -1,6 +1,8 @@
 # Security Guidelines
 
-## Mandatory Checks (before ANY commit)
+## Checks before a commit
+
+Where the item applies to the code being changed:
 
 - [ ] No hardcoded secrets (API keys, passwords, tokens)
 - [ ] All user inputs validated
@@ -17,8 +19,7 @@ Use env vars, never hardcode secrets.
 
 ## Security Response
 
-If security issue found:
-1. STOP immediately
-2. Use **security-reviewer** agent
-3. Fix CRITICAL issues before continuing
-4. Rotate any exposed secrets
+If a security issue is found:
+1. Stop and report it before continuing
+2. Fix exploitable issues before other work; the **security-reviewer** agent helps judge severity
+3. Rotate any exposed secrets

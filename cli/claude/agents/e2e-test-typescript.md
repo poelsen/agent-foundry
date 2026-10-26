@@ -1,6 +1,6 @@
 ---
 name: e2e-test-typescript
-description: TypeScript/JS end-to-end testing specialist using Playwright. Use PROACTIVELY for generating, maintaining, and running browser E2E tests. Manages test journeys, quarantines flaky tests, uploads artifacts (screenshots, videos, traces), and ensures critical user flows work.
+description: TypeScript/JS end-to-end testing specialist using Playwright. Use for writing, maintaining or running browser E2E tests of critical user flows. Manages test journeys, quarantines flaky tests, and uploads artifacts (screenshots, videos, traces).
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: opus
 ---

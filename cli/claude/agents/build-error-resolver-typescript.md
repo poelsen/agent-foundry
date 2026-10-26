@@ -60,7 +60,7 @@ npm run build -- --debug
 ```
 a) Run full type check
    - npx tsc --noEmit --pretty
-   - Capture ALL errors, not just first
+   - Capture every error, not just the first
 
 b) Categorize errors by type
    - Type inference failures
@@ -340,7 +340,7 @@ const publicKey = new PublicKey(wallet.address)
 
 ## Minimal Diff Strategy
 
-**CRITICAL: Make smallest possible changes**
+**Make the smallest possible changes**
 
 ### DO:
 ✅ Add type annotations where missing

@@ -1,6 +1,6 @@
 ---
 name: refactor-cleaner-typescript
-description: TypeScript/JS dead code cleanup and consolidation specialist. Use PROACTIVELY for removing unused TS/JS code, duplicates, and refactoring. Runs analysis tools (knip, depcheck, ts-prune) to identify dead code and safely removes it.
+description: TypeScript/JS dead code cleanup and consolidation specialist. Use when asked to remove unused TS/JS code or duplicates, or when a refactor has left dead code behind. Runs analysis tools (knip, depcheck, ts-prune) to identify dead code and safely removes it.
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: opus
 ---

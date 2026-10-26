@@ -22,7 +22,7 @@ Non-negotiable rules for multithreaded GUI applications. Violations cause race c
 
 ### Rule 1: UI Thread Does Zero Backend Work
 
-The UI thread ONLY renders data and responds to user input. It NEVER runs subprocesses, performs file I/O, makes network requests, executes heavy computations, or blocks waiting for results.
+The UI thread only renders data and responds to user input. It never runs subprocesses, performs file I/O, makes network requests, executes heavy computations, or blocks waiting for results.
 
 **Violation = UI freeze / "not responding"**
 
@@ -44,7 +44,7 @@ Data flows in ONE direction. Views never write to backend or models directly. Us
 
 ### Rule 4: Refresh is Event-Driven
 
-Refresh triggers: user action, filesystem watcher event (debounced), or post-operation signal. NEVER refresh on timer/interval for main data.
+Refresh triggers: user action, filesystem watcher event (debounced), or post-operation signal. Never refresh on a timer or interval for main data.
 
 **Violation = Wasted resources / timing bugs**
 
@@ -56,7 +56,7 @@ Before starting a new background job: cancel any pending job of same type, disca
 
 ### Rule 6: Immutable Snapshots
 
-Data passed between threads MUST be immutable: frozen dataclasses, tuples (not lists), named tuples. NEVER pass mutable collections across threads.
+Data passed between threads must be immutable: frozen dataclasses, tuples (not lists), named tuples. Never pass mutable collections across threads.
 
 **Violation = Race conditions / crashes / corrupted state**
 
@@ -73,7 +73,7 @@ Data passed between threads MUST be immutable: frozen dataclasses, tuples (not l
 
 ### Deviation Protocol
 
-If you believe a rule should be violated: **STOP**, explain the proposed deviation, wait for explicit approval. If approved, document the exception.
+If you believe a rule should be violated: stop, explain the proposed deviation, wait for explicit approval. If approved, document the exception.
 
 ## Threading Checklist
 

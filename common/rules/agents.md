@@ -2,16 +2,16 @@
 
 ## Available Agents
 
-| Agent | Purpose | When to Use |
-|-------|---------|-------------|
-| architect-* | System design | Architectural decisions |
-| tdd-guide-* | Test-driven dev | New features, bug fixes |
-| code-reviewer-* | Code review | After writing code |
-| security-reviewer-* | Security analysis | Before commits |
-| build-error-resolver-* | Fix build errors | When build/lint/type check fails |
-| e2e-test-* | Browser/GUI E2E | User flow testing |
-| refactor-cleaner-* | Dead code cleanup | Code maintenance |
-| doc-updater | Docs and codemaps | Run /update-codemaps |
+| Agent | Purpose | Helps when |
+|-------|---------|------------|
+| architect-* | System design | A change spans modules or sets a pattern others will follow |
+| tdd-guide-* | Test-first development | The project works test-first, or a behaviour needs pinning down before coding |
+| code-reviewer-* | Code review | A substantial change is done and about to be committed or opened as a PR |
+| security-reviewer-* | Security analysis | The change touches input handling, auth, endpoints, or sensitive data |
+| build-error-resolver-* | Fix build errors | Build, lint or type check fails and the cause isn't obvious |
+| e2e-test-* | Browser/GUI E2E | A user flow in a web or GUI app needs an end-to-end test |
+| refactor-cleaner-* | Dead code cleanup | Asked to remove unused code, or a refactor left some behind |
+| doc-updater | Docs and codemaps | Codemaps or docs are stale after a structural change |
 
 Suffix: `-python`, `-typescript`, `-python-web`, `-python-qt`
 
@@ -22,13 +22,12 @@ Suffix: `-python`, `-typescript`, `-python-web`, `-python-qt`
 - **code-review** — automated PR feedback
 - **code-simplifier** — autonomous refactoring
 
-## Immediate Usage (no prompt needed)
+## When to delegate
 
-1. Complex feature → **plan mode**
-2. Code written → **code-reviewer**
-3. Bug fix / new feature → **tdd-guide**
-4. Architecture decision → **architect**
+A subagent costs context handoffs both ways and its result comes back as a summary you can't check. Delegate when the work is independent and large, when a second read is wanted that isn't anchored on yours, or when the task is open-ended research across many files. Do small, well-understood changes yourself: a one-line fix needs no reviewer, and a function with an obvious test needs no tdd-guide.
+
+Plan mode suits a feature that touches several modules or whose design is still open.
 
 ## Parallel Execution
 
-ALWAYS launch independent agents in parallel using multiple Task tool calls in one message.
+When you do launch several independent agents, launch them in one message so they run concurrently.

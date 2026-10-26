@@ -1,6 +1,6 @@
 ---
 name: security-reviewer-python
-description: Python security specialist. Use PROACTIVELY after writing Python code that handles user input, authentication, API endpoints, or sensitive data. Flags secrets, injection, unsafe deserialization, and OWASP Top 10 vulnerabilities.
+description: Python security specialist. Use after writing Python code that handles user input, authentication, API endpoints, or sensitive data. Flags secrets, injection, unsafe deserialization, and OWASP Top 10 vulnerabilities.
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: opus
 ---
@@ -342,7 +342,7 @@ uv pip install pip-audit bandit safety
 
 ## When to Run Security Reviews
 
-**ALWAYS review when:**
+**Review when:**
 - New API endpoints added
 - Authentication/authorization code changed
 - User input handling added

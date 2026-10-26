@@ -6,7 +6,7 @@ These rules are selected by default during `setup.py init` and copied to each pr
 
 | Rule | Purpose |
 |------|---------|
-| agents.md | Agent orchestration and parallel execution |
+| agents.md | When a subagent helps, and parallel execution |
 | architecture.md | Module boundaries, file organization, design principles |
 | coding-style.md | Functions, data/state, error handling, naming |
 | git-workflow.md | Branching, commits, PRs |

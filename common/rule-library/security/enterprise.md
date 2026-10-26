@@ -2,11 +2,11 @@
 
 Extends `security.md` with strict requirements for production systems.
 
-## Additional Checks (BLOCK commit if violated)
+## Additional Checks (fix before committing)
 
 - [ ] Secret manager for credentials (not env vars)
 - [ ] CSP headers + output encoding for XSS
-- [ ] Auth on ALL endpoints (explicit public allowlist)
+- [ ] Auth on every endpoint (explicit public allowlist)
 - [ ] Authorization checks (RBAC/ABAC)
 - [ ] Dependencies scanned for CVEs
 - [ ] Secrets scanned in CI (gitleaks/git-secrets)
@@ -21,5 +21,5 @@ Extends `security.md` with strict requirements for production systems.
 ## Incident Response
 
 Same as security.md, plus:
-5. Review entire codebase for similar issues
-6. Document in security log
+4. Review entire codebase for similar issues
+5. Document in security log

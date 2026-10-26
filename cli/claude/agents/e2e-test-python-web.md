@@ -1,6 +1,6 @@
 ---
 name: e2e-test-python-web
-description: Python browser E2E testing specialist using Playwright. Use PROACTIVELY for generating, maintaining, and running browser E2E tests for Python web apps (FastAPI, Flask, Django). Manages test journeys, quarantines flaky tests, and uploads artifacts.
+description: Python browser E2E testing specialist using Playwright. Use for writing, maintaining or running browser E2E tests for Python web apps (FastAPI, Flask, Django). Manages test journeys, quarantines flaky tests, and uploads artifacts.
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: opus
 ---
