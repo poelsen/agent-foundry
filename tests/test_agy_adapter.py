@@ -79,11 +79,11 @@ def test_every_agent_has_one_system_prompt_heading(agent: str):
 
 
 def test_read_only_agent_gets_mapped_read_tools(tmp_path: Path):
-    _deploy(tmp_path, agents=["code-reviewer-python.md", "tdd-guide-python.md"])
+    _deploy(tmp_path, agents=["code-reviewer-python.md", "security-reviewer-python.md"])
     reviewer = (tmp_path / ".agents/agents/code-reviewer-python.md").read_text()
     assert "tools: [find_by_name, grep_search, list_dir, run_command, view_file]" in reviewer
     # Write-capable agents inherit Antigravity's default toolset
-    assert "tools:" not in _frontmatter((tmp_path / ".agents/agents/tdd-guide-python.md").read_text())
+    assert "tools:" not in _frontmatter((tmp_path / ".agents/agents/security-reviewer-python.md").read_text())
 
 
 def test_code_fence_comments_not_demoted():
@@ -95,9 +95,9 @@ def test_agent_prune_keeps_project_agents(tmp_path: Path):
     own = tmp_path / ".agents/agents/team.md"
     own.parent.mkdir(parents=True)
     own.write_text("---\nname: team\ndescription: ours\n---\n# System Prompt\nhi\n")
-    _deploy(tmp_path, agents=["doc-updater.md"])
+    _deploy(tmp_path, agents=["refactor-cleaner-python.md"])
     _deploy(tmp_path, agents=[])
-    assert not (tmp_path / ".agents/agents/doc-updater.md").exists()
+    assert not (tmp_path / ".agents/agents/refactor-cleaner-python.md").exists()
     assert own.exists()
 
 
@@ -218,12 +218,12 @@ def test_user_disabled_hook_stays_disabled(tmp_path: Path):
 
 
 def test_copied_agent_survives_prune(tmp_path: Path):
-    _deploy(tmp_path, agents=["architect-python.md"])
+    _deploy(tmp_path, agents=["code-reviewer-python.md"])
     agents = tmp_path / ".agents/agents"
-    (agents / "team-architect.md").write_text((agents / "architect-python.md").read_text())
+    (agents / "team-architect.md").write_text((agents / "code-reviewer-python.md").read_text())
     _deploy(tmp_path, agents=[])
     assert (agents / "team-architect.md").exists()  # marker copied, but not a foundry name
-    assert not (agents / "architect-python.md").exists()
+    assert not (agents / "code-reviewer-python.md").exists()
 
 
 def test_project_named_hooks_kept(tmp_path: Path):
@@ -271,7 +271,6 @@ def test_cmd_init_agy_only(tmp_path: Path):
     (tmp_path / "pyproject.toml").write_text('name = "x"\n')
     assert cmd_init(tmp_path, interactive=False, clis=["agy"])
     assert (tmp_path / "AGENTS.md").exists()
-    assert (tmp_path / ".agents/skills/update-codemaps/SKILL.md").exists()
     assert list((tmp_path / ".agents/agents").glob("*-python.md"))
     assert (tmp_path / ".agents/hooks.json").exists()
     assert not (tmp_path / ".claude" / "rules").exists()
@@ -287,7 +286,6 @@ def test_dropping_agy_removes_its_config(tmp_path: Path):
     assert (tmp_path / ".agents/agents/team.md").exists()
     assert not (tmp_path / ".agents/hooks.json").exists()
     assert (tmp_path / "AGENTS.md").exists()              # Claude Code reads it too
-    assert not (tmp_path / ".agents/skills/update-codemaps").exists()
 
 
 def test_version_written_for_non_claude_targets(tmp_path: Path):

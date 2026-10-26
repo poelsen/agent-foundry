@@ -285,10 +285,7 @@ report-only as reviewers.
 |-------|----------------|
 | `code-reviewer-*`, `security-reviewer-*` | Same CRITICAL–LOW scale |
 | `e2e-test-*` | Failing or missing flow test → finding; run output → `EXECUTED` evidence |
-| `tdd-guide-*` | Missing or weak test → finding; MEDIUM+ only with a concrete regression scenario |
 | `refactor-cleaner-*` | SAFE / CAREFUL / RISKY is removal confidence → `Confidence`; severity by impact |
-| `architect-*` | Red flag → finding; severity by impact |
-| `build-error-resolver-*` | Tool output → `EXECUTED` evidence |
 
 ### Orchestrator acceptance
 
@@ -475,8 +472,7 @@ This skill routes work to reviewers that Foundry already ships:
 
 - `megamind-deep`, `megamind-adversarial`, `megamind-creative`,
   `megamind-financial` skills
-- `code-reviewer-*`, `security-reviewer-*`, `tdd-guide-*`, `architect-*`,
-  `refactor-cleaner-*`, `build-error-resolver-*`, `e2e-test-*` agents
+- `code-reviewer-*`, `security-reviewer-*`, `refactor-cleaner-*`, `e2e-test-*` agents
 - `gui-threading` and `python-qt-gui` skills as rule sets for the GUI process
 
 If a referenced reviewer is not installed in the current project, mark it as

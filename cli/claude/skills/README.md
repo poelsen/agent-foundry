@@ -2,7 +2,7 @@
 
 Skills are reusable knowledge modules that provide domain-specific patterns, best practices, and implementation guidance.
 
-> **Skill groups in `setup.py init`:** Megamind Reasoning (4 skills) and Writing (2 skills) are toggled as groups, not individually. See the top-level [README — Skill Selection](../README.md#skill-selection-groups-hidden-skills-gating) section for details.
+> **Skill groups in `setup.py init`:** Megamind Reasoning (3 skills) and Writing (2 skills) are toggled as groups, not individually. See the top-level [README — Skill Selection](../README.md#skill-selection-groups-hidden-skills-gating) section for details.
 
 ## Available Skills
 

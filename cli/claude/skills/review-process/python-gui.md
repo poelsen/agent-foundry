@@ -11,7 +11,7 @@ widget-lifecycle, signal/slot, persistence, and GUI test checks.
 | QThread, workers, signals/slots, cancellation, UI-thread safety | `code-reviewer-python` instructed to apply the rule set | `gui-threading` skill |
 | PySide6 widgets, layouts, QDockWidget, persistence, pytest-qt | `code-reviewer-python` instructed to apply the rule set | `python-qt-gui` skill |
 | GUI E2E behavior, widget signals, headless CI, pytest-qt maintenance | `e2e-test-python-qt` | pytest-qt and GUI E2E rules |
-| Cross-plugin GUI architecture or plugin framework contracts | `architect-python` + relevant GUI rule set | `gui-threading` and/or `python-qt-gui` |
+| Cross-plugin GUI architecture or plugin framework contracts | `megamind-deep` + relevant GUI rule set | `gui-threading` and/or `python-qt-gui` |
 
 Record both the executed reviewer and any skill/rule set consulted. Do not
 claim that a skill was "run" unless an actual agent or human applied it.

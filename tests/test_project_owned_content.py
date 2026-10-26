@@ -263,10 +263,10 @@ class TestProjectOwnedAgents:
         agents_dir = project / ".claude" / "agents"
         (agents_dir / "my-domain-expert.md").write_text("# mine\n", encoding="utf-8")
 
-        copy_agents(project, ["tdd-guide-python.md"])
+        copy_agents(project, ["code-reviewer-python.md"])
 
         assert (agents_dir / "my-domain-expert.md").is_file()
-        assert (agents_dir / "tdd-guide-python.md").is_file()
+        assert (agents_dir / "code-reviewer-python.md").is_file()
 
     def test_stale_foundry_agent_still_removed(self, project: Path):
         agents_dir = project / ".claude" / "agents"

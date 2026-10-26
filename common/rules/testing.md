@@ -24,7 +24,4 @@ The project's own target applies. Where it has none, keep new code roughly as we
 2. Fix the code, not the test, unless the test is wrong.
 3. Check isolation: does it fail alone, and does it fail on a clean checkout?
 
-## Agents
-
-- **tdd-guide** helps when the project runs test-first and the feature's behaviour is unclear.
-- **e2e-test-typescript**, **e2e-test-python-web** (Playwright) and **e2e-test-python-qt** (pytest-qt) help for user-flow tests in a GUI or web app.
+The **e2e-test-\*** agents help with user-flow tests in a web or GUI app.

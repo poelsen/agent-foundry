@@ -30,7 +30,7 @@ ENVIRONMENT_SNIPPETS = {
 
 BASE_RULES = [
     "coding-style.md", "git-workflow.md", "security.md", "testing.md",
-    "architecture.md", "agents.md", "codemaps.md",
+    "architecture.md", "agents.md",
 ]
 
 # Base rules that describe Claude Code-only machinery (the Task tool and the
@@ -72,7 +72,6 @@ RULE_DESCRIPTIONS: dict[str, str] = {
     "testing.md": "Testing (targeted runs, what to write)",
     "architecture.md": "Architecture principles",
     "agents.md": "Agent orchestration",
-    "codemaps.md": "Codemap system",
 }
 
 MODULAR_RULES = {
@@ -108,7 +107,7 @@ MODULAR_RULES = {
 # a skill/command/agent is renamed or removed, its old name must be
 # listed here to keep being cleaned out of projects. Modular rules are
 # recorded in MANIFEST_MIGRATION below; base rules go in RETIRED_RULES.
-RETIRED_RULES: set[str] = {"hooks.md", "performance.md", "skills.md"}
+RETIRED_RULES: set[str] = {"hooks.md", "performance.md", "skills.md", "codemaps.md"}
 # Session and project bookkeeping that Claude Code now does natively
 # (resume, fork, named sessions, memory), their shared script dir, and
 # the pattern dirs the learn skill wrote into.
@@ -118,8 +117,21 @@ RETIRED_SKILLS: set[str] = {
 }
 # .claude/ dirs the retired snapshot and prj-* commands wrote into.
 RETIRED_STATE_DIRS: tuple[str, ...] = ("snapshots", "prjs")
-RETIRED_COMMANDS: set[str] = {"recall.md", "snapshot.md", "snapshot-restore.md"}
-RETIRED_AGENTS: set[str] = set()
+RETIRED_COMMANDS: set[str] = {
+    "recall.md", "snapshot.md", "snapshot-restore.md", "update-codemaps.md",
+    "update-foundry-check.md", "update-foundry-interactive.md",
+}
+# Agents that duplicated the main model (same model, less context) or the
+# rules: design belongs to plan mode and megamind-deep, tests to testing.md.
+RETIRED_AGENTS: set[str] = {
+    "architect-python.md", "architect-typescript.md",
+    "tdd-guide-python.md", "tdd-guide-typescript.md",
+    "build-error-resolver-python.md", "build-error-resolver-typescript.md",
+    "doc-updater.md",
+}
+# Marketplace workflow plugins once enabled in settings.json. Claude Code
+# ships code review and simplification itself now.
+RETIRED_PLUGINS: set[str] = {"feature-dev", "pr-review-toolkit", "code-review", "code-simplifier"}
 
 # Migration map: (old_category, old_rule) -> (new_category, new_rule) or None
 MANIFEST_MIGRATION = {
@@ -164,7 +176,7 @@ SKILLS = [
 # backward-compatible with older installs.
 SKILL_GROUPS: dict[str, list[str]] = {
     "Megamind Reasoning": [
-        "megamind-deep", "megamind-creative", "megamind-adversarial", "megamind-financial",
+        "megamind-deep", "megamind-creative", "megamind-adversarial",
     ],
     # writer drafts in the user's voice, then invokes humanizer via Skill(humanizer)
     # for the reactive anti-AI audit. Grouped so the pair always deploys together —
@@ -188,14 +200,6 @@ PORTABLE_SKILLS: set[str] = {
     "update-foundry", "copilot-cli", "codex-cli", "agy-cli", "delegate",
 }
 
-# Claude slash commands that work on any CLI. Copilot, Codex and Antigravity
-# have no command files (Codex removed custom prompts in 0.117), so these are
-# converted to skills in .agents/skills/ (sub-commands only with their
-# skill).
-PORTABLE_COMMANDS: set[str] = {
-    "update-codemaps.md", "update-foundry-check.md", "update-foundry-interactive.md",
-}
-
 # Skills that are never shown in the interactive skill menu. None today —
 # kept as an explicit empty set so the menu-build logic stays uniform.
 HIDDEN_SKILLS: set[str] = set()
@@ -210,9 +214,4 @@ LSP_PLUGINS = {
     "embedded-dsp.md": ("clangd-lsp", "clangd"),
 }
 
-WORKFLOW_PLUGINS = [
-    ("feature-dev", "7-phase feature workflow"),
-    ("pr-review-toolkit", "PR analysis suite"),
-    ("code-review", "Automated PR feedback"),
-    ("code-simplifier", "Autonomous refactoring"),
-]
+

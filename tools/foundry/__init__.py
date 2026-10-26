@@ -84,11 +84,9 @@ from .registry import (
     LSP_PLUGINS,
     MANIFEST_MIGRATION,
     MODULAR_RULES,
-    PORTABLE_COMMANDS,
     PORTABLE_SKILLS,
     SKILL_GROUPS,
     SKILLS,
-    WORKFLOW_PLUGINS,
 )
 
 __all__ = [
@@ -107,12 +105,10 @@ __all__ = [
     "MANIFEST_MIGRATION",
     "MCP_SERVERS_FILE",
     "MODULAR_RULES",
-    "PORTABLE_COMMANDS",
     "PORTABLE_SKILLS",
     "REPO_ROOT",
     "SKILLS",
     "SKILL_GROUPS",
-    "WORKFLOW_PLUGINS",
     # console
     "GoBack",
     "QuitSetup",

@@ -27,11 +27,10 @@ Escalate the risk tier when a change touches:
 |---------|-------------------------|-------------------|
 | Any meaningful code change | `megamind-deep` or `megamind-adversarial` by tier | Software checklist |
 | Non-trivial scope, sequencing, rollback, compatibility | Pragmatic frame | Shared completion and authority policy |
-| Architecture or public API boundary | `architect-*` agent for the stack | Architecture checklist |
+| Architecture or public API boundary | `megamind-deep` | Architecture checklist |
 | Security, input, persistence, path, secret, or sharing risk | `security-reviewer-*` agent | Security checklist for the stack |
-| Feature, bug fix, or regression-sensitive change | `tdd-guide-*` agent, report-only | Test checklist |
+| Feature, bug fix, or regression-sensitive change | `code-reviewer-*` agent, report-only | Test checklist |
 | Cleanup, migration completeness, dead code, duplicate logic | `refactor-cleaner-*` agent, report-only | Code-smell and migration checklist |
-| Build, lint, type, test, dependency, or packaging failure | `build-error-resolver-*` agent, report-only | Existing tool output |
 | New decomposition or T4 review | `megamind-creative` | Alternate decomposition review |
 
 Substitute the language suffix as installed: `-python`, `-typescript`,
@@ -131,7 +130,7 @@ Recurring software findings should become one of:
 - fixture or fake that makes the safer path easier;
 - code template or example;
 - review checklist item;
-- architecture/codemap documentation.
+- architecture documentation.
 
 Every conversion must create or update a review-state entry.
 

@@ -182,14 +182,11 @@ class Validator:
                 self.error(f"SKILLS references missing: cli/claude/skills/{skill}/SKILL.md")
 
     def check_registry_portability(self) -> None:
-        """Portable skills/commands and Claude-only rules must name shipped files."""
+        """Portable skills and Claude-only rules must name shipped files."""
         self.check("Registry: portability sets")
         for skill in sorted(setup_module.PORTABLE_SKILLS):
             if skill not in setup_module.SKILLS:
                 self.error(f"PORTABLE_SKILLS entry not in SKILLS: {skill}")
-        for command in sorted(setup_module.PORTABLE_COMMANDS):
-            if not (self.root / "cli" / "claude" / "commands" / command).is_file():
-                self.error(f"PORTABLE_COMMANDS references missing: cli/claude/commands/{command}")
         for rule in sorted(setup_module.CLAUDE_ONLY_RULES):
             if rule not in setup_module.BASE_RULES:
                 self.error(f"CLAUDE_ONLY_RULES entry not in BASE_RULES: {rule}")
@@ -206,8 +203,7 @@ class Validator:
 
         backtick = re.compile(r"`([a-z][a-z0-9-]+)`")
         agent_prefixes = (
-            "code-reviewer-", "security-reviewer-", "tdd-guide-", "architect-",
-            "refactor-cleaner-", "build-error-resolver-", "e2e-test-",
+            "code-reviewer-", "security-reviewer-", "refactor-cleaner-", "e2e-test-",
         )
         skill_names = {
             "megamind-deep", "megamind-adversarial",

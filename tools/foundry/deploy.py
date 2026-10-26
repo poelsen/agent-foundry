@@ -271,8 +271,7 @@ def _command_skill_parent(command_stem: str) -> str | None:
     """Return the parent skill name for a command, or None if not skill-associated.
 
     A command is skill-associated if its stem matches a skill name exactly,
-    or if its stem starts with a skill name followed by a hyphen (e.g.,
-    'update-foundry-check' belongs to the 'update-foundry' skill).
+    or if its stem starts with a skill name followed by a hyphen.
     """
     if command_stem in SKILLS:
         return command_stem
@@ -288,27 +287,18 @@ def copy_commands(
     selected_skills: list[str] | None = None,
     private_prefixes: list[str] | None = None,
 ) -> None:
-    """Copy slash commands to the project.
+    """Copy slash commands to the project and prune retired ones.
 
-    Skill-associated commands are only copied when the corresponding skill is
-    selected. A command is skill-associated if its name matches a skill exactly
-    or starts with a skill name (e.g., update-foundry-check → update-foundry).
-
-    Commands whose name matches a skill *exactly* are never deployed: Claude
-    Code already exposes every skill as a ``/name`` slash command, so shipping a
-    wrapper command of the same name produces a duplicate entry in the slash
-    menu. Only sub-commands (e.g. ``update-foundry-check``) and command-only
-    files are deployed.
+    A command named after a skill never deploys (Claude Code exposes every
+    skill as ``/name`` already); a sub-command deploys only with its skill.
     """
-    if not COMMANDS_DIR.is_dir():
-        return
     selected_skills = selected_skills or []
     private_prefixes = private_prefixes or []
     dest = project / ".claude" / "commands"
     dest.mkdir(parents=True, exist_ok=True)
     # Determine which commands to copy
     eligible = set()
-    for src in COMMANDS_DIR.iterdir():
+    for src in COMMANDS_DIR.iterdir() if COMMANDS_DIR.is_dir() else ():
         if src.suffix != ".md":
             continue
         # Skip wrappers that duplicate an auto-exposed skill of the same name.

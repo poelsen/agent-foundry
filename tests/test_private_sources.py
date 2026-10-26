@@ -149,12 +149,12 @@ class TestCleanPrivateFiles:
     def test_removes_prefixed_agents(self, project):
         agents_dir = project / ".claude" / "agents"
         (agents_dir / "company-reviewer.md").write_text("old")
-        (agents_dir / "tdd-guide-python.md").write_text("keep")
+        (agents_dir / "code-reviewer-python.md").write_text("keep")
 
         clean_private_files(project, "company")
 
         assert not (agents_dir / "company-reviewer.md").exists()
-        assert (agents_dir / "tdd-guide-python.md").exists()
+        assert (agents_dir / "code-reviewer-python.md").exists()
 
     def test_removes_prefixed_skill_dirs(self, project):
         skills_dir = project / ".claude" / "skills"
@@ -382,12 +382,12 @@ class TestCopyAgentsPrefixAwareness:
     def test_skips_private_agents_during_cleanup(self, project, tmp_path):
         agents_dir = project / ".claude" / "agents"
         (agents_dir / "company-reviewer.md").write_text("private")
-        (agents_dir / "doc-updater.md").write_text("stale foundry agent")
+        (agents_dir / "architect-python.md").write_text("stale foundry agent")
 
         copy_agents(project, [], private_prefixes=["company"])
 
         assert (agents_dir / "company-reviewer.md").exists()
-        assert not (agents_dir / "doc-updater.md").exists()
+        assert not (agents_dir / "architect-python.md").exists()
 
 
 # ── copy_commands prefix awareness ───────────────────────────────────
@@ -442,21 +442,3 @@ class TestCopyCommandsSkillTwins:
 
         assert not (cmd_dir / "review-process.md").exists()
 
-    def test_deploys_command_only_file(self, project):
-        """A command with no skill twin (update-codemaps) is still deployed."""
-        cmd_dir = project / ".claude" / "commands"
-
-        copy_commands(project, [])
-
-        assert (cmd_dir / "update-codemaps.md").exists()
-
-    def test_deploys_subcommand_when_parent_skill_selected(self, project):
-        """A sub-command (update-foundry-check) is not a skill twin and deploys
-        when its parent skill is selected."""
-        cmd_dir = project / ".claude" / "commands"
-
-        copy_commands(project, ["update-foundry"])
-
-        assert (cmd_dir / "update-foundry-check.md").exists()
-        # ...but the parent skill name itself never deploys as a wrapper.
-        assert not (cmd_dir / "update-foundry.md").exists()
