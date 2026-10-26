@@ -4,7 +4,7 @@
 
 Feature Branch Workflow: short-lived branches, rebase only (no merge commits), squash before merge.
 
-**Protected:** `master`, `release/*` — never push directly, require PR + review + CI pass.
+**Protected:** `master`, `release/*` — never push directly; changes arrive by reviewed PR, with CI green where the repo has CI.
 
 ## Branch Naming
 
