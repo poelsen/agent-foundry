@@ -3,7 +3,7 @@
 Moderate security for internally published tools.
 
 ## Required Checks
-Before ANY commit:
+Before a commit:
 - [ ] No hardcoded secrets (API keys, passwords, tokens)
 - [ ] Environment variables for configuration
 - [ ] Basic input validation on external inputs
