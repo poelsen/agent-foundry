@@ -191,6 +191,16 @@ class TestProjectOwnedRules:
         assert not (rules_dir / "gui.md").exists()
         assert not (rules_dir / "lang-python-qt.md").exists()
 
+    def test_retired_base_rule_removed(self, project: Path):
+        """A base rule the foundry stopped shipping (RETIRED_RULES) is still
+        cleaned out of projects that got it from an older version."""
+        rules_dir = project / ".claude" / "rules"
+        (rules_dir / "hooks.md").write_text("# Hooks System\n", encoding="utf-8")
+
+        copy_rules(project, base=["security.md"], modular={})
+
+        assert not (rules_dir / "hooks.md").exists()
+
     def test_catalog_readme_is_not_treated_as_foundry_rule(self, project: Path):
         """common/rules/README.md documents the catalog and is never deployed —
         a project's own README.md in .claude/rules/ must not be deleted."""

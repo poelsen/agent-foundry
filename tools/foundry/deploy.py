@@ -21,6 +21,7 @@ from .registry import (
     MODULAR_RULES,
     RETIRED_AGENTS,
     RETIRED_COMMANDS,
+    RETIRED_RULES,
     RETIRED_SKILLS,
     SKILLS,
 )
@@ -40,11 +41,11 @@ def _owned_rule_names() -> set[str]:
 
     Modular rules deploy flat as ``<rule>`` or ``<category>-<rule>`` on
     collision, so both forms are owned. Retired names come from
-    MANIFEST_MIGRATION keys. common/rules/README.md documents the catalog
+    RETIRED_RULES and MANIFEST_MIGRATION keys. common/rules/README.md documents the catalog
     and never deploys, so it is excluded — a project's own README.md in
     .claude/rules/ is not ours.
     """
-    owned = set(BASE_RULES)
+    owned = set(BASE_RULES) | RETIRED_RULES
     base_dir = REPO_ROOT / "common" / "rules"
     if base_dir.is_dir():
         owned |= {
