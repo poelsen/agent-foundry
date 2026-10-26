@@ -110,7 +110,7 @@ MODULAR_RULES = {
 # listed here to keep being cleaned out of projects. Modular rules are
 # recorded in MANIFEST_MIGRATION below; base rules go in RETIRED_RULES.
 RETIRED_RULES: set[str] = {
-    "hooks.md",  # described the foundry's hook library, not how to work
+    "hooks.md",
 }
 RETIRED_SKILLS: set[str] = set()
 RETIRED_COMMANDS: set[str] = {

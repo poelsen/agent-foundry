@@ -161,8 +161,9 @@ def _render_block(env: str, embedded: list[_Rule], pointers: list[_Rule]) -> str
                 "",
                 "### Project Docs",
                 "",
-                "- `codemaps/INDEX.md` — read before modifying unfamiliar modules; "
-                "run the `update-codemaps` command after significant structural changes",
+                "- `codemaps/INDEX.md`, if present — read before modifying unfamiliar "
+                "modules; run the `update-codemaps` command after significant structural "
+                "changes. Don't create codemaps for a project that has none.",
                 "- `docs/ARCHITECTURE.md` (design decisions) and `docs/DEVELOPMENT.md` "
                 "(setup and workflow), if present",
                 ""]

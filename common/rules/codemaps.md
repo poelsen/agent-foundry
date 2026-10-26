@@ -2,6 +2,8 @@
 
 ## Reading Codemaps
 
+This applies to projects that have a `codemaps/` directory. Don't create one unasked.
+
 Before modifying code in an unfamiliar module:
 1. Read codemaps/INDEX.md for project overview
 2. Read the specific module codemap for context
