@@ -15,6 +15,15 @@ Web-facing code also needs the checks in the REST API template (auth on every en
 
 Use env vars, never hardcode secrets.
 
+## Never on your own initiative
+
+Ask first, even when it would unblock you:
+
+- Force-push, rewrite shared history, delete branches
+- Delete or overwrite data; migrations or writes against anything shared
+- Rotate or print credentials
+- Stop or restart processes you didn't start
+
 ## Security Response
 
 If a security issue is found:

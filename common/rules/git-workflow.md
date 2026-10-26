@@ -30,11 +30,4 @@ Delete feature/bugfix branches after merge.
 
 ## Pull Requests
 
-1. Analyze full commit history with `git diff [base]...HEAD`
-2. Draft comprehensive summary
-3. Include test plan
-4. No AI attribution footer ("Generated with …") or session links
-
-## Release & Hotfix
-
-Release: tag on master → hotfix needed: branch from tag → bugfix branch → fix → new tag → cherry-pick to master.
+Summary from the full diff against the base branch, plus what was run to verify it. No AI attribution footer or session links.

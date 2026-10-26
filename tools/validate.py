@@ -137,6 +137,23 @@ class Validator:
             if not path.exists():
                 self.error(f"BASE_RULES references missing file: common/rules/{rule}")
 
+    def check_block_size(self) -> None:
+        """Print the rendered AGENTS.md block size for a default Python
+        project, so a PR shows what it adds to every session."""
+        self.check("Rendered block size (default Python project)")
+        from foundry import shared
+        from foundry.adapters import Selections
+
+        sel = Selections(
+            base=list(setup_module.BASE_RULES),
+            modular={"lang": ["python.md"], "templates": ["scripts.md"],
+                     "platform": ["github.md"], "security": ["sandbox.md"]},
+            agents=[], skills=[], hooks=[], plugins=[], mcp_servers=[],
+            langs={"python.md"}, project_name="demo", version="dev",
+        )
+        block, _ = shared.render_agents_block(sel)
+        print(f"      {len(block.encode('utf-8'))} bytes, {len(block) // 4} tokens approx")
+
     def check_registry_modular_rules(self) -> None:
         self.check("Registry: MODULAR_RULES")
         for category, rules in setup_module.MODULAR_RULES.items():
@@ -422,6 +439,7 @@ class Validator:
         self.check_markdown_agents()
         self.check_markdown_skills()
         self.check_registry_base_rules()
+        self.check_block_size()
         self.check_registry_modular_rules()
         self.check_registry_hooks()
         self.check_registry_skills()

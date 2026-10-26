@@ -15,13 +15,6 @@
 
 Suffix: `-python`, `-typescript`, `-python-web`, `-python-qt`
 
-## Plugin Agents
-
-- **feature-dev** — 7-phase feature workflow
-- **pr-review-toolkit** — PR analysis suite
-- **code-review** — automated PR feedback
-- **code-simplifier** — autonomous refactoring
-
 ## When to delegate
 
 A subagent costs context handoffs both ways and its result comes back as a summary you can't check. Delegate when the work is independent and large, when a second read is wanted that isn't anchored on yours, or when the task is open-ended research across many files. Do small, well-understood changes yourself: a one-line fix needs no reviewer, and a function with an obvious test needs no tdd-guide.
