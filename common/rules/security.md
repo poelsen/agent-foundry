@@ -5,13 +5,11 @@
 Where the item applies to the code being changed:
 
 - [ ] No hardcoded secrets (API keys, passwords, tokens)
-- [ ] All user inputs validated
-- [ ] SQL injection prevention (parameterized queries)
-- [ ] XSS prevention (sanitized HTML)
-- [ ] CSRF protection enabled
-- [ ] Authentication/authorization verified
-- [ ] Rate limiting on endpoints
-- [ ] Error messages don't leak sensitive data
+- [ ] External input validated at the boundary (arguments, files, network, env)
+- [ ] No string-built queries or shell commands from input (parameterize, pass argv lists)
+- [ ] Error messages and logs don't leak secrets or private data
+
+Web-facing code also needs the checks in the REST API template (auth on every endpoint, XSS and CSRF protection, rate limiting).
 
 ## Secret Management
 
