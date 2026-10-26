@@ -91,5 +91,4 @@ AGENT_FOUNDRY_MARKER_END = "<!-- /agent-foundry -->"
 
 AGENTS_DIR = REPO_ROOT / "cli" / "claude" / "agents"
 COMMANDS_DIR = REPO_ROOT / "cli" / "claude" / "commands"
-LEARNED_SKILLS_DIR = REPO_ROOT / "cli" / "claude" / "skills" / "learned"
 MCP_SERVERS_FILE = REPO_ROOT / "common" / "mcp" / "mcp-servers.json"

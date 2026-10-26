@@ -30,18 +30,11 @@ class TestSkillGroupsShape:
 
     def test_groups_have_expected_names(self):
         assert "Megamind Reasoning" in setup_py.SKILL_GROUPS
-        assert "Project Management" in setup_py.SKILL_GROUPS
 
     def test_megamind_group_contains_all_4_skills(self):
         members = setup_py.SKILL_GROUPS["Megamind Reasoning"]
         assert set(members) == {
             "megamind-deep", "megamind-creative", "megamind-adversarial", "megamind-financial",
-        }
-
-    def test_prj_group_contains_all_6_skills(self):
-        members = setup_py.SKILL_GROUPS["Project Management"]
-        assert set(members) == {
-            "prj-new", "prj-list", "prj-pause", "prj-resume", "prj-done", "prj-delete",
         }
 
     def test_copilot_is_not_a_group(self):

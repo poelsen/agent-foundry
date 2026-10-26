@@ -22,7 +22,6 @@ from ..deploy import (
     copy_agents,
     copy_commands,
     copy_hooks,
-    copy_learned_skills,
     copy_rules,
     copy_skills,
     generate_settings_json,
@@ -123,7 +122,7 @@ class ClaudeAdapter(CliAdapter):
 
     def supported_artifacts(self) -> set[str]:
         return {"rules", "mcp", "agents", "skills", "commands", "hooks",
-                "plugins", "learned", "private-sources"}
+                "plugins", "private-sources"}
 
     def skipped(self, sel: Selections) -> list[Skipped]:
         # Claude-only rules reach Claude Code through .claude/rules/.
@@ -161,10 +160,6 @@ class ClaudeAdapter(CliAdapter):
         # Skills
         if sel.skills:
             copy_skills(project, sel.skills, ctx.private_prefixes)
-
-        # Learned Skills
-        if sel.learned:
-            copy_learned_skills(project, sel.learned)
 
         # Hooks
         copy_hooks(project, sel.hooks)

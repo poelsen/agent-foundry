@@ -8,7 +8,7 @@ shared output written once by the orchestrator (see foundry/shared.py):
   .github/skills/, .agents/skills/ and .claude/skills/ as project skills)
 
 Claude-only artifact types — subagents, slash-commands, PostToolUse hooks, and
-Claude-coupled skills (prj-*/review-process/etc.) — are not deployed; the
+Claude-coupled skills (review-process, private-*) — are not deployed; the
 orchestrator reports them as skipped.
 """
 

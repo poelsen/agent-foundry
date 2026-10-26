@@ -446,10 +446,20 @@ class TestMigrateManifest:
 
     def test_retired_base_rule_dropped(self):
         """A base rule the foundry no longer ships leaves the manifest."""
-        manifest = {"base_rules": ["security.md", "hooks.md"]}
+        manifest = {"base_rules": ["security.md", "hooks.md", "performance.md"]}
         result = migrate_manifest(manifest)
 
         assert result["base_rules"] == ["security.md"]
+
+    def test_retired_skills_and_learned_categories_dropped(self):
+        """An older project's manifest names skills and a selection step that
+        no longer exist; migration removes them so update runs clean."""
+        manifest = {"skills": ["megamind-deep", "prj-new", "learn", "snapshot-list"],
+                    "learned_categories": ["python"]}
+        result = migrate_manifest(manifest)
+
+        assert result["skills"] == ["megamind-deep"]
+        assert "learned_categories" not in result
 
     def test_lang_react_migrates_to_templates(self):
         """lang/react.md should migrate to templates/react-app.md."""

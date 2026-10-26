@@ -20,7 +20,7 @@ from foundry.paths import AGENTS_DIR
 def _selections(**overrides) -> Selections:
     base = {
         "base": ["coding-style.md"], "modular": {"lang": ["python.md"]},
-        "agents": [], "skills": [], "learned": [], "hooks": [], "plugins": [],
+        "agents": [], "skills": [], "hooks": [], "plugins": [],
         "mcp_servers": [], "langs": {"python.md"},
         "project_name": "demo", "version": "9999.99.99",
     }

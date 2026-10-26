@@ -27,7 +27,6 @@ _REPORTED_SELECTIONS = (
     ("rules", "deployed_rules"),
     ("agents", "agents"),
     ("skills", "skills"),
-    ("learned", "learned"),
     ("hooks", "hooks"),
     ("plugins", "plugins"),
     ("mcp", "mcp_servers"),
@@ -42,7 +41,6 @@ class Selections:
     modular: dict[str, list[str]]
     agents: list[str]
     skills: list[str]
-    learned: list[str]
     hooks: list[str]
     plugins: list[str]
     mcp_servers: list[str]
@@ -115,8 +113,7 @@ class CliAdapter(ABC):
         """Artifact types this CLI can consume.
 
         Possible values: ``rules``, ``mcp``, ``agents``, ``skills``,
-        ``commands``, ``hooks``, ``plugins``, ``learned``,
-        ``private-sources``. The orchestrator only offers selection menus
+        ``commands``, ``hooks``, ``plugins``, ``private-sources``. The orchestrator only offers selection menus
         for types some selected CLI consumes, and reports selected items a
         CLI can't use (see :meth:`skipped`) rather than dropping them
         silently.

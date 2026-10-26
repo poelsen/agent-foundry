@@ -22,8 +22,8 @@ Pick targets with `--clis claude,copilot,codex,agy` (or the interactive menu, wh
 
 **Shared outputs.** Files that several CLIs read — `AGENTS.md`, `.agents/skills/`, `.mcp.json` — are written once per run for all selected targets, not once per adapter:
 
-- **`AGENTS.md`** is every CLI's instructions file, Claude Code's included — see [AGENTS.md Convention](#agentsmd-convention). It gets a marker-wrapped block with the portable coding-standard rules (Claude-only rules such as `agents.md` and `performance.md` go to `.claude/rules/` instead, which Claude Code loads alongside `AGENTS.md`). The block is capped at 20 KB because other CLIs silently truncate large instruction files (Antigravity at 24,000 bytes per file, Codex at 32 KiB in total). Rules that don't fit go to `.agents/rules/foundry-<rule>.md` — with Antigravity `trigger:` frontmatter, so Antigravity loads them natively — and `AGENTS.md` points to them.
-- **`.agents/skills/`** is the cross-vendor skill root (Copilot CLI, Codex and Antigravity all load it). Only portable skills go there — megamind ×4, `clickhouse-io`, `gui-threading`, `python-qt-gui`, `writer`, `humanizer`, `update-foundry`, the cross-model CLI references `copilot-cli`, `codex-cli`, `agy-cli`, and `delegate` (see [Delegation](#delegation)) — plus the portable commands (`update-codemaps`, `update-foundry-check`, `update-foundry-interactive`) converted to skills. Deploying adapts them without touching the Claude sources: Claude-only frontmatter (`model`, `allowed-tools`) is dropped, `.claude/skills/` paths and `Skill(x)` calls are rewritten, and a `SKILL.md` over 8 KB (Codex's limit for an explicitly invoked skill) becomes a short pointer to the unchanged text in `SKILL.full.md`. Skills tied to Claude-only state — `prj-*` (Claude session ids), `snapshot-list`, `learn`/`learn-recall`, `private-*`, `review-process` — stay Claude Code-only for now.
+- **`AGENTS.md`** is every CLI's instructions file, Claude Code's included — see [AGENTS.md Convention](#agentsmd-convention). It gets a marker-wrapped block with the portable coding-standard rules (the Claude-only `agents.md` rule goes to `.claude/rules/` instead, which Claude Code loads alongside `AGENTS.md`). The block is capped at 20 KB because other CLIs silently truncate large instruction files (Antigravity at 24,000 bytes per file, Codex at 32 KiB in total). Rules that don't fit go to `.agents/rules/foundry-<rule>.md` — with Antigravity `trigger:` frontmatter, so Antigravity loads them natively — and `AGENTS.md` points to them.
+- **`.agents/skills/`** is the cross-vendor skill root (Copilot CLI, Codex and Antigravity all load it). Only portable skills go there — megamind ×4, `clickhouse-io`, `gui-threading`, `python-qt-gui`, `writer`, `humanizer`, `update-foundry`, the cross-model CLI references `copilot-cli`, `codex-cli`, `agy-cli`, and `delegate` (see [Delegation](#delegation)) — plus the portable commands (`update-codemaps`, `update-foundry-check`, `update-foundry-interactive`) converted to skills. Deploying adapts them without touching the Claude sources: Claude-only frontmatter (`model`, `allowed-tools`) is dropped, `.claude/skills/` paths and `Skill(x)` calls are rewritten, and a `SKILL.md` over 8 KB (Codex's limit for an explicitly invoked skill) becomes a short pointer to the unchanged text in `SKILL.full.md`. Skills tied to Claude-only state — `private-*` (private sources), `review-process` (Claude reviewer agents) — stay Claude Code-only.
 - `.agents/` is shared with other tools, so every file the foundry writes there carries an ownership marker and updates only ever prune marked content.
 
 **Codex specifics.** Codex reads `AGENTS.md` and `.agents/skills/` in any project, but everything under `.codex/` (agents, MCP servers, hooks) only once the project is trusted — setup prints how to trust it (`codex` → accept the prompt, or `[projects."<path>"] trust_level = "trusted"` in `~/.codex/config.toml`). Hooks additionally stay inert until you approve each one in Codex's `/hooks`. The foundry only rewrites its own marked block in `.codex/config.toml`, its own agent files and its own hook group, so project settings in those files survive updates. Agents without write tools (architect, code-reviewer) run in Codex's `read-only` sandbox.
@@ -206,8 +206,8 @@ Everything is copied into `<project>/.claude/`:
 |-----------|--------|--------------|
 | **Rules** | `common/rules/` + `common/rule-library/` | Markdown files that instruct the agent on coding standards, security, git workflow, testing methodology (cross-CLI) |
 | **Agents** | `cli/claude/agents/` | Specialized sub-agents for TDD, code review, security analysis, architecture design (Claude Code) |
-| **Commands** | `cli/claude/commands/` | Slash commands: `/snapshot`, `/learn`, `/learn-recall`, `/update-foundry`, `/update-codemaps` |
-| **Skills** | `cli/claude/skills/` | Domain knowledge modules (megamind reasoning, writing pipeline with voice presets, GUI threading, ClickHouse, learned patterns) |
+| **Commands** | `cli/claude/commands/` | Slash commands: `/update-foundry`, `/update-codemaps` |
+| **Skills** | `cli/claude/skills/` | Domain knowledge modules (megamind reasoning, writing pipeline with voice presets, GUI threading, ClickHouse) |
 | **Hooks** | `cli/claude/hooks/library/` | Shell scripts that run before/after Claude Code tool calls (formatters, type checkers) |
 | **MCP servers** | `common/mcp/` | Cross-vendor MCP configs (deployed to `.mcp.json`) |
 | **Plugins** | configured in `settings.json` | LSP servers and workflow plugins (feature-dev, PR review toolkit) |
@@ -225,10 +225,8 @@ Rules are markdown files loaded by Claude Code at session start. They shape how 
 - `security.md` — mandatory security checks before commits
 - `testing.md` — targeted test runs, what to write, coverage as a signal
 - `architecture.md` — composition over inheritance, module boundaries
-- `performance.md` — model selection strategy, context window management
 - `agents.md` — when and how to use specialized sub-agents
 - `codemaps.md` — architecture documentation system
-- `skills.md` — points Claude to learned patterns when stuck
 
 **Modular rules** (`common/rule-library/`) are selected per-project:
 
@@ -245,11 +243,6 @@ Slash commands are available inside Claude Code after running `setup.py init`:
 
 | Command | What it does |
 |---------|--------------|
-| `/snapshot` | Captures current session state (task, decisions, files modified, next steps) to a snapshot file. |
-| `/snapshot-list` | Lists all snapshots with date, goal, and status. |
-| `/snapshot-restore` | Resumes from the most recent snapshot. |
-| `/learn` | After solving a non-trivial problem, extracts the pattern into a reusable skill file. See [Learned Skills](#learned-skills). |
-| `/learn-recall` | Lists or searches all learned skills. `/learn-recall python` searches for Python-related patterns. |
 | `/update-foundry` | Checks GitHub for a newer release and applies it. See [Updating](#updating). |
 | `/update-foundry-check` | Checks if an update is available without applying changes. |
 | `/update-foundry-interactive` | Full interactive menu to add or change component selections. |
@@ -257,12 +250,6 @@ Slash commands are available inside Claude Code after running `setup.py init`:
 | `/review-process` | Runs a tiered review (risk-tier T0-T4, mode, reviewer routing, finding ledger). See [Review Process](#review-process). |
 | `/private-list` | Lists registered private config sources with status. |
 | `/private-remove` | Removes a private source by prefix. `/private-remove company` removes all `company-*` files. |
-| `/prj-new <name>` | Creates a new named project in `.claude/prjs/<name>.md`. See [Project Management](#project-management). |
-| `/prj-list` | Lists all named projects with status and resume commands. |
-| `/prj-pause <name>` | Saves current session state and marks the project paused. |
-| `/prj-resume <name>` | Loads a project's context and resumes work (suggests `--resume <session_id>`). |
-| `/prj-done <name>` | Marks a project complete. |
-| `/prj-delete <name>` | Deletes a project file. |
 
 ## Agents
 
@@ -325,28 +312,11 @@ The skill menu in `setup.py init` presents related skills as **groups**, not ind
 | Group | Members | Default |
 |-------|---------|---------|
 | **Megamind Reasoning** | `megamind-deep`, `megamind-creative`, `megamind-adversarial`, `megamind-financial` | on |
-| **Project Management** | `prj-new`, `prj-list`, `prj-pause`, `prj-resume`, `prj-done`, `prj-delete` | on |
 | **Writing** | `writer`, `humanizer` | off (opt-in) |
 
-Megamind Reasoning and Project Management are **auto-selected by default**; Writing is **off by default** — toggle it on to deploy the drafting pipeline (`writer` drafts in the author's voice with ten selectable presets, then invokes `humanizer` for the anti-AI audit; the pair deploys together because the hand-off requires both). Individual non-grouped skills (`clickhouse-io`, `gui-threading`, `learn`, `update-foundry`, `snapshot-list`, `private-list`, `private-remove`, `review-process`, `copilot-cli`, etc.) continue to appear as individual entries. A handful — `update-foundry`, `learn`, `learn-recall`, `snapshot-list`, `private-list`, `private-remove`, `review-process`, `copilot-cli`, `codex-cli`, `agy-cli`, and `delegate` — are auto-selected by default; the others are off until explicitly toggled on.
+Megamind Reasoning is **on by default**; Writing is **off by default** — toggle it on to deploy the drafting pipeline (`writer` drafts in the author's voice with ten selectable presets, then invokes `humanizer` for the anti-AI audit; the pair deploys together because the hand-off requires both). Ungrouped skills appear as individual entries. `update-foundry`, `private-list`, `private-remove`, `review-process`, `copilot-cli`, `codex-cli`, `agy-cli` and `delegate` are on by default; `clickhouse-io`, `gui-threading` and `python-qt-gui` are off unless detection or you turn them on.
 
 The manifest still stores individual skill names (not group names), so existing projects keep working without migration.
-
-## Learned Skills
-
-Claude Code sessions often produce solutions worth remembering. The `/learn` and `/recall` commands turn these into persistent, searchable knowledge.
-
-### How it works
-
-1. After solving a non-trivial problem, run `/learn`
-2. Claude analyzes the session and drafts a skill file (problem → solution → example → when to use)
-3. You pick a **category** (e.g. `python`, `debugging`, `pyside6`) and a **save location**:
-   - **agent-foundry repo** (default): `cli/claude/skills/learned/<category>/<name>.md` — commit and push to share across machines. Deployed to projects via `setup.py init`.
-   - **Project-local**: `.claude/skills/learned-local/<category>/<name>.md` — stays in this project only.
-4. When Claude gets stuck on a problem, it checks these directories automatically (via `rules/skills.md`)
-5. Run `/recall` to list all learned skills, or `/recall <keyword>` to search
-
-The `cli/claude/skills/learned/` directory starts empty. Categories are created as you learn patterns.
 
 ## Private Sources
 
@@ -427,7 +397,7 @@ agent-foundry/
 │   └── claude/                   # Claude Code only
 │       ├── agents/               # Sub-agent definitions
 │       ├── commands/             # Slash commands
-│       ├── skills/               # Domain skills (incl. learned/ via /learn)
+│       ├── skills/               # Domain skills
 │       └── hooks/library/        # Per-language hook scripts
 └── tools/
     ├── setup.py                  # Bootstrap shim (source + tarball modes)
@@ -655,67 +625,6 @@ Run delegate commands outside the host CLI's own sandbox; the runner refuses
 inside Codex's. `delegate.py doctor` shows which CLIs are installed, the
 active policy, and caveats such as a Codex sandbox that can't start. Details:
 [`cli/claude/skills/delegate/scripts/README.md`](cli/claude/skills/delegate/scripts/README.md).
-
-## Project Management
-
-Named project contexts let you juggle multiple parallel initiatives without losing state between sessions. Each project lives in `.claude/prjs/<name>.md` — a simple markdown file with YAML frontmatter tracking goal, status, decisions, key files, and the last Claude session ID.
-
-### Workflow
-
-```
-/prj-new bank-refactor          # Create project, open file for editing
-/prj-pause bank-refactor        # Save state (records current session_id)
-/prj-list                       # See all projects, their status, resume commands
-/prj-resume bank-refactor       # Reload context — suggests `claude --resume <id>`
-/prj-done bank-refactor         # Mark complete
-/prj-delete bank-refactor       # Remove
-```
-
-### Project file
-
-A project file looks like:
-
-```markdown
----
-name: bank-refactor
-status: active            # active | paused | done
-updated: 2026-04-04T14:22
-session_id: abc123...     # Set on /prj-pause
----
-
-## Goal
-Migrate the legacy /api/accounts endpoints to the new service.
-
-## Status
-- [x] Inventoried existing callers
-- [ ] Draft compatibility shim
-- [ ] Migration plan
-
-## Decisions
-- Use adapter pattern rather than parallel rewrite
-
-## Key Files
-- src/api/accounts.py
-- tests/test_accounts.py
-
-## Resume
-What to pick up next session...
-```
-
-### How session tracking works
-
-On `/prj-pause`, the script records the current Claude session ID into the project file via the shared `skills/_lib/session-id.sh` library (it reads `.claude/projects/<encoded-cwd>/` to find the active session JSONL). On `/prj-resume`, the skill reads it back and suggests `claude --resume <session_id>` so you can continue the exact same conversation — or start a fresh session with full project context loaded.
-
-### When to use this vs `/snapshot`
-
-| Feature | Use `/prj-*` | Use `/snapshot` |
-|---------|--------------|-----------------|
-| Long-lived named initiative | ✓ | |
-| Running multiple projects in parallel | ✓ | |
-| Point-in-time session capture | | ✓ |
-| Stateful session resumption by ID | ✓ | |
-
-All `prj-*` skills are auto-installed by `setup.py`.
 
 ## Credits
 

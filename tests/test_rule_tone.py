@@ -57,7 +57,7 @@ def test_rendered_block_does_not_shout():
     sel = Selections(
         base=list(BASE_RULES),
         modular={cat: list(rules) for cat, rules in MODULAR_RULES.items()},
-        agents=[], skills=[], learned=[], hooks=[], plugins=[], mcp_servers=[],
+        agents=[], skills=[], hooks=[], plugins=[], mcp_servers=[],
         langs=set(MODULAR_RULES["lang"]), project_name="demo", version="9999.99.99",
     )
     block, _ = shared.render_agents_block(sel, budget=10**7)

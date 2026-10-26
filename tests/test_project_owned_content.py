@@ -95,19 +95,36 @@ class TestProjectOwnedSkills:
         assert "portfolio-update" in capsys.readouterr().out
 
     def test_private_and_protected_dirs_not_reported_as_foreign(self, project: Path, capsys):
-        """learned/, _lib/, and private-prefixed dirs are foundry-managed —
+        """learned/, learned-local/ and private-prefixed dirs are the project's —
         they are neither removed nor listed as non-foundry leftovers."""
         skills_dir = project / ".claude" / "skills"
-        for name in ["learned", "_lib", "company-tool"]:
+        for name in ["learned", "learned-local", "company-tool"]:
             (skills_dir / name).mkdir()
 
         copy_skills(project, [], private_prefixes=["company"])
 
         out = capsys.readouterr().out
         assert "company-tool" not in out
+        assert "learned" not in out
         assert (skills_dir / "learned").is_dir()
-        assert (skills_dir / "_lib").is_dir()  # rebuilt from source, still present
+        assert (skills_dir / "learned-local").is_dir()
         assert (skills_dir / "company-tool").is_dir()
+
+    def test_retired_skills_removed_and_reported(self, project: Path, capsys):
+        """Skills the foundry stopped shipping (RETIRED_SKILLS) are cleaned out
+        of projects that got them from an older version, and the removal is
+        printed."""
+        skills_dir = project / ".claude" / "skills"
+        for name in ["prj-new", "snapshot-list", "learn", "_lib"]:
+            (skills_dir / name).mkdir()
+            (skills_dir / name / "SKILL.md").write_text("old", encoding="utf-8")
+
+        copy_skills(project, ["megamind-deep"])
+
+        out = capsys.readouterr().out
+        for name in ["prj-new", "snapshot-list", "learn", "_lib"]:
+            assert not (skills_dir / name).exists()
+            assert name in out
 
 
 # ── Commands ──────────────────────────────────────────────────────────
@@ -145,7 +162,7 @@ class TestProjectOwnedCommands:
         assert not (cmd_dir / "megamind-deep.md").exists()
 
     def test_retired_command_removed(self, project: Path):
-        """/recall shipped until it became the learn-recall skill; listed in
+        """A command name listed in RETIRED_COMMANDS is still cleaned out
         RETIRED_COMMANDS, so old projects still get it cleaned out."""
         cmd_dir = project / ".claude" / "commands"
         (cmd_dir / "recall.md").write_text("# /recall - Search Learned Skills\n", encoding="utf-8")

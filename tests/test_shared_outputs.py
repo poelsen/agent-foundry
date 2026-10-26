@@ -31,7 +31,7 @@ def _selections(**overrides) -> Selections:
     base = {
         "base": list(BASE_RULES),
         "modular": {"lang": ["python.md"], "templates": ["scripts.md"]},
-        "agents": [], "skills": [], "learned": [], "hooks": [], "plugins": [],
+        "agents": [], "skills": [], "hooks": [], "plugins": [],
         "mcp_servers": [], "langs": {"python.md"},
         "project_name": "demo", "version": "9999.99.99",
     }
@@ -151,7 +151,7 @@ def test_unmarked_same_name_skill_left_alone(tmp_path: Path, capsys):
 
 
 def test_unmarked_foundry_named_skill_not_pruned(tmp_path: Path):
-    imported = tmp_path / ".agents" / "skills" / "prj-new"
+    imported = tmp_path / ".agents" / "skills" / "review-process"
     imported.mkdir(parents=True)
     shared.deploy_shared_skills(tmp_path, _selections(skills=[]))
     assert imported.is_dir()

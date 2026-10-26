@@ -2,7 +2,7 @@
 
 Skills are reusable knowledge modules that provide domain-specific patterns, best practices, and implementation guidance.
 
-> **Skill groups in `setup.py init`:** Megamind Reasoning (4 skills) and Project Management (6 skills) are toggled as groups, not individually. See the top-level [README — Skill Selection](../README.md#skill-selection-groups-hidden-skills-gating) section for details.
+> **Skill groups in `setup.py init`:** Megamind Reasoning (4 skills) and Writing (2 skills) are toggled as groups, not individually. See the top-level [README — Skill Selection](../README.md#skill-selection-groups-hidden-skills-gating) section for details.
 
 ## Available Skills
 
@@ -140,23 +140,6 @@ Deploys to every target CLI. Write jobs get their own worktree and branch,
 limits come from `.delegate/policy.json`, and nothing merges without review.
 See [delegate/scripts/README.md](delegate/scripts/README.md).
 
-### Project Management
-
-Named project contexts let you work on multiple parallel initiatives without losing state. Each project lives in `.claude/prjs/<name>.md` with goals, status, decisions, and key files.
-
-| Skill | Purpose | Command |
-|-------|---------|---------|
-| [prj-new](prj-new/) | Create a new named project | `/prj-new <name>` |
-| [prj-list](prj-list/) | List all projects with status | `/prj-list` |
-| [prj-pause](prj-pause/) | Save session state, mark paused | `/prj-pause <name>` |
-| [prj-resume](prj-resume/) | Load project context, resume work | `/prj-resume <name>` |
-| [prj-done](prj-done/) | Mark project complete | `/prj-done <name>` |
-| [prj-delete](prj-delete/) | Delete a project file | `/prj-delete <name>` |
-
-The script-based prj-* skills share [`_lib/session-id.sh`](_lib/session-id.sh) to detect the current Claude session and record it on pause, so `/prj-resume` can suggest `--resume <session_id>`.
-
-**Auto-selected:** All prj-* skills are installed by default via `setup.py`.
-
 ## Skill Structure
 
 Each skill directory contains:
@@ -195,25 +178,6 @@ Skill content with patterns, examples, checklists...
 | Tone | "Here's how to..." | "You MUST/MUST NOT..." |
 | Flexibility | Multiple valid approaches | Non-negotiable |
 | Location | `.claude/skills/` | `.claude/rules/` |
-
-## Learned Skills
-
-Patterns extracted from sessions via `/learn`. Organized by category:
-
-```
-skills/learned/
-├── python/          # Python-specific patterns
-├── debugging/       # Debugging techniques
-└── <category>/      # Any category
-    └── <pattern>.md
-```
-
-- **Shared** (`skills/learned/<cat>/`): Deployed to projects via `setup.py`, synced across machines
-- **Project-local** (`<project>/.claude/skills/learned-local/<cat>/`): Project-specific, not managed by setup.py
-
-Use `/recall` to list or search learned skills. Use `/learn` to extract new patterns.
-
-Categories are selected during `setup.py init` — projects only get relevant categories.
 
 ## Creating New Skills
 
