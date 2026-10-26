@@ -11,7 +11,7 @@ Closes #42
 ```
 
 - `Closes #N`, `Fixes #N`, `Resolves #N` in commit body → auto-closes issue on merge
-- `(#N)` in subject line → creates link only, does NOT close
+- `(#N)` in subject line → creates link only, does not close
 
 ## Issues
 
