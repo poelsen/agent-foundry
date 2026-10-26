@@ -14,7 +14,7 @@ uv run pytest  # Tests
 
 ### Project Docs
 
-- `codemaps/INDEX.md` — read before modifying unfamiliar modules; run the `update-codemaps` command after significant structural changes
+- `codemaps/INDEX.md`, if present — read before modifying unfamiliar modules; run the `update-codemaps` command after significant structural changes. Don't create codemaps for a project that has none.
 - `docs/ARCHITECTURE.md` (design decisions) and `docs/DEVELOPMENT.md` (setup and workflow), if present
 
 <!-- rule: coding-style.md -->
@@ -70,7 +70,7 @@ See project-specific styles in rule-library/style/.
 
 Feature Branch Workflow: short-lived branches, rebase only (no merge commits), squash before merge.
 
-**Protected:** `master`, `release/*` — never push directly, require PR + review + CI pass.
+**Protected:** `master`, `release/*` — never push directly; changes arrive by reviewed PR, with CI green where the repo has CI.
 
 #### Branch Naming
 
@@ -108,16 +108,16 @@ Release: tag on master → hotfix needed: branch from tag → bugfix branch → 
 <!-- rule: security.md -->
 ### Security Guidelines
 
-#### Mandatory Checks (before ANY commit)
+#### Checks before a commit
+
+Where the item applies to the code being changed:
 
 - [ ] No hardcoded secrets (API keys, passwords, tokens)
-- [ ] All user inputs validated
-- [ ] SQL injection prevention (parameterized queries)
-- [ ] XSS prevention (sanitized HTML)
-- [ ] CSRF protection enabled
-- [ ] Authentication/authorization verified
-- [ ] Rate limiting on endpoints
-- [ ] Error messages don't leak sensitive data
+- [ ] External input validated at the boundary (arguments, files, network, env)
+- [ ] No string-built queries or shell commands from input (parameterize, pass argv lists)
+- [ ] Error messages and logs don't leak secrets or private data
+
+Web-facing code also needs the checks in the REST API template (auth on every endpoint, XSS and CSRF protection, rate limiting).
 
 #### Secret Management
 
@@ -125,60 +125,49 @@ Use env vars, never hardcode secrets.
 
 #### Security Response
 
-If security issue found:
-1. STOP immediately
-2. Use **security-reviewer** agent
-3. Fix CRITICAL issues before continuing
-4. Rotate any exposed secrets
+If a security issue is found:
+1. Stop and report it before continuing
+2. Fix exploitable issues before other work; the **security-reviewer** agent helps judge severity
+3. Rotate any exposed secrets
 
 <!-- rule: testing.md -->
-### Testing Requirements
+### Testing
 
-#### Minimum Test Coverage: 80%
+#### What to run, and when
 
-Test Types (ALL required):
-1. **Unit Tests** - Individual functions, utilities, components
-2. **Integration Tests** - API endpoints, database operations
-3. **E2E Tests** - Critical user flows (Playwright)
+- While working, run the tests that cover what you changed, plus a quick sanity check if the project has one. Don't run the whole suite after every edit.
+- Run the full suite before a merge when the change is wide (shared code, data models, build config) or when you can't tell what it touches. Say which run you did.
+- Scheduled or CI runs catch regressions you didn't foresee; that is their job, not every edit's.
+- Use the test command from the Environment section or the project's own notes. Don't invent a different one.
 
-#### Test-Driven Development
+#### What to write
 
-MANDATORY workflow:
-1. Write test first (RED)
-2. Run test - it should FAIL
-3. Write minimal implementation (GREEN)
-4. Run test - it should PASS
-5. Refactor (IMPROVE)
-6. Verify coverage (80%+)
+- A test for every behaviour you add or fix. Start with the test when it clarifies the behaviour; write it after when the shape of the code isn't clear yet.
+- Test behaviour, not implementation. A test that mirrors the code it tests, or that only asserts the mock was called, proves nothing; leave it out.
+- Keep each test independent of ordering and of other tests' state.
+- Match the project's existing layout and fixtures.
 
-#### Troubleshooting Test Failures
+#### Coverage
 
-1. Use **tdd-guide** agent
-2. Check test isolation
-3. Verify mocks are correct
-4. Fix implementation, not tests (unless tests are wrong)
+The project's own target applies. Where it has none, keep new code roughly as well covered as the code around it. Coverage is a signal, not a goal: don't write tests to move the number.
 
-#### Agent Support
+#### When a test fails
 
-- **tdd-guide** - Use PROACTIVELY for new features, enforces write-tests-first
-- **e2e-test-typescript** - Browser E2E with Playwright (TS/JS)
-- **e2e-test-python-web** - Browser E2E with Playwright (Python)
-- **e2e-test-python-qt** - Desktop GUI E2E with pytest-qt (PySide6/PyQt)
+1. Read the failure before changing anything.
+2. Fix the code, not the test, unless the test is wrong.
+3. Check isolation: does it fail alone, and does it fail on a clean checkout?
+
+#### Agents
+
+- **tdd-guide** helps when the project runs test-first and the feature's behaviour is unclear.
+- **e2e-test-typescript**, **e2e-test-python-web** (Playwright) and **e2e-test-python-qt** (pytest-qt) help for user-flow tests in a GUI or web app.
 
 <!-- rule: architecture.md -->
 ### Architecture Principles
 
-#### Project Discovery
+#### Starting a new project
 
-When implementing new functionality:
-1. Search for battle-tested skeleton projects
-2. Use parallel agents to evaluate options:
-   - Security assessment
-   - Extensibility analysis
-   - Relevance scoring
-   - Implementation planning
-3. Clone best match as foundation
-4. Iterate within proven structure
+When a project starts from nothing, look for a proven skeleton or template for its kind before writing the layout by hand. This doesn't apply to adding functionality to an existing project.
 
 #### Design Principles
 
@@ -209,11 +198,13 @@ See project-specific architecture in rule-library/arch/.
 
 #### Reading Codemaps
 
+This applies to projects that have a `codemaps/` directory. Don't create one unasked.
+
 Before modifying code in an unfamiliar module:
 1. Read codemaps/INDEX.md for project overview
 2. Read the specific module codemap for context
 
-Do NOT read all codemaps upfront. Read only what you need.
+Don't read all codemaps upfront. Read only what you need.
 
 #### Updating Codemaps
 
@@ -308,7 +299,7 @@ Closes #42
 ```
 
 - `Closes #N`, `Fixes #N`, `Resolves #N` in commit body → auto-closes issue on merge
-- `(#N)` in subject line → creates link only, does NOT close
+- `(#N)` in subject line → creates link only, does not close
 
 #### Issues
 
@@ -320,11 +311,11 @@ Closes #42
 
 Extends `security.md` with strict requirements for production systems.
 
-#### Additional Checks (BLOCK commit if violated)
+#### Additional Checks (fix before committing)
 
 - [ ] Secret manager for credentials (not env vars)
 - [ ] CSP headers + output encoding for XSS
-- [ ] Auth on ALL endpoints (explicit public allowlist)
+- [ ] Auth on every endpoint (explicit public allowlist)
 - [ ] Authorization checks (RBAC/ABAC)
 - [ ] Dependencies scanned for CVEs
 - [ ] Secrets scanned in CI (gitleaks/git-secrets)
@@ -339,8 +330,8 @@ Extends `security.md` with strict requirements for production systems.
 #### Incident Response
 
 Same as security.md, plus:
-5. Review entire codebase for similar issues
-6. Document in security log
+4. Review entire codebase for similar issues
+5. Document in security log
 
 <!-- rule: library.md -->
 ### Template: Libraries & Packages

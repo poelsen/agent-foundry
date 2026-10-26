@@ -59,7 +59,7 @@ uv run pytest
 ```
 a) Run full type check
    - mypy src/
-   - Capture ALL errors, not just first
+   - Capture every error, not just the first
 
 b) Categorize errors by type
    - Type annotation errors
@@ -172,7 +172,7 @@ class User:
 
 ## Minimal Diff Strategy
 
-**CRITICAL: Make smallest possible changes**
+**Make the smallest possible changes**
 
 ### DO:
 ✅ Add type annotations where missing
