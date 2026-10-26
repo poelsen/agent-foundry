@@ -30,15 +30,15 @@ ENVIRONMENT_SNIPPETS = {
 
 BASE_RULES = [
     "coding-style.md", "git-workflow.md", "security.md", "testing.md",
-    "architecture.md", "performance.md", "agents.md", "codemaps.md",
+    "architecture.md", "agents.md", "codemaps.md",
 ]
 
 # Base rules that describe Claude Code-only machinery (the Task tool and the
-# foundry subagent roster, settings.json hooks, Claude model tiers). They
+# foundry subagent roster). They
 # deploy to .claude/rules/ (which Claude Code loads alongside AGENTS.md) and
 # are never rendered into the shared AGENTS.md, where they would mislead
 # Copilot, Codex, and Antigravity.
-CLAUDE_ONLY_RULES: set[str] = {"agents.md", "performance.md"}
+CLAUDE_ONLY_RULES: set[str] = {"agents.md"}
 
 # One-line descriptions shown next to each rule in the AGENTS.md pointer
 # list and in Antigravity rule frontmatter. Rules missing here get a title-cased name.
@@ -71,7 +71,6 @@ RULE_DESCRIPTIONS: dict[str, str] = {
     "security.md": "Security checks and practices",
     "testing.md": "Testing (targeted runs, what to write)",
     "architecture.md": "Architecture principles",
-    "performance.md": "Performance and model selection",
     "agents.md": "Agent orchestration",
     "codemaps.md": "Codemap system",
 }
@@ -109,13 +108,14 @@ MODULAR_RULES = {
 # a skill/command/agent is renamed or removed, its old name must be
 # listed here to keep being cleaned out of projects. Modular rules are
 # recorded in MANIFEST_MIGRATION below; base rules go in RETIRED_RULES.
-RETIRED_RULES: set[str] = {
-    "hooks.md",
+RETIRED_RULES: set[str] = {"hooks.md", "performance.md", "skills.md"}
+# Session and project bookkeeping that Claude Code now does natively
+# (resume, fork, named sessions, memory), plus their shared script dir.
+RETIRED_SKILLS: set[str] = {
+    "prj-new", "prj-list", "prj-pause", "prj-resume", "prj-done", "prj-delete",
+    "snapshot-list", "learn", "learn-recall", "_lib",
 }
-RETIRED_SKILLS: set[str] = set()
-RETIRED_COMMANDS: set[str] = {
-    "recall.md",  # became the learn-recall skill
-}
+RETIRED_COMMANDS: set[str] = {"recall.md", "snapshot.md", "snapshot-restore.md"}
 RETIRED_AGENTS: set[str] = set()
 
 # Migration map: (old_category, old_rule) -> (new_category, new_rule) or None
@@ -150,9 +150,7 @@ SKILLS = [
     "clickhouse-io", "gui-threading", "python-qt-gui",
     "megamind-deep", "megamind-creative", "megamind-adversarial", "megamind-financial",
     "delegate", "review-process",
-    "update-foundry", "learn", "learn-recall", "snapshot-list",
-    "private-list", "private-remove",
-    "prj-new", "prj-list", "prj-pause", "prj-resume", "prj-done", "prj-delete",
+    "update-foundry", "private-list", "private-remove",
     "copilot-cli", "codex-cli", "agy-cli",
     "writer", "humanizer",
 ]
@@ -164,9 +162,6 @@ SKILLS = [
 SKILL_GROUPS: dict[str, list[str]] = {
     "Megamind Reasoning": [
         "megamind-deep", "megamind-creative", "megamind-adversarial", "megamind-financial",
-    ],
-    "Project Management": [
-        "prj-new", "prj-list", "prj-pause", "prj-resume", "prj-done", "prj-delete",
     ],
     # writer drafts in the user's voice, then invokes humanizer via Skill(humanizer)
     # for the reactive anti-AI audit. Grouped so the pair always deploys together —
@@ -182,8 +177,7 @@ SKILL_GROUPS: dict[str, list[str]] = {
 # of them, not just one. Deploying adapts them (see shared.py): Claude-only
 # frontmatter is dropped, .claude/skills/ paths and Skill(x) calls are
 # rewritten, and files over Codex's 8 KB skill limit are split. Excluded:
-# skills tied to Claude-only state (prj-*/snapshot-list/learn* → Claude
-# session ids and .claude/ layouts, private-* → Claude-only private
+# skills tied to Claude-only state (private-* → Claude-only private
 # sources, review-process → Claude reviewer agents and prompts).
 PORTABLE_SKILLS: set[str] = {
     "megamind-deep", "megamind-creative", "megamind-adversarial", "megamind-financial",
@@ -194,7 +188,7 @@ PORTABLE_SKILLS: set[str] = {
 # Claude slash commands that work on any CLI. Copilot, Codex and Antigravity
 # have no command files (Codex removed custom prompts in 0.117), so these are
 # converted to skills in .agents/skills/ (sub-commands only with their
-# skill). The snapshot commands keep state in .claude/ and stay Claude-only.
+# skill).
 PORTABLE_COMMANDS: set[str] = {
     "update-codemaps.md", "update-foundry-check.md", "update-foundry-interactive.md",
 }

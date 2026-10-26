@@ -10,7 +10,6 @@ from pathlib import Path
 from .paths import (
     AGENTS_DIR,
     COMMANDS_DIR,
-    LEARNED_SKILLS_DIR,
     MCP_SERVERS_FILE,
     REPO_ROOT,
 )
@@ -299,7 +298,7 @@ def copy_commands(
     Code already exposes every skill as a ``/name`` slash command, so shipping a
     wrapper command of the same name produces a duplicate entry in the slash
     menu. Only sub-commands (e.g. ``update-foundry-check``) and command-only
-    files (e.g. ``snapshot``) are deployed.
+    files are deployed.
     """
     if not COMMANDS_DIR.is_dir():
         return
@@ -329,38 +328,6 @@ def copy_commands(
         shutil.copy2(COMMANDS_DIR / name, dest / name)
 
 
-def discover_learned_categories() -> list[str]:
-    """Return sorted list of learned skill category directories."""
-    if not LEARNED_SKILLS_DIR.is_dir():
-        return []
-    return sorted(
-        d.name for d in LEARNED_SKILLS_DIR.iterdir()
-        if d.is_dir() and not d.name.startswith(".")
-    )
-
-
-def copy_learned_skills(project: Path, categories: list[str]) -> None:
-    """Deploy selected learned skill categories to the project."""
-    if not categories:
-        return
-    dest_base = project / ".claude" / "skills" / "learned"
-    local_base = project / ".claude" / "skills" / "learned-local"
-
-    for cat in categories:
-        src = LEARNED_SKILLS_DIR / cat
-        if not src.is_dir():
-            continue
-        dest = dest_base / cat
-        dest.mkdir(parents=True, exist_ok=True)
-        for skill_file in src.iterdir():
-            if skill_file.suffix == ".md":
-                # Warn on conflict with project-local skills
-                local_conflict = local_base / cat / skill_file.name
-                if local_conflict.exists():
-                    print(f"  ⚠ Conflict: {skill_file.name} exists in both learned/ and learned-local/{cat}/")
-                shutil.copy2(skill_file, dest / skill_file.name)
-
-
 def copy_skills(
     project: Path,
     skills: list[str],
@@ -370,11 +337,10 @@ def copy_skills(
     skills_dir = project / ".claude" / "skills"
     skills_dir.mkdir(parents=True, exist_ok=True)
     wanted = set(skills)
-    # Remove stale foundry skills not in current selection. Skip:
-    # learned/, learned-local/, _lib/, private-prefixed dirs — and any
-    # skill the foundry never shipped, which is project-owned and not
-    # ours to delete.
-    protected = {"learned", "learned-local", "_lib"}
+    # Remove stale foundry skills not in current selection. Skip the
+    # project's own pattern dirs (learned/, learned-local/), private-prefixed
+    # dirs, and any skill the foundry never shipped.
+    protected = {"learned", "learned-local"}
     owned = _owned_skill_names()
     foreign: list[str] = []
     for existing in sorted(skills_dir.iterdir()):
@@ -399,13 +365,6 @@ def copy_skills(
             if dest.exists():
                 shutil.rmtree(dest)
             shutil.copytree(src, dest, ignore=SKILL_COPY_IGNORE)
-    # Copy shared libraries (e.g., _lib/session-id.sh used by prj-* skills)
-    lib_src = REPO_ROOT / "cli" / "claude" / "skills" / "_lib"
-    if lib_src.is_dir():
-        lib_dest = skills_dir / "_lib"
-        if lib_dest.exists():
-            shutil.rmtree(lib_dest)
-        shutil.copytree(lib_src, lib_dest)
 
 
 def install_hook_scripts(dest: Path, hooks: list[str]) -> None:

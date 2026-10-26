@@ -14,7 +14,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .console import GoBack, QuitSetup, toggle_menu
-from .deploy import discover_learned_categories
 from .detect import detect_languages, detect_platform, detect_templates
 from .paths import AGENTS_DIR, MCP_SERVERS_FILE
 from .private import discover_private_content, validate_prefix
@@ -35,7 +34,7 @@ _STEP_ARTIFACT = {
     "base": "rules", "lang": "rules", "templates": "rules",
     "platform": "rules", "security": "rules",
     "hooks": "hooks", "agents": "agents", "skills": "skills",
-    "learned": "learned", "plugins": "plugins", "mcp": "mcp",
+    "plugins": "plugins", "mcp": "mcp",
     "private": "private-sources",
 }
 
@@ -50,7 +49,6 @@ class SelectionResult:
     hooks: list[str] = field(default_factory=list)
     agents: list[str] = field(default_factory=list)
     skills: list[str] = field(default_factory=list)
-    learned: list[str] = field(default_factory=list)
     plugins: list[str] = field(default_factory=list)
     mcp_servers: list[str] = field(default_factory=list)
     pending_private: list[dict] = field(default_factory=list)
@@ -105,7 +103,6 @@ def run_selection(
         print("No languages or templates auto-detected.")
 
     # ── Pre-compute static data ──
-    learned_cats = discover_learned_categories()
     agent_files = (sorted(f.name for f in AGENTS_DIR.iterdir() if f.suffix == ".md")
                    if AGENTS_DIR.is_dir() else [])
     hook_names = list(HOOK_SCRIPTS.keys())
@@ -124,7 +121,7 @@ def run_selection(
 
     # ── Selection phase (step-based with back/quit for interactive) ──
     STEPS = ["base", *modular_categories,
-             "hooks", "agents", "skills", "learned", "plugins", "mcp"]
+             "hooks", "agents", "skills", "plugins", "mcp"]
 
     def _applies(s: str) -> bool:
         artifact = _STEP_ARTIFACT.get(s)
@@ -138,8 +135,7 @@ def run_selection(
     step = 0
 
     def _skip_step(s: str) -> bool:
-        return ((s == "learned" and not learned_cats) or
-                (s == "mcp" and not mcp_available))
+        return s == "mcp" and not mcp_available
 
     def _for_detection() -> set[str]:
         """Derive selected_for_detection from current saved state."""
@@ -252,14 +248,13 @@ def run_selection(
                         if skill == "python-qt-gui" and "desktop-gui-qt.md" in sfd:
                             auto.add(i)
                     # Default-on individual skills (the small always-useful set)
-                    always_on = ("update-foundry", "learn", "learn-recall", "snapshot-list",
-                                 "private-list", "private-remove", "review-process",
-                                 "copilot-cli", "codex-cli", "agy-cli", "delegate")
+                    always_on = ("update-foundry", "private-list", "private-remove",
+                                 "review-process", "copilot-cli", "codex-cli", "agy-cli",
+                                 "delegate")
                     for i, skill in enumerate(SKILLS):
                         if skill in always_on:
                             auto.add(i)
-                    # Default-on groups (megamind + prj)
-                    default_groups = ("Megamind Reasoning", "Project Management")
+                    default_groups = ("Megamind Reasoning",)
                     for group_name in default_groups:
                         for skill in SKILL_GROUPS[group_name]:
                             if skill in SKILLS:
@@ -302,19 +297,6 @@ def run_selection(
                         else:
                             final -= idxs
                     saved_steps["skills"] = final
-
-                elif name == "learned":
-                    if "learned" in saved_steps:
-                        auto = saved_steps["learned"]
-                    elif manifest:
-                        auto = _manifest_indices(learned_cats, "learned_categories")
-                    else:
-                        auto = set(range(len(learned_cats)))
-                    if ask:
-                        saved_steps["learned"] = toggle_menu(
-                            "Learned Skills (categories)", learned_cats, auto)
-                    else:
-                        saved_steps["learned"] = auto
 
                 elif name == "plugins":
                     sfd = _for_detection()
@@ -451,8 +433,6 @@ def run_selection(
     selected_hooks = [hook_names[i] for i in sorted(saved_steps.get("hooks", set()))]
     selected_agents = [agent_files[i] for i in sorted(saved_steps.get("agents", set()))]
     selected_skills = [SKILLS[i] for i in sorted(saved_steps.get("skills", set()))]
-    selected_learned = ([learned_cats[i] for i in sorted(saved_steps.get("learned", set()))]
-                        if learned_cats else [])
     selected_plugins = sorted(saved_plugin_names) if saved_plugin_names else []
     mcp_servers = ([mcp_names[i] for i in sorted(saved_steps.get("mcp", set()))]
                    if mcp_available else [])
@@ -463,7 +443,6 @@ def run_selection(
         hooks=selected_hooks,
         agents=selected_agents,
         skills=selected_skills,
-        learned=selected_learned,
         plugins=selected_plugins,
         mcp_servers=mcp_servers,
         pending_private=pending_private,

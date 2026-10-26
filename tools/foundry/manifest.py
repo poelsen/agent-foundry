@@ -7,7 +7,7 @@ import subprocess
 from pathlib import Path
 
 from .paths import REPO_ROOT
-from .registry import MANIFEST_MIGRATION, RETIRED_RULES
+from .registry import MANIFEST_MIGRATION, RETIRED_RULES, RETIRED_SKILLS
 
 
 def read_version() -> str:
@@ -132,9 +132,11 @@ def migrate_manifest(manifest: dict) -> dict:
     if changed:
         manifest["modular_rules"] = modular
 
-    base = manifest.get("base_rules")
-    if base and any(rule in RETIRED_RULES for rule in base):
-        manifest["base_rules"] = [rule for rule in base if rule not in RETIRED_RULES]
+    for key, retired in (("base_rules", RETIRED_RULES), ("skills", RETIRED_SKILLS)):
+        names = manifest.get(key)
+        if names and any(name in retired for name in names):
+            manifest[key] = [name for name in names if name not in retired]
+    manifest.pop("learned_categories", None)
 
     # Pre-multi-CLI manifests have no `clis` key — every existing project
     # was Claude Code-only, so default it there.

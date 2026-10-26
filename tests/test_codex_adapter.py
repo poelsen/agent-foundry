@@ -22,7 +22,7 @@ from foundry.paths import AGENTS_DIR
 def _selections(**overrides) -> Selections:
     base = {
         "base": ["coding-style.md"], "modular": {"lang": ["python.md"]},
-        "agents": [], "skills": [], "learned": [], "hooks": [], "plugins": [],
+        "agents": [], "skills": [], "hooks": [], "plugins": [],
         "mcp_servers": [], "langs": {"python.md"},
         "project_name": "demo", "version": "9999.99.99",
     }
@@ -369,11 +369,11 @@ def test_no_trust_hint_without_codex_dir_content(tmp_path: Path, capsys):
 
 
 def test_codex_gets_agents_md_and_command_skills(tmp_path: Path):
-    _deploy(tmp_path, skills=["megamind-deep", "prj-new"])
+    _deploy(tmp_path, skills=["megamind-deep", "review-process"])
     assert "<!-- agent-foundry -->" in (tmp_path / "AGENTS.md").read_text()
     skills = tmp_path / ".agents/skills"
     assert (skills / "megamind-deep/SKILL.md").exists()
-    assert not (skills / "prj-new").exists()
+    assert not (skills / "review-process").exists()
     command = (skills / "update-codemaps/SKILL.md").read_text()
     assert command.startswith("---\nname: update-codemaps\ndescription: ")
     assert "**Model:**" not in command

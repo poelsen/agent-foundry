@@ -428,34 +428,34 @@ class TestCopyCommandsSkillTwins:
 
         fake_src = tmp_path / "commands-src"
         fake_src.mkdir()
-        # prj-new is a real skill name → redundant wrapper, must be skipped.
-        (fake_src / "prj-new.md").write_text("# wrapper\n")
+        # review-process is a real skill name → redundant wrapper, must be skipped.
+        (fake_src / "review-process.md").write_text("# wrapper\n")
         # standalone command with no skill twin → must deploy.
         (fake_src / "standalone.md").write_text("# standalone\n")
         monkeypatch.setattr(deploy, "COMMANDS_DIR", fake_src)
 
-        copy_commands(project, ["prj-new"])
+        copy_commands(project, ["review-process"])
 
         cmd_dir = project / ".claude" / "commands"
-        assert not (cmd_dir / "prj-new.md").exists()
+        assert not (cmd_dir / "review-process.md").exists()
         assert (cmd_dir / "standalone.md").exists()
 
     def test_prunes_already_deployed_twin(self, project):
         """Self-heal: a duplicate left by an older deploy is removed."""
         cmd_dir = project / ".claude" / "commands"
-        (cmd_dir / "prj-new.md").write_text("# stale wrapper\n")
+        (cmd_dir / "review-process.md").write_text("# stale wrapper\n")
 
-        copy_commands(project, ["prj-new"])
+        copy_commands(project, ["review-process"])
 
-        assert not (cmd_dir / "prj-new.md").exists()
+        assert not (cmd_dir / "review-process.md").exists()
 
     def test_deploys_command_only_file(self, project):
-        """A command with no skill twin (snapshot) is still deployed."""
+        """A command with no skill twin (update-codemaps) is still deployed."""
         cmd_dir = project / ".claude" / "commands"
 
         copy_commands(project, [])
 
-        assert (cmd_dir / "snapshot.md").exists()
+        assert (cmd_dir / "update-codemaps.md").exists()
 
     def test_deploys_subcommand_when_parent_skill_selected(self, project):
         """A sub-command (update-foundry-check) is not a skill twin and deploys

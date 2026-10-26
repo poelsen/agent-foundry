@@ -10,11 +10,9 @@ These rules are selected by default during `setup.py init` and copied to each pr
 | architecture.md | Module boundaries, file organization, design principles |
 | coding-style.md | Functions, data/state, error handling, naming |
 | git-workflow.md | Branching, commits, PRs |
-| performance.md | Model selection, context management |
 | security.md | Security checklist and protocols |
 | testing.md | What to run and when, what to write |
 | codemaps.md | Codemap system, LSP plugins, architecture docs |
-| skills.md | Learned skill discovery and reuse |
 
 ## Modular Rules (Choose Per-Project)
 

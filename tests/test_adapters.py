@@ -30,7 +30,6 @@ def _selections(**overrides) -> Selections:
         "modular": {"lang": ["python.md"]},
         "agents": [],
         "skills": [],
-        "learned": [],
         "hooks": [],
         "plugins": [],
         "mcp_servers": [],
@@ -95,9 +94,9 @@ def test_copilot_deploys_portable_skill_sanitized(tmp_path: Path):
 
 
 def test_copilot_skips_non_portable_skill(tmp_path: Path):
-    # prj-new is Claude-coupled — must not land in the shared skill root
-    _deploy_copilot(tmp_path, _selections(skills=["prj-new"]))
-    assert not (tmp_path / ".agents" / "skills" / "prj-new").exists()
+    # review-process is Claude-coupled — must not land in the shared skill root
+    _deploy_copilot(tmp_path, _selections(skills=["review-process"]))
+    assert not (tmp_path / ".agents" / "skills" / "review-process").exists()
 
 
 def test_copilot_removes_deselected_skill(tmp_path: Path):
@@ -264,11 +263,10 @@ def test_copilot_creates_agents_md(tmp_path: Path):
 
 
 def test_copilot_omits_claude_only_rules(tmp_path: Path):
-    _deploy_copilot(tmp_path, _selections(base=["coding-style.md", "agents.md", "performance.md"]))
+    _deploy_copilot(tmp_path, _selections(base=["coding-style.md", "agents.md"]))
     text = (tmp_path / "AGENTS.md").read_text()
     assert "<!-- rule: coding-style.md -->" in text
     assert "<!-- rule: agents.md -->" not in text  # Task tool / subagent roster
-    assert "<!-- rule: performance.md -->" not in text   # Claude model tiers
 
 
 def test_copilot_update_is_idempotent(tmp_path: Path):
@@ -296,29 +294,29 @@ def test_copilot_preserves_user_content(tmp_path: Path):
 
 def test_claude_skips_nothing():
     sel = _selections(agents=["doc-updater.md"], hooks=["ruff-format.sh"],
-                      skills=["prj-new"], plugins=["feature-dev"])
+                      skills=["review-process"], plugins=["feature-dev"])
     assert ClaudeAdapter().skipped(sel) == []
 
 
 def test_copilot_reports_unsupported_and_claude_only():
     sel = _selections(base=["coding-style.md", "agents.md"], agents=["doc-updater.md"],
-                      hooks=["ruff-format.sh"], skills=["megamind-deep", "prj-new"])
+                      hooks=["ruff-format.sh"], skills=["megamind-deep", "review-process"])
     by_artifact = {s.artifact: s for s in CopilotAdapter().skipped(sel)}
     assert by_artifact["agents"].items == ["doc-updater.md"]
     assert not by_artifact["agents"].claude_only
     assert by_artifact["hooks"].items == ["ruff-format.sh"]
-    assert by_artifact["skills"].items == ["prj-new"]  # megamind-deep is portable
+    assert by_artifact["skills"].items == ["review-process"]  # megamind-deep is portable
     assert by_artifact["skills"].claude_only
     assert by_artifact["rules"].items == ["agents.md"]
 
 
 def test_skipped_report_printed(tmp_path: Path, capsys):
-    sel = _selections(agents=["doc-updater.md"], skills=["prj-new"])
+    sel = _selections(agents=["doc-updater.md"], skills=["review-process"])
     _deploy_copilot(tmp_path, sel)
     out = capsys.readouterr().out
     assert "Not deployed" in out
     assert "no support for agents (1)" in out
-    assert "Claude-only skills — prj-new" in out
+    assert "Claude-only skills — review-process" in out
 
 
 def test_skipped_report_notes_copilot_reads_claude_skills(tmp_path: Path, capsys):

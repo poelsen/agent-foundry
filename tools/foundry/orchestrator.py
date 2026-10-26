@@ -265,7 +265,6 @@ def cmd_init(
     selected_hooks = result.hooks
     selected_agents = result.agents
     selected_skills = result.skills
-    selected_learned = result.learned
     selected_plugins = result.plugins
     mcp_servers = result.mcp_servers
     pending_private = result.pending_private
@@ -280,7 +279,7 @@ def cmd_init(
 
     sel = Selections(
         base=selected_base, modular=selected_modular, agents=selected_agents,
-        skills=selected_skills, learned=selected_learned, hooks=selected_hooks,
+        skills=selected_skills, hooks=selected_hooks,
         plugins=selected_plugins, mcp_servers=mcp_servers,
         langs=selected_langs, project_name=project_name, version=version,
     )
@@ -312,7 +311,6 @@ def cmd_init(
         "hooks": selected_hooks,
         "agents": selected_agents,
         "skills": selected_skills,
-        "learned_categories": selected_learned,
         "plugins": selected_plugins,
         "mcp_servers": mcp_servers,
     }
@@ -336,8 +334,6 @@ def cmd_init(
     print(f"  Commands: {cmd_count}")
     print(f"  Agents: {len(selected_agents)}")
     print(f"  Skills: {len(selected_skills)}")
-    if selected_learned:
-        print(f"  Learned: {len(selected_learned)} categories ({', '.join(selected_learned)})")
     print(f"  Plugins: {len(selected_plugins)}")
     print(f"  MCP servers: {len(mcp_servers)}")
     if private_sources:
