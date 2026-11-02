@@ -149,6 +149,58 @@ def test_push_allowed_removes_cli_deny(tmp_path: Path, target: str):
     assert "--dangerously-skip-permissions" not in ro["argv"]
 
 
+@pytest.mark.parametrize(("task", "allow_push", "mode", "warn"), [
+    ("Push the branch", False, "write", True),
+    ("Open a PR", False, "write", True),
+    ("Open a pull request", False, "write", True),
+    ("MERGE it", False, "write", True),
+    ("Do not push", False, "write", True),  # literal words, including negations
+    ("Fix pushback and primerge", False, "write", False),
+    ("Push and open a PR", True, "write", False),
+    ("Review the merge", False, "read-only", False),
+])
+def test_task_policy_warning_words(task: str, allow_push: bool, mode: str, warn: bool):
+    warnings = delegate.task_policy_warnings(task, mode, allow_push)
+    assert bool(warnings) is warn
+    if warn:
+        assert "allow_push=false" in warnings[0]
+
+
+@pytest.mark.parametrize("command", ["start", "run"])
+@pytest.mark.parametrize("allow_push", [False, True])
+def test_run_rules_and_warnings_survive_status(world, command: str, allow_push: bool):
+    world.policy(allow_push=allow_push,
+                 targets={"codex": {"sandbox": "bypass", "network": False}})
+    code, out = world.run(command, "--to", "codex", "--job", "rules", "--task",
+                          "Push and open a PR")
+    assert code == 0, out
+    for key, value in {"allow_push": allow_push, "sandbox": "bypass", "network": True}.items():
+        assert out[key] == value
+    assert any("allow_push=false" in w for w in out["warnings"]) is (not allow_push)
+    if command == "start":
+        assert world.run("wait", "rules", "--timeout", "30")[0] == 0
+    assert ("Commit each finished step yourself" in world.calls()[-1]["prompt"]) is allow_push
+    # Status must describe the completed run even if the policy changes afterwards.
+    world.policy(allow_push=not allow_push)
+    code, status = world.run("status", "rules")
+    assert code == 0, status
+    for key in ("allow_push", "sandbox", "network", "warnings"):
+        assert status[key] == out[key]
+
+
+@pytest.mark.parametrize(("target", "mode", "allow_push", "sandbox", "network", "expected"), [
+    ("codex", "write", False, "enforce", False, (False, "enforce", False)),
+    ("codex", "write", True, "enforce", True, (True, "enforce", True)),
+    ("codex", "write", True, "bypass", False, (True, "bypass", True)),
+    ("codex", "read-only", True, "enforce", True, (False, "enforce", False)),
+    ("claude", "write", True, None, False, (True, "bypass", True)),
+    ("copilot", "read-only", True, None, False, (False, "bypass", True)),
+])
+def test_effective_write_rules(target, mode, allow_push, sandbox, network, expected):
+    rules = delegate.effective_write_rules(target, mode, allow_push, sandbox, network)
+    assert (rules["allow_push"], rules["sandbox"], rules["network"]) == expected
+
+
 def test_auto_commit_leaves_build_artifacts_out(world):
     code, out = world.run("run", "--to", "claude", "--job", "art", "--task", "t",
                           FAKE_CLI_ACTION="artifacts")
@@ -345,6 +397,10 @@ def test_write_run_commits_on_the_job_branch(world, target: str):
     assert code == 0, out
     assert out["status"] == "succeeded"
     assert out["summary"] == f"{target} finished the task"
+    assert out["allow_push"] is False
+    assert out["sandbox"] == ("enforce" if target == "codex" else "bypass")
+    assert out["network"] is (target != "codex")
+    assert not out["warnings"]
     assert out["files_changed"] == ["delegated.txt"] and out["commits"] == 1
     wt = _wt(world, f"j-{target}")
     assert Path(out["workdir"]) == wt and (wt / "delegated.txt").exists()
@@ -587,6 +643,17 @@ def test_doctor_reports_targets_and_policy(world):
     assert all(out["targets"][t]["installed"] for t in delegate.TARGETS)
     assert out["targets"]["codex"]["sandbox_works"] is True
     assert out["policy"]["max_depth"] == 1
+    assert out["targets"]["codex"]["write_rules"] == {
+        "allow_push": False, "sandbox": "enforce", "network": False}
+    assert out["_stderr"].splitlines() == [
+        "Write rules: allow_push=false; claude sandbox=bypass network=true; "
+        "codex sandbox=enforce network=false; agy sandbox=bypass network=true; "
+        "copilot sandbox=bypass network=true"]
+    world.policy(allow_push=True, targets={"codex": {"sandbox": "bypass"}})
+    code, out = world.run("doctor")
+    assert code == 0
+    assert "allow_push=true" in out["_stderr"]
+    assert "codex sandbox=bypass network=true" in out["_stderr"]
 
 
 def test_list_and_log(world):
