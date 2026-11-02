@@ -420,6 +420,23 @@ def uncommitted_in(workdir: Path) -> list[str]:
 # ── target CLIs ───────────────────────────────────────────────────────
 
 
+def effective_write_rules(target: str, mode: str, allow_push: bool = False,
+                          sandbox: str | None = None, network: bool = False) -> dict:
+    """Describe the permissions used by a run, including unsandboxed network access."""
+    sandbox = (sandbox or "enforce") if target == "codex" else "bypass"
+    return {"allow_push": mode == "write" and allow_push, "sandbox": sandbox,
+            "network": (mode == "write" and network) if sandbox == "enforce" else True}
+
+
+def task_policy_warnings(task: str, mode: str, allow_push: bool) -> list[str]:
+    """Flag literal task words that may conflict with the push policy."""
+    if mode == "write" and not allow_push and re.search(
+            r"\b(?:push|pr|pull\s+request|merge)\b", task, re.IGNORECASE):
+        return ["task mentions push, PR, pull request or merge, but allow_push=false; "
+                "set allow_push=true in .delegate/policy.json to permit publishing"]
+    return []
+
+
 def compose_prompt(task: str, ctx: dict) -> str:
     who = f"{ctx['host']} → {ctx['target']}, job {ctx['job']}"
     lines = [
@@ -994,7 +1011,9 @@ def register_run(repo: Repo, rec: dict, args, policy: dict, task: str, timeout: 
         "effort": args.effort or target_cfg.get("effort"), "timeout_s": timeout,
         "resume": resume, "task_sha256": hashlib.sha256(task.encode()).hexdigest()[:16],
         "codex_sandbox": target_cfg.get("sandbox"), "codex_network": target_cfg.get("network"),
-        "allow_push": rec["mode"] == "write" and policy["allow_push"],
+        **effective_write_rules(label, rec["mode"], policy["allow_push"],
+                                target_cfg.get("sandbox"), target_cfg.get("network", False)),
+        "warnings": task_policy_warnings(task, rec["mode"], policy["allow_push"]),
         "pass_env": list(policy.get("pass_env", [])),
     })
     save_job(repo, rec)
@@ -1125,7 +1144,7 @@ class Supervisor:
         summary = parsed.get("summary") or ""
         with contextlib.suppress(OSError):
             (self.dir / "summary.md").write_text(summary + "\n", encoding="utf-8")
-        warnings: list[str] = []
+        warnings: list[str] = list(self.run.get("warnings", []))
         changes: list[str] = []
         commits = 0
         try:
@@ -1198,6 +1217,9 @@ def result_view(repo: Repo, rec: dict, n: int | None = None) -> dict:
     summary = summary_path.read_text(encoding="utf-8").strip() if summary_path.exists() else ""
     view = {
         **base, "run": run["run"], "status": run["status"],
+        **effective_write_rules(rec["target"], rec["mode"], run.get("allow_push", False),
+                                run.get("sandbox", run.get("codex_sandbox")),
+                                run.get("network", run.get("codex_network", False))),
         "model": run.get("model") or run.get("model_used"),
         "host": run.get("host"), "chain": run.get("chain"),
         "exit_code": run.get("exit_code"), "duration_s": run.get("duration_s"),
@@ -1273,9 +1295,12 @@ def cmd_start(repo: Repo, args) -> int:
     rec, n = prepare_run(repo, args)
     spawn_supervisor(repo, rec, n)
     rec = load_job(repo, rec["job"])
+    view = result_view(repo, rec, n)
     emit({"job": rec["job"], "run": n, "status": "running", "target": rec["target"],
           "mode": rec["mode"], "workdir": rec["workdir"],
-          "branch": rec.get("branch"), "next": next_steps(repo, rec, last_run(rec))})
+          "branch": rec.get("branch"), "allow_push": view["allow_push"],
+          "sandbox": view["sandbox"], "network": view["network"],
+          "warnings": view["warnings"], "next": view["next"]})
     return EXIT_OK
 
 
@@ -1454,7 +1479,10 @@ def cmd_doctor(repo: Repo, args) -> int:
     }
     for target in TARGETS:
         cfg = policy["targets"][target]
-        info = {"enabled": cfg.get("enabled"), "version": cli_version(target)}
+        info = {"enabled": cfg.get("enabled"), "version": cli_version(target),
+                "write_rules": effective_write_rules(target, "write", policy["allow_push"],
+                                                     cfg.get("sandbox"),
+                                                     cfg.get("network", False))}
         info["installed"] = bool(info["version"])
         if target == "codex" and info["installed"]:
             works = codex_sandbox_works()
@@ -1470,6 +1498,12 @@ def cmd_doctor(repo: Repo, args) -> int:
         if target == "copilot":
             info["note"] = "read-only runs can read files but not run shell commands"
         report["targets"][target] = info
+    rules = "; ".join(
+        f"{target} sandbox={info['write_rules']['sandbox']} "
+        f"network={str(info['write_rules']['network']).lower()}"
+        for target, info in report["targets"].items())
+    print(f"Write rules: allow_push={str(policy['allow_push']).lower()}; {rules}",
+          file=sys.stderr)
     emit(report)
     return EXIT_OK
 

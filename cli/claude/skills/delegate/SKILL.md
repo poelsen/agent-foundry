@@ -88,9 +88,14 @@ DELEGATE run --job <job> --resume --task "Also handle the empty case"
 | `agy` | Antigravity CLI | reads files; commands denied |
 | `copilot` | Copilot CLI | reads files; no shell |
 
-All limits live in `.delegate/policy.json` (commit it to share). Defaults: writes allowed, a
-delegate may not delegate further (`max_depth` 1), 3 concurrent jobs, 30 min
-timeout (max 2 h). See `scripts/README.md` for the policy format.
+All limits live in `.delegate/policy.json` (commit it to share). Defaults: writes
+allowed, pushing forbidden (`allow_push: false`), no further delegation
+(`max_depth` 1), 3 concurrent jobs, 30 min timeout (max 2 h). Set `allow_push`
+to `true` when the task requires pushes or PRs; the delegate must commit each
+finished step itself because leftovers become one auto-commit — commit as you
+go. `start`/`run`/`status` include effective `allow_push`, `sandbox`, and `network`
+rules; `warnings` flags literal push/PR/merge task words when `allow_push` is
+false. See `scripts/README.md` for the policy format and matching rules.
 
 ## Rules
 

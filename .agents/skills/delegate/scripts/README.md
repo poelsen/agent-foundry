@@ -113,6 +113,7 @@ wrong types are errors.
 ```json
 {
   "allow_write": true,
+  "allow_push": false,
   "max_depth": 1,
   "max_concurrent": 3,
   "default_timeout_s": 1800,
@@ -129,6 +130,28 @@ wrong types are errors.
 }
 ```
 
+- `allow_push`: boolean, default `false`. Write jobs keep the original
+  no-push prompt and Claude/Copilot push-deny rules by default. Set it to
+  `true` to let the task authorize pushing branches and opening pull requests.
+  The delegate must commit each finished step itself: leftover changes are
+  still auto-committed at the end as **one commit**, so commit as you go.
+  Switching the worktree's branch and rewriting pushed history remain forbidden.
+  This does not grant permission to merge; the task must authorize that separately.
+- `start`/`run` warn in `warnings` when a write task contains the whole words
+  `push`, `PR`, `pull request` (whitespace between the words), or `merge` while
+  `allow_push` is false. Matching is case-insensitive and literal: negations
+  such as "do not push" also match; `pushback` does not. Read-only jobs do not
+  get this warning. It is advisory and does not change permissions.
+- `start`/`run`/`status` JSON includes top-level `allow_push`, `sandbox`
+  (`enforce` or `bypass`), and `network` fields saved for that run. `allow_push`
+  is false for read-only jobs. Sandbox/network describe the target's actual
+  execution settings: Codex uses its configured sandbox and network setting
+  (network is disabled in read-only mode); bypassing the sandbox permits
+  network regardless of `targets.codex.network`. Other targets have no OS
+  sandbox here and report `bypass` and `network: true`; their tool restrictions
+  still apply. These settings describe access, not guaranteed connectivity.
+  `doctor` prints all targets' effective write rules on one stderr line and
+  includes them as `targets.<name>.write_rules` in its JSON stdout.
 - `max_depth`: how many delegation hops are allowed. At 1, only the top-level
   session delegates. At 2, a delegate may delegate once more (claude → codex
   → agy), and so on.
@@ -148,6 +171,7 @@ wrong types are errors.
 - Read-only change detection doesn't see ignored files.
 - No cost cap across runs. Claude Code reports per-run cost; the other
   targets report token counts.
-- An agent can only be *asked* not to push; only Claude Code and Copilot get a
-  deny rule for `git push`. A push shows up afterwards as a moved
+- With `allow_push: false`, an agent can only be *asked* not to push; only
+  Claude Code and Copilot get a deny rule for `git push`. A push shows up
+  afterwards as a moved
   `refs/remotes/...` ref in `warnings`.
