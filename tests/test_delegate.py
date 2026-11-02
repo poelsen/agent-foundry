@@ -129,6 +129,26 @@ def test_prompt_preamble_scopes_the_delegate():
     assert "Shell commands are disabled" in agy and "disabled" not in ro
 
 
+@pytest.mark.parametrize("allow_push", [False, True])
+def test_prompt_push_policy(allow_push: bool):
+    ctx = {"host": "claude", "target": "codex", "cli": "codex", "job": "j",
+           "mode": "write", "workdir": "/wt", "branch": "delegate/j",
+           "may_delegate": False, "allow_push": allow_push}
+    text = delegate.compose_prompt("Fix it", ctx)
+    assert ("Do not push" in text) is (not allow_push)
+    assert ("Commit each finished step yourself" in text) is allow_push
+    assert ("as one commit — so commit as you go" in text) is allow_push
+    assert "read-only task" in delegate.compose_prompt("Review", {**ctx, "mode": "read-only"})
+
+
+@pytest.mark.parametrize("target", ["claude", "copilot"])
+def test_push_allowed_removes_cli_deny(tmp_path: Path, target: str):
+    argv = delegate.build_command(_spec(target, allow_push=True), "t", tmp_path)["argv"]
+    assert not any("git push" in arg for arg in argv)
+    ro = delegate.build_command(_spec(target, "read-only", allow_push=True), "t", tmp_path)
+    assert "--dangerously-skip-permissions" not in ro["argv"]
+
+
 def test_auto_commit_leaves_build_artifacts_out(world):
     code, out = world.run("run", "--to", "claude", "--job", "art", "--task", "t",
                           FAKE_CLI_ACTION="artifacts")
@@ -226,6 +246,8 @@ def _policy_error(raw: dict) -> str:
 @pytest.mark.parametrize(("raw", "fragment"), [
     ({"max_depht": 3}, "unknown keys"),
     ({"allow_write": "false"}, "allow_write must be bool"),
+    ({"allow_push": "true"}, "allow_push must be bool"),
+    ({"allow_push": 1}, "allow_push must be bool"),
     ({"max_depth": True}, "max_depth must be int"),
     ({"max_concurrent": 0}, "max_concurrent must be >= 1"),
     ({"targets": {"copilot": {"enable": False}}}, "targets.copilot.enable"),

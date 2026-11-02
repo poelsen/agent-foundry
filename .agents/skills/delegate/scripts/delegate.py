@@ -67,6 +67,7 @@ ARGV_PROMPT_CAP = 100_000
 
 DEFAULT_POLICY: dict = {
     "allow_write": True,
+    "allow_push": False,
     "max_depth": 1,
     "max_concurrent": 3,
     "default_timeout_s": 1800,
@@ -275,7 +276,7 @@ def validate_policy(raw: dict) -> None:
     unknown = sorted(set(raw) - set(DEFAULT_POLICY))
     if unknown:
         raise DelegateError(f"policy: unknown keys: {', '.join(unknown)}", EXIT_USAGE)
-    for key, kinds in (("allow_write", (bool,)), ("max_depth", (int,)),
+    for key, kinds in (("allow_write", (bool,)), ("allow_push", (bool,)), ("max_depth", (int,)),
                        ("max_concurrent", (int,)), ("default_timeout_s", (int,)),
                        ("max_timeout_s", (int,)), ("worktree_root", (str, type(None)))):
         if key in raw:
@@ -426,7 +427,15 @@ def compose_prompt(task: str, ctx: dict) -> str:
         f"`delegate` ({who}). No human is watching this run: do not ask questions or wait "
         "for confirmation — make reasonable decisions, note them, and finish the task.",
     ]
-    if ctx["mode"] == "write":
+    if ctx["mode"] == "write" and ctx.get("allow_push"):
+        lines.append(
+            f"Work inside {ctx['workdir']}, a git worktree on branch {ctx['branch']}. "
+            "Commit each finished step yourself; you may push branches and open pull "
+            "requests as your task says. Do not switch this worktree's branch, rewrite "
+            "history that is already pushed, or touch files outside it unless your task "
+            "names them. Anything left uncommitted is committed on this branch when you "
+            "finish, as one commit — so commit as you go.")
+    elif ctx["mode"] == "write":
         lines.append(
             f"Work only inside {ctx['workdir']}, a git worktree on branch {ctx['branch']}. "
             "Do not push, switch branches, rewrite history, or touch files outside it. "
@@ -458,7 +467,7 @@ def build_command(spec: dict, prompt: str, run_dir: Path) -> dict:
     """argv/stdin for one run of the target CLI.
 
     spec: target, mode, model, effort, resume (session id or None),
-    workdir, codex_sandbox, codex_network.
+    workdir, allow_push, codex_sandbox, codex_network.
     """
     target, write = spec["target"], spec["mode"] == "write"
     model, effort, resume = spec.get("model"), spec.get("effort"), spec.get("resume")
@@ -469,7 +478,9 @@ def build_command(spec: dict, prompt: str, run_dir: Path) -> dict:
     if target == "claude":
         argv = ["claude", "-p", "--output-format", "json", "--permission-prompts", "none"]
         if write:
-            argv += ["--dangerously-skip-permissions", "--disallowedTools", "Bash(git push:*)"]
+            argv += ["--dangerously-skip-permissions"]
+            if not spec.get("allow_push"):
+                argv += ["--disallowedTools", "Bash(git push:*)"]
         else:
             argv += ["--permission-mode", "dontAsk",
                      "--disallowedTools", "Edit,Write,NotebookEdit,Bash(git push:*)"]
@@ -505,7 +516,8 @@ def build_command(spec: dict, prompt: str, run_dir: Path) -> dict:
         argv = ["copilot", "-p", text, "--output-format", "json", "--no-color",
                 "--no-ask-user", "--no-auto-update", "--allow-all-tools"]
         if write:
-            argv += ["--deny-tool", "shell(git push)"]
+            if not spec.get("allow_push"):
+                argv += ["--deny-tool", "shell(git push)"]
         else:
             # Deny rules beat allow rules, so read-only means no shell at all.
             argv += ["--deny-tool", "write", "--deny-tool", "shell"]
@@ -973,7 +985,8 @@ def register_run(repo: Repo, rec: dict, args, policy: dict, task: str, timeout: 
     label = rec["target"]
     ctx = {"host": host, "target": label, "cli": label, "job": rec["job"],
            "mode": rec["mode"], "workdir": rec["workdir"], "branch": rec.get("branch"),
-           "may_delegate": depth + 1 < policy["max_depth"]}
+           "may_delegate": depth + 1 < policy["max_depth"],
+           "allow_push": policy["allow_push"]}
     (rdir / "prompt.md").write_text(compose_prompt(task, ctx), encoding="utf-8")
     rec["runs"].append({
         "run": n, "status": "starting", "started": now_iso(), "started_ts": time.time(),
@@ -981,6 +994,7 @@ def register_run(repo: Repo, rec: dict, args, policy: dict, task: str, timeout: 
         "effort": args.effort or target_cfg.get("effort"), "timeout_s": timeout,
         "resume": resume, "task_sha256": hashlib.sha256(task.encode()).hexdigest()[:16],
         "codex_sandbox": target_cfg.get("sandbox"), "codex_network": target_cfg.get("network"),
+        "allow_push": rec["mode"] == "write" and policy["allow_push"],
         "pass_env": list(policy.get("pass_env", [])),
     })
     save_job(repo, rec)
