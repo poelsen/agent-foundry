@@ -1,6 +1,6 @@
 ---
 name: orchestrate
-description: Run a larger job as an orchestrator over a bounded number of subagents. Options set how many local and delegate agents run, the model, effort, unattended running, agent reuse and the final review. Runs only when the user invokes /orchestrate.
+description: Orchestrate a larger job over a bounded set of local subagents and delegate jobs. Options set counts, models, effort and unattended running. Runs only when the user invokes /orchestrate.
 argument-hint: "[--local_agents N] [--delegate_agents N CLI[:MODEL]]... [--model M[,TOP]] [--max_effort E] [--unattended] [--review TIER|none] [--log PATH] <task>"
 disable-model-invocation: true
 ---
