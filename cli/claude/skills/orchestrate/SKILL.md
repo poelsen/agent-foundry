@@ -1,7 +1,7 @@
 ---
 name: orchestrate
 description: Orchestrate a larger job over a bounded set of local subagents and delegate jobs. Options set counts, models, effort and unattended running. Runs only when the user invokes /orchestrate.
-argument-hint: "[--local_agents N] [--delegate_agents N CLI[:MODEL]]... [--model M[,TOP]] [--max_effort E] [--unattended] [--review TIER|none] [--log PATH] <task>"
+argument-hint: "[--local_agents N] [--delegate_agents N CLI[:MODEL]]... [--model M[,TOP]] [--max_effort E] [--optimize GOAL] [--unattended] [--review TIER|none] [--log PATH] <task>"
 disable-model-invocation: true
 ---
 
@@ -24,6 +24,7 @@ can go on for hours.
 | `--delegate_agents N CLI[:MODEL]` | none | Most jobs in flight on another agent CLI, through the `delegate` skill. Repeat it for each CLI or model. Only the CLIs named are used |
 | `--model M[,TOP]` | `opus`, session's model | `M` runs the worker agents. `TOP` runs the few tasks where the reasoning is the hard part: design and architecture, planning, a root cause that resists, a task a worker failed at twice. Most tasks stay on `M` |
 | `--max_effort E` | `auto` | The highest effort any agent runs at. You set effort per task: `medium` for normal work, `high` for complex work, `xhigh` for complex work with a wide blast radius (shared, core or native code). `auto` leaves that ladder as it is; a named level caps it. Nothing runs above `xhigh` |
+| `--optimize GOAL` | `tokens` | What to favour when the two pull apart: `tokens` or `speed` |
 | `--unattended` | off | The user is away: ask nothing, not even before launch |
 | `--review T` | `auto` | Final review through `review-process` at tier T; `none` skips it. `auto` is T2 for an unattended run or a change that other code depends on, and your own read of the diff otherwise |
 | `--log PATH` | `docs/decision-log.md` | Where decisions and the task list are kept |
@@ -106,6 +107,12 @@ in a file and give its path.
   unless the project's settings set `worktree.baseRef` to `head`, which
   foundry setup does. When an agent reports a failed Base check, run its
   task in the current checkout instead.
+- **How wide to go follows `--optimize`.** With `tokens`, a task waits for
+  the agent that already knows its files instead of starting a new one, and
+  a wave holds only tasks in unrelated areas, so little is read twice and
+  little needs reworking at integration. With `speed`, every task that is
+  ready starts at once, up to the limits, on a new agent when the one that
+  knows the area is busy. Either way the limits are ceilings, not targets.
 - **Wait, don't watch.** A finished agent wakes you by itself. No polling
   loops and no monitor on progress output: each tick replays your whole
   context. A long external job is one background run and its completion
