@@ -151,8 +151,12 @@ class Validator:
             agents=[], skills=[], hooks=[], plugins=[], mcp_servers=[],
             langs={"python.md"}, project_name="demo", version="dev",
         )
-        block, _ = shared.render_agents_block(sel)
-        print(f"      {len(block.encode('utf-8'))} bytes, {len(block) // 4} tokens approx")
+        block, files = shared.render_agents_block(sel)
+        scoped = [r for r in files if r.paths]
+        print(f"      always on: {len(block.encode('utf-8'))} bytes, "
+              f"{len(block) // 4} tokens approx")
+        print(f"      scoped to files: {sum(len(r.body.encode('utf-8')) for r in scoped)} bytes "
+              f"in {len(scoped)} rule(s)")
 
     def check_registry_modular_rules(self) -> None:
         self.check("Registry: MODULAR_RULES")

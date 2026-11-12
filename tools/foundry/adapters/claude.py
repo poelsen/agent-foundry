@@ -3,9 +3,10 @@ come from the shared AGENTS.md.
 
 This is the full-fidelity target: it consumes every artifact type. Claude
 Code reads AGENTS.md only while no CLAUDE.md exists, and loads .claude/rules/
-alongside it — so the portable rules live in AGENTS.md alone, .claude/rules/
-keeps the Claude-only ones, and a project's CLAUDE.md is moved into AGENTS.md
-(see shared.write_agents_md).
+alongside it — so the unscoped portable rules live in AGENTS.md alone,
+.claude/rules/ keeps the Claude-only ones plus the scoped rules (with
+`paths`, so each loads only for the files it covers), and a project's
+CLAUDE.md is moved into AGENTS.md (see shared.write_agents_md).
 """
 
 from __future__ import annotations
@@ -35,7 +36,7 @@ from ..private import (
     redeploy_private_sources,
     validate_prefix,
 )
-from ..registry import CLAUDE_ONLY_RULES, RETIRED_PLUGINS
+from ..registry import CLAUDE_ONLY_RULES, RETIRED_PLUGINS, rule_paths
 from .base import AGENTS_MD, MCP_JSON, CliAdapter, DeployContext, DeployResult, Selections, Skipped
 
 # First Claude Code release that reads AGENTS.md.
@@ -100,12 +101,15 @@ def _may_move_claude_md(project: Path, ctx: DeployContext) -> bool:
 
 
 def _relocate_portable_rules(project: Path, sel: Selections) -> None:
-    """Remove selected portable rules an older foundry deployed to
+    """Remove selected unscoped portable rules an older foundry deployed to
     .claude/rules/ — they are in AGENTS.md now, and Claude Code loads both,
-    so keeping them would load every rule twice."""
+    so keeping them would load every rule twice. Scoped rules stay."""
     rules_dir = project / ".claude" / "rules"
-    names = {rule for rule in sel.deployed_rules if rule not in CLAUDE_ONLY_RULES}
-    names |= {f"{category}-{rule}" for category, rules in sel.modular.items() for rule in rules}
+    names = {rule for rule in sel.base if rule not in CLAUDE_ONLY_RULES}
+    for category, rules in sel.modular.items():
+        for rule in rules:
+            if not rule_paths(rule):
+                names |= {rule, f"{category}-{rule}"}
     moved = sorted(name for name in names if (rules_dir / name).is_file())
     for name in moved:
         (rules_dir / name).unlink()
@@ -146,9 +150,11 @@ class ClaudeAdapter(CliAdapter):
         claude_dir = project / ".claude"
         claude_dir.mkdir(parents=True, exist_ok=True)
 
-        # Rules: only the Claude-only ones; the portable ones are in AGENTS.md
+        # Rules: the Claude-only ones and the scoped ones; the rest are in AGENTS.md
         _relocate_portable_rules(project, sel)
-        copy_rules(project, [r for r in sel.base if r in CLAUDE_ONLY_RULES], {},
+        scoped = {category: [r for r in rules if rule_paths(r)]
+                  for category, rules in sel.modular.items()}
+        copy_rules(project, [r for r in sel.base if r in CLAUDE_ONLY_RULES], scoped,
                    ctx.private_prefixes)
 
         # Agents

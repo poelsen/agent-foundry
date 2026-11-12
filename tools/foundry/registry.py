@@ -101,6 +101,32 @@ MODULAR_RULES = {
     },
 }
 
+# Files a rule covers, as glob patterns. A rule with patterns is a scoped
+# rule: it is delivered as its own rule file, loaded when matching files are
+# in play, instead of sitting in the always-on AGENTS.md block. Language
+# rules get theirs from `detect` and `config` above; the rest are listed
+# here. A rule about the kind of project (library, monolith, security level)
+# has no file pattern and stays in the block.
+_C_SOURCES = ("**/*.c", "**/*.h", "**/*.cpp", "**/*.hpp")
+_RULE_PATHS: dict[str, tuple[str, ...]] = {
+    "nodejs.md": ("**/*.js", "**/*.mjs", "**/*.cjs", "**/*.ts", "**/*.tsx", "**/*.jsx",
+                  "**/package.json"),
+    "embedded-c.md": _C_SOURCES,
+    "embedded-dsp.md": (*_C_SOURCES, "**/*.s", "**/*.S", "**/*.asm"),
+    "desktop-gui-qt.md": ("**/*.py", "**/*.ui", "**/*.qml"),
+    "react-app.md": ("**/*.tsx", "**/*.jsx", "**/*.ts", "**/*.js", "**/*.css"),
+}
+
+
+def rule_paths(rule: str) -> tuple[str, ...]:
+    """Glob patterns for the files ``rule`` covers; empty for an unscoped rule."""
+    if rule in _RULE_PATHS:
+        return _RULE_PATHS[rule]
+    meta = MODULAR_RULES["lang"].get(rule, {})
+    return (*(f"**/*{ext}" for ext in meta.get("detect", [])),
+            *(f"**/{name}" for name in meta.get("config", [])))
+
+
 # Names the foundry once shipped but no longer does. The deploy prunes
 # only ever delete names they can prove are foundry-owned — the current
 # catalog or these sets — never content the foundry didn't ship. So when

@@ -46,11 +46,31 @@ def _rules_dir(project: Path) -> Path:
 # ── Budgeted AGENTS.md block ──
 
 
-def test_default_selection_embeds_everything():
-    block, overflow = shared.render_agents_block(_selections())
-    assert overflow == []
-    assert "<!-- rule: python.md -->" in block
+def test_default_selection_embeds_unscoped_rules_and_points_to_scoped():
+    block, files = shared.render_agents_block(_selections())
+    assert [r.name for r in files] == ["python.md"]   # scoped: a file, not block text
+    assert "<!-- rule: python.md -->" not in block
+    assert "### Rules for specific files" in block
+    assert "`.agents/rules/foundry-python.md`" in block and "`**/*.py`" in block
+    assert "<!-- rule: scripts.md -->" in block      # unscoped template stays
     assert "### More rules" not in block
+
+
+def test_claude_only_project_gets_no_scoped_pointers(tmp_path: Path):
+    """Claude Code loads its scoped rules from .claude/rules/ by itself."""
+    block, files = shared.render_agents_block(_selections(), scoped_files=False)
+    assert files == []
+    assert "Rules for specific files" not in block and "foundry-python.md" not in block
+    shared.write_agents_md(tmp_path, _selections(), scoped_files=False)
+    assert not _rules_dir(tmp_path).exists()
+
+
+def test_scoped_rules_are_scoped_by_file_and_the_rest_are_not():
+    scoped = {r.name: r.paths for r in shared.portable_rules(_selections(modular=HEAVY_MODULAR))}
+    assert scoped["python.md"] == ("**/*.py", "**/pyproject.toml", "**/requirements.txt")
+    assert "**/*.qml" in scoped["desktop-gui-qt.md"]
+    for unscoped in ("coding-style.md", "github.md", "enterprise.md", "rest-api.md"):
+        assert scoped[unscoped] == ()
 
 
 def test_claude_only_rules_never_rendered():
@@ -96,10 +116,13 @@ def test_overflow_files_have_trigger_frontmatter(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(shared, "AGENTS_MD_BUDGET", 3_000)
     shared.write_agents_md(tmp_path, _selections(modular=HEAVY_MODULAR))
     python_rule = (_rules_dir(tmp_path) / "foundry-python.md").read_text()
-    assert python_rule.startswith("---\ntrigger: glob\nglobs: \"**/*.py\"\n")
-    template = (_rules_dir(tmp_path) / "foundry-desktop-gui-qt.md").read_text()
+    assert python_rule.startswith(
+        "---\ntrigger: glob\nglobs: \"**/*.py, **/pyproject.toml, **/requirements.txt\"\n")
+    scoped_template = (_rules_dir(tmp_path) / "foundry-desktop-gui-qt.md").read_text()
+    assert "trigger: glob" in scoped_template and "**/*.qml" in scoped_template
+    template = (_rules_dir(tmp_path) / "foundry-rest-api.md").read_text()
     assert "trigger: model_decision" in template
-    assert 'description: "Desktop GUI Qt' in template
+    assert 'description: "REST API' in template
     assert shared._RULE_MARKER in template
 
 
@@ -113,10 +136,13 @@ def test_overflow_pruned_when_budget_allows_embedding(tmp_path: Path, monkeypatc
     sel = _selections(modular=HEAVY_MODULAR)
     monkeypatch.setattr(shared, "AGENTS_MD_BUDGET", 3_000)
     shared.write_agents_md(tmp_path, sel)
-    assert (_rules_dir(tmp_path) / "foundry-desktop-gui-qt.md").exists()
+    assert (_rules_dir(tmp_path) / "foundry-rest-api.md").exists()
     monkeypatch.setattr(shared, "AGENTS_MD_BUDGET", 1_000_000)
     shared.write_agents_md(tmp_path, sel)
-    assert not list(_rules_dir(tmp_path).glob("foundry-*.md"))
+    # Only the scoped rules are left as files; every unscoped one is embedded.
+    assert sorted(p.name for p in _rules_dir(tmp_path).glob("foundry-*.md")) == [
+        "foundry-desktop-gui-qt.md", "foundry-nodejs.md", "foundry-python.md",
+        "foundry-react-app.md"]
 
 
 def test_prune_never_touches_unmarked_rules(tmp_path: Path, monkeypatch):

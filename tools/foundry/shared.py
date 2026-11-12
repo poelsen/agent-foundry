@@ -7,6 +7,13 @@ which of these their CLI consumes (``CliAdapter.shared_outputs``) and the
 orchestrator calls :func:`deploy_shared_outputs` once for the union, so no
 two adapters render the same file.
 
+Scoped rules (registry.rule_paths) never go into the AGENTS.md block. When a
+CLI other than Claude Code is a target they are written to
+``.agents/rules/foundry-<rule>.md`` with a glob trigger, which Antigravity
+loads natively, and the block lists them as pointers for CLIs without
+scoped rules. Claude Code gets its own copies in .claude/rules/ (see the
+Claude adapter).
+
 AGENTS.md size budget: Antigravity reads at most 24,000 bytes per rule file
 and Codex stops after 32 KiB of project docs in total, and both truncate
 silently. (Claude Code documents no cap.) The foundry block is therefore
@@ -50,7 +57,7 @@ from .instructions import (
     update_agent_foundry_header,
 )
 from .paths import AGENT_FOUNDRY_MARKER_END, AGENT_FOUNDRY_MARKER_START, REPO_ROOT
-from .registry import CLAUDE_ONLY_RULES, MODULAR_RULES, PORTABLE_SKILLS
+from .registry import CLAUDE_ONLY_RULES, PORTABLE_SKILLS, rule_paths
 
 # Leaves room for the project's own AGENTS.md content under both the
 # Antigravity (24,000 B/file) and Codex (32 KiB total) limits.
@@ -95,7 +102,8 @@ class _Rule:
     name: str             # rule filename, e.g. "python.md"
     category: str | None  # modular category, or None for a base rule
     body: str
-    dest: str             # overflow path, e.g. ".agents/rules/foundry-python.md"
+    dest: str             # rule-file path, e.g. ".agents/rules/foundry-python.md"
+    paths: tuple[str, ...] = ()  # files it covers; non-empty = scoped rule
 
 
 def portable_rules(sel: Selections) -> list[_Rule]:
@@ -122,7 +130,8 @@ def portable_rules(sel: Selections) -> list[_Rule]:
         filename = f"{category}-{name}" if name in used else name
         used.add(filename)
         rules.append(_Rule(name, category, src.read_text(encoding="utf-8").strip(),
-                           (AGENTS_RULES_DIR / f"{_RULE_PREFIX}{filename}").as_posix()))
+                           (AGENTS_RULES_DIR / f"{_RULE_PREFIX}{filename}").as_posix(),
+                           rule_paths(name) if category else ()))
     return rules
 
 
@@ -143,7 +152,8 @@ def _demote_headings(body: str, levels: int = 2) -> str:
     return "\n".join(lines)
 
 
-def _render_block(env: str, embedded: list[_Rule], pointers: list[_Rule]) -> str:
+def _render_block(env: str, embedded: list[_Rule], pointers: list[_Rule],
+                  scoped: list[_Rule] = ()) -> str:
     sections = [AGENT_FOUNDRY_MARKER_START,
                 "## Coding Standards (agent-foundry)",
                 "",
@@ -163,6 +173,14 @@ def _render_block(env: str, embedded: list[_Rule], pointers: list[_Rule]) -> str
                 ""]
     for rule in embedded:
         sections += [f"<!-- rule: {rule.name} -->", _demote_headings(rule.body), ""]
+    if scoped:
+        sections += ["### Rules for specific files", "",
+                     "These load by themselves in tools that scope rules to files. In any "
+                     "other tool, read the matching file before working on files it covers:",
+                     ""]
+        sections += [f"- `{rule.dest}` — {rule_description(rule.name)} "
+                     f"({', '.join(f'`{p}`' for p in rule.paths)})" for rule in scoped]
+        sections.append("")
     if pointers:
         sections += ["### More rules", "",
                      "Read the matching file before working in its area:", ""]
@@ -173,44 +191,48 @@ def _render_block(env: str, embedded: list[_Rule], pointers: list[_Rule]) -> str
 
 
 def render_agents_block(
-    sel: Selections, budget: int = AGENTS_MD_BUDGET,
+    sel: Selections, budget: int = AGENTS_MD_BUDGET, scoped_files: bool = True,
 ) -> tuple[str, list[_Rule]]:
     """Render the marker-wrapped AGENTS.md block within ``budget`` bytes.
 
-    Returns the block and the rules that overflowed to .agents/rules/.
-    Each rule is embedded if the block, with every later rule still counted
-    as a pointer, stays within budget — so the final block always fits.
+    Returns the block and the rules that live in .agents/rules/ instead of
+    in it: the scoped rules (only with ``scoped_files``, i.e. when a CLI
+    other than Claude Code reads them there) and the unscoped rules that
+    overflowed. Each unscoped rule is embedded if the block, with every
+    later rule still counted as a pointer, stays within budget — so the
+    final block always fits.
     """
     env = render_env_commands(sel.langs)
-    rules = portable_rules(sel)
+    portable = portable_rules(sel)
+    scoped = [r for r in portable if r.paths] if scoped_files else []
+    rules = [r for r in portable if not r.paths]
     embedded: list[_Rule] = []
     overflow: list[_Rule] = []
     for i, rule in enumerate(rules):
-        candidate = _render_block(env, [*embedded, rule], [*overflow, *rules[i + 1:]])
+        candidate = _render_block(env, [*embedded, rule], [*overflow, *rules[i + 1:]], scoped)
         if len(candidate.encode("utf-8")) <= budget:
             embedded.append(rule)
         else:
             overflow.append(rule)
-    return _render_block(env, embedded, overflow), overflow
+    return _render_block(env, embedded, overflow, scoped), [*scoped, *overflow]
 
 
 def _rule_frontmatter(rule: _Rule) -> str:
-    """Antigravity rule frontmatter: base rules always apply, language rules
-    trigger on their file extensions, everything else on model decision."""
-    extensions = MODULAR_RULES.get("lang", {}).get(rule.name, {}).get("detect", [])
+    """Antigravity rule frontmatter: base rules always apply, scoped rules
+    trigger on the files they cover, everything else on model decision."""
     if rule.category is None:
         trigger = "trigger: always_on"
-    elif rule.category == "lang" and extensions:
-        globs = ", ".join(f"**/*{ext}" for ext in extensions)
-        trigger = f"trigger: glob\nglobs: {json.dumps(globs)}"
+    elif rule.paths:
+        trigger = f"trigger: glob\nglobs: {json.dumps(', '.join(rule.paths))}"
     else:
         trigger = "trigger: model_decision"
     return f"---\n{trigger}\ndescription: {json.dumps(rule_description(rule.name))}\n---\n"
 
 
-def _write_overflow_rules(project: Path, overflow: list[_Rule]) -> None:
-    """Write overflow rules and remove foundry-marked ones no longer needed.
-    Unmarked files (the project's own rules) are never touched."""
+def _write_rule_files(project: Path, overflow: list[_Rule]) -> None:
+    """Write the rules that live in .agents/rules/ (scoped and overflow) and
+    remove foundry-marked ones no longer needed. Unmarked files (the
+    project's own rules) are never touched."""
     rules_dir = project / AGENTS_RULES_DIR
     keep = {Path(r.dest).name for r in overflow}
     owned = _owned_rule_names()
@@ -227,13 +249,19 @@ def _write_overflow_rules(project: Path, overflow: list[_Rule]) -> None:
     for rule in overflow:
         (project / rule.dest).write_text(
             f"{_rule_frontmatter(rule)}{_RULE_MARKER}\n\n{rule.body}\n", encoding="utf-8")
-    print(f"  {len(overflow)} rule(s) over the AGENTS.md budget → "
-          f"{AGENTS_RULES_DIR.as_posix()}/: {', '.join(r.name for r in overflow)}")
+    scoped = [r.name for r in overflow if r.paths]
+    spilled = [r.name for r in overflow if not r.paths]
+    if scoped:
+        print(f"  {len(scoped)} scoped rule(s) → {AGENTS_RULES_DIR.as_posix()}/: "
+              f"{', '.join(scoped)}")
+    if spilled:
+        print(f"  {len(spilled)} rule(s) over the AGENTS.md budget → "
+              f"{AGENTS_RULES_DIR.as_posix()}/: {', '.join(spilled)}")
 
 
 def write_agents_md(
     project: Path, sel: Selections, limits: dict[str, int] | None = None,
-    absorb_claude_md: bool = False,
+    absorb_claude_md: bool = False, scoped_files: bool = True,
 ) -> None:
     """Create or update the foundry block in AGENTS.md (+ rule overflow).
 
@@ -244,6 +272,8 @@ def write_agents_md(
     foundry header) moves into AGENTS.md, and CLAUDE.md is removed once
     AGENTS.md is written. The Claude adapter has already asked before this
     runs on a CLAUDE.md the foundry didn't write.
+    ``scoped_files``: a CLI other than Claude Code is a target, so scoped
+    rules are written to .agents/rules/ and listed in the block.
     """
     agents_md = project / "AGENTS.md"
     claude_md = project / "CLAUDE.md"
@@ -260,7 +290,7 @@ def write_agents_md(
         moved = project_text(claude_md.read_text(encoding="utf-8"))
         if moved == f"# {sel.project_name}":
             moved = ""
-    block, overflow = render_agents_block(sel, AGENTS_MD_BUDGET)
+    block, overflow = render_agents_block(sel, AGENTS_MD_BUDGET, scoped_files)
     if len(block.encode("utf-8")) > AGENTS_MD_BUDGET:
         print(f"  ⚠ The agent-foundry block is {len(block.encode('utf-8')):,} bytes, over its "
               f"{AGENTS_MD_BUDGET:,}-byte budget even with every rule as a pointer")
@@ -296,7 +326,7 @@ def write_agents_md(
             shown = path.relative_to(project) if path.is_relative_to(project) else path
             print(f"  ⚠ Claude Code skips AGENTS.md while {shown} exists "
                   "— move its content into AGENTS.md and delete it")
-    _write_overflow_rules(project, overflow)
+    _write_rule_files(project, overflow)
     size = len(agents_md.read_bytes())
     for cli, limit in (limits or {}).items():
         if size > limit:
@@ -316,7 +346,7 @@ def remove_agents_md(project: Path, project_name: str) -> None:
         # and removing it would stop Claude Code updates. Never edit or
         # delete through the link.
         print("  AGENTS.md is a link — left it (and the file it points to) unchanged")
-        _write_overflow_rules(project, [])
+        _write_rule_files(project, [])
         return
     try:
         text = agents_md.read_text(encoding="utf-8") if agents_md.exists() else ""
@@ -330,7 +360,7 @@ def remove_agents_md(project: Path, project_name: str) -> None:
         else:
             agents_md.write_text(rest + "\n", encoding="utf-8")
             print("  Removed the agent-foundry block from AGENTS.md (no selected CLI reads it)")
-    _write_overflow_rules(project, [])
+    _write_rule_files(project, [])
 
 
 def _sanitize_skill_frontmatter(skill_md: Path) -> None:
@@ -484,7 +514,8 @@ def deploy_shared_outputs(
     if AGENTS_MD in outputs:
         limits = {a.display_name: a.agents_md_limit for a in adapters if a.agents_md_limit}
         write_agents_md(project, sel, limits,
-                        absorb_claude_md=any(a.id == "claude" for a in adapters))
+                        absorb_claude_md=any(a.id == "claude" for a in adapters),
+                        scoped_files=any(a.id != "claude" for a in adapters))
     elif AGENTS_MD in orphaned:
         remove_agents_md(project, sel.project_name)
     if AGENTS_SKILLS in outputs:

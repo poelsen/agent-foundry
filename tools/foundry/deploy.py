@@ -24,6 +24,7 @@ from .registry import (
     RETIRED_SKILLS,
     RETIRED_STATE_DIRS,
     SKILLS,
+    rule_paths,
 )
 
 # ── Prune safety ────────────────────────────────────────────────────────
@@ -342,7 +343,15 @@ def copy_rules(
                 continue
             collision = rule in base and (rules_dir / rule).exists()
             dest_name = f"{category}-{rule}" if collision else rule
-            shutil.copy2(src, rules_dir / dest_name)
+            paths = rule_paths(rule)
+            if paths:
+                # Claude Code loads a rule with `paths` only once it works on
+                # a matching file.
+                (rules_dir / dest_name).write_text(
+                    f"---\npaths: {json.dumps(list(paths))}\n---\n\n"
+                    f"{src.read_text(encoding='utf-8')}", encoding="utf-8")
+            else:
+                shutil.copy2(src, rules_dir / dest_name)
             deployed.add(dest_name)
 
     # Cleanup pass: remove stale foundry rules that fell out of the
