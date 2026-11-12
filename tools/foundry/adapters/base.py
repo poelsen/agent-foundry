@@ -70,6 +70,9 @@ class DeployContext:
     # MCP renderings the foundry deployed, per config file, from the last
     # run's manifest; writers update it and the orchestrator saves it back.
     mcp_state: dict = field(default_factory=dict)
+    # Plugins the foundry enabled on the last run, from the manifest; the
+    # Claude adapter may disable these, and only these, when deselected.
+    previous_plugins: list[str] = field(default_factory=list)
 
 
 @dataclass

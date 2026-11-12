@@ -11,7 +11,6 @@ keeps the Claude-only ones, and a project's CLAUDE.md is moved into AGENTS.md
 from __future__ import annotations
 
 import functools
-import json
 import re
 import shutil
 import subprocess
@@ -24,10 +23,11 @@ from ..deploy import (
     copy_hooks,
     copy_rules,
     copy_skills,
-    generate_settings_json,
     remove_retired_state_dirs,
+    write_settings_json,
 )
 from ..instructions import has_agent_foundry_header
+from ..payload import _ensure_gitignore_entry
 from ..private import (
     clean_private_files,
     deploy_private_source,
@@ -35,7 +35,7 @@ from ..private import (
     redeploy_private_sources,
     validate_prefix,
 )
-from ..registry import CLAUDE_ONLY_RULES
+from ..registry import CLAUDE_ONLY_RULES, RETIRED_PLUGINS
 from .base import AGENTS_MD, MCP_JSON, CliAdapter, DeployContext, DeployResult, Selections, Skipped
 
 # First Claude Code release that reads AGENTS.md.
@@ -165,10 +165,11 @@ class ClaudeAdapter(CliAdapter):
         # Hooks
         copy_hooks(project, sel.hooks)
 
-        # settings.json
-        settings = generate_settings_json(sel.hooks, sel.plugins)
-        (claude_dir / "settings.json").write_text(
-            json.dumps(settings, indent=2) + "\n", encoding='utf-8')
+        # settings.json: the foundry's keys are merged in, the project's stay.
+        # Personal overrides belong in settings.local.json, kept out of git.
+        write_settings_json(project, sel.hooks, sel.plugins,
+                            set(ctx.previous_plugins) | RETIRED_PLUGINS)
+        _ensure_gitignore_entry(project / ".gitignore", ".claude/settings.local.json")
 
         # MCP servers: .mcp.json is a shared output (Copilot reads it too),
         # written once by the orchestrator after every adapter has run.
