@@ -289,6 +289,7 @@ def cmd_init(
         pending_private=pending_private, existing_private=existing_private,
         cli_private_sources=cli_private_sources or [],
         mcp_state=_mcp_state(manifest),
+        previous_plugins=list((manifest or {}).get("plugins", [])),
     )
 
     # Each chosen CLI's adapter renders the selections into its native layout.

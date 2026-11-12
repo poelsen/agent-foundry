@@ -149,6 +149,7 @@ BASH_OUTPUT_MAX_CHARS = 16_000
 BASH_GUARD = "bash-output-guard.py"
 # No AI attribution in commits or PRs (matches the git-workflow rule). Object
 # form: older Claude Code versions reject a bare boolean and skip the file.
+PLUGIN_MARKETPLACE = "claude-plugins-official"
 NO_ATTRIBUTION = {"commit": "", "pr": "", "sessionUrl": False}
 BASH_GUARD_SRC = REPO_ROOT / "cli" / "claude" / "hooks" / BASH_GUARD
 
@@ -157,14 +158,14 @@ def generate_settings_json(
     hooks: list[str],
     plugins: list[str],
 ) -> dict:
-    """Build .claude/settings.json content."""
+    """The foundry's own part of .claude/settings.json."""
     settings: dict = {"bashOutputMaxChars": BASH_OUTPUT_MAX_CHARS,
                       "attribution": dict(NO_ATTRIBUTION)}
 
     # Plugins
     if plugins:
         settings["enabledPlugins"] = {
-            f"{p}@claude-plugins-official": True for p in plugins
+            f"{p}@{PLUGIN_MARKETPLACE}": True for p in plugins
         }
 
     # Hooks
@@ -192,6 +193,98 @@ def generate_settings_json(
 
     settings["hooks"] = hook_entries
     return settings
+
+
+
+def _is_foundry_hook(handler) -> bool:
+    """A hook handler that runs one of the scripts the foundry deploys."""
+    command = str(handler.get("command", "")) if isinstance(handler, dict) else ""
+    return ".claude/hooks/library/" in command or f".claude/hooks/{BASH_GUARD}" in command
+
+
+def _without_foundry_hooks(events: dict) -> dict:
+    """The project's own hook groups: every foundry handler removed, wherever
+    it sits (a user may have added a handler of their own to a foundry group)."""
+    kept: dict = {}
+    for event, groups in events.items():
+        if not isinstance(groups, list):
+            kept[event] = groups
+            continue
+        own = []
+        for group in groups:
+            handlers = group.get("hooks") if isinstance(group, dict) else None
+            if isinstance(handlers, list) and handlers:
+                remaining = [h for h in handlers if not _is_foundry_hook(h)]
+                if not remaining:
+                    continue
+                if len(remaining) != len(handlers):
+                    group = {**group, "hooks": remaining}
+            own.append(group)
+        if own:
+            kept[event] = own
+    return kept
+
+
+def merge_settings_json(existing: dict, generated: dict,
+                        owned_plugins: set[str]) -> tuple[dict, list[str]]:
+    """Fold the foundry's settings into a project's .claude/settings.json.
+
+    The foundry owns `bashOutputMaxChars`, its `attribution` fields, the hook
+    handlers that run its scripts, and the plugins it enabled (`owned_plugins`,
+    by name). Everything else in the file is the project's and is kept.
+    Returns the merged settings and the owned plugins that were removed.
+    """
+    merged = dict(existing)
+    merged["bashOutputMaxChars"] = generated["bashOutputMaxChars"]
+
+    attribution = existing.get("attribution")
+    merged["attribution"] = {**(attribution if isinstance(attribution, dict) else {}),
+                             **generated["attribution"]}
+
+    current = existing.get("enabledPlugins")
+    plugins = dict(current) if isinstance(current, dict) else {}
+    wanted = generated.get("enabledPlugins", {})
+    owned_ids = {f"{name}@{PLUGIN_MARKETPLACE}" for name in owned_plugins}
+    removed = sorted(key for key in plugins if key in owned_ids and key not in wanted)
+    for key in removed:
+        del plugins[key]
+    plugins.update(wanted)
+    if plugins:
+        merged["enabledPlugins"] = plugins
+    else:
+        merged.pop("enabledPlugins", None)
+
+    events = existing.get("hooks")
+    hooks = _without_foundry_hooks(events if isinstance(events, dict) else {})
+    for event, groups in generated["hooks"].items():
+        own = hooks.get(event, [])
+        hooks[event] = (own if isinstance(own, list) else []) + groups
+    merged["hooks"] = hooks
+    return merged, removed
+
+
+def write_settings_json(project: Path, hooks: list[str], plugins: list[str],
+                        owned_plugins: set[str]) -> bool:
+    """Write the foundry's settings into .claude/settings.json, keeping the
+    project's own keys. Returns False when an existing file can't be merged."""
+    path = project / ".claude" / "settings.json"
+    existing: dict = {}
+    if path.exists():
+        try:
+            existing = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError) as err:
+            print(f"  ⚠ .claude/settings.json doesn't parse ({err}) — settings not written")
+            return False
+        if not isinstance(existing, dict):
+            print("  ⚠ .claude/settings.json has an unexpected shape — settings not written")
+            return False
+    merged, removed = merge_settings_json(
+        existing, generate_settings_json(hooks, plugins), owned_plugins)
+    for key in removed:
+        print(f"  Removed foundry plugin from .claude/settings.json: {key}")
+    if merged != existing:
+        path.write_text(json.dumps(merged, indent=2) + "\n", encoding="utf-8")
+    return True
 
 
 def copy_rules(
