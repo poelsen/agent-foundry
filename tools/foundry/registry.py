@@ -190,7 +190,7 @@ HOOK_SCRIPTS = {
 SKILLS = [
     "clickhouse-io", "gui-threading", "python-qt-gui",
     "megamind-deep", "megamind-creative", "megamind-adversarial", "megamind-financial",
-    "delegate", "review-process",
+    "delegate", "review-process", "orchestrate",
     "update-foundry", "private-list", "private-remove",
     "copilot-cli", "codex-cli", "agy-cli",
     "writer", "humanizer",
@@ -219,7 +219,8 @@ SKILL_GROUPS: dict[str, list[str]] = {
 # frontmatter is dropped, .claude/skills/ paths and Skill(x) calls are
 # rewritten, and files over Codex's 8 KB skill limit are split. Excluded:
 # skills tied to Claude-only state (private-* → Claude-only private
-# sources, review-process → Claude reviewer agents and prompts).
+# sources, review-process → Claude reviewer agents and prompts,
+# orchestrate → Claude Code's subagent tools).
 PORTABLE_SKILLS: set[str] = {
     "megamind-deep", "megamind-creative", "megamind-adversarial", "megamind-financial",
     "clickhouse-io", "gui-threading", "python-qt-gui", "writer", "humanizer",
