@@ -139,8 +139,8 @@ When a question comes up, whether yours or in an agent's report:
 
 1. **Routine or cheap to reverse** (a name, an internal design choice, which
    of two workable approaches): decide. Don't raise it.
-2. **Worth the user's later look**: weigh the options, take your
-   recommendation, record it in the log, continue.
+2. **Worth the user's later look**: decide it as set out below, record it
+   in the log, continue.
 3. **Not yours to take**: park it. Record it, prepare it so one step remains,
    and carry on with everything that doesn't depend on it.
 
@@ -149,6 +149,17 @@ merging to a shared or protected branch; deleting branches, worktrees, data or
 evidence; stopping processes the run didn't start; spending money or touching
 credentials; choosing the fallback when a proof or validation gate fails;
 anything the user reserved.
+
+A decision worth the user's later look is made in this order:
+
+1. Step back from the task to what the whole job is for.
+2. Gather the context: the project docs, what the user said at launch,
+   earlier decisions in the log, and the facts from the agent that raised
+   the question.
+3. Name the real options, with what each gains and costs.
+4. Decide on the merits: the option that best serves the goal, given that
+   context.
+5. Write the entry, then act on it.
 
 ```
 ## D<n>: <the decision in a sentence> (<task ID>)
