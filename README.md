@@ -584,6 +584,7 @@ Claude Code only; installed by default.
 ```
 /orchestrate --local_agents 4 --model opus,fable --unattended docs/plan.md
 /orchestrate --local_agents 2 --delegate_agents 2 codex:gpt-6.1-sol --delegate_agents 1 agy port the parser to Python
+/orchestrate --local_agents 20 --optimize speed --unattended the open issues labelled cleanup
 ```
 
 Mid-run, plain words change course: `drain` lets running agents finish and
@@ -602,8 +603,16 @@ the decisions taken and what needs you.
 **How it saves tokens.** The orchestrator reads little and delegates the
 rest, waits on completion notices instead of polling, asks for short reports,
 and continues an existing agent for follow-up work so nothing is read twice.
-It chooses per task whether to continue an agent or start a new one, and
-gives agents that write at the same time a worktree each.
+It chooses per task whether to continue an agent or start a new one. With
+`--optimize tokens`, the default, a task waits for the agent that already
+knows its files and only unrelated areas run side by side; `--optimize speed`
+starts every ready task at once, up to the limits.
+
+**How it keeps agents apart.** Agents that write at the same time get a
+worktree each, and every agent first checks that its checkout contains the
+commit its task builds on. Agents verify with targeted tests; the
+orchestrator runs the full suite where the project's testing rule calls for
+it, one run at a time.
 
 **Before you leave a run alone**, put the session in a permission mode that
 does not prompt for the commands the job needs. A permission prompt stops a

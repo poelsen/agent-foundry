@@ -134,7 +134,7 @@ top-level [README — Copilot CLI section](../README.md#copilot-cli).
 
 | Skill | Purpose | When to Use |
 |-------|---------|-------------|
-| [orchestrate](orchestrate/) | One orchestrator over a bounded set of local subagents and delegate jobs: limits per pool, model, effort, unattended running, agent reuse, decision log, final review | A job too large for one context, or one that should keep going while you are away |
+| [orchestrate](orchestrate/) | One orchestrator over a bounded set of local subagents and delegate jobs: limits per pool, model, effort, a speed or token preference, unattended running, agent reuse, decision log, final review | A job too large for one context, or one that should keep going while you are away |
 
 User-invoked only (`/orchestrate [options] <task>`), so it never starts
 agents by itself. Claude Code only.
