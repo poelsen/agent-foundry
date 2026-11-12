@@ -22,7 +22,7 @@ Pick targets with `--clis claude,copilot,codex,agy` (or the interactive menu, wh
 
 **Shared outputs.** Files that several CLIs read — `AGENTS.md`, `.agents/skills/`, `.mcp.json` — are written once per run for all selected targets, not once per adapter:
 
-- **`AGENTS.md`** is every CLI's instructions file, Claude Code's included — see [AGENTS.md Convention](#agentsmd-convention). It gets a marker-wrapped block with the portable coding-standard rules (the Claude-only `agents.md` rule goes to `.claude/rules/` instead, which Claude Code loads alongside `AGENTS.md`). The block is capped at 20 KB because other CLIs silently truncate large instruction files (Antigravity at 24,000 bytes per file, Codex at 32 KiB in total). Rules that don't fit go to `.agents/rules/foundry-<rule>.md` — with Antigravity `trigger:` frontmatter, so Antigravity loads them natively — and `AGENTS.md` points to them.
+- **`AGENTS.md`** is every CLI's instructions file, Claude Code's included — see [AGENTS.md Convention](#agentsmd-convention). It gets a marker-wrapped block with the portable coding-standard rules that apply to every task. Rules for specific files (language rules and the templates tied to a file type) are scoped instead; see [Scoped rules](#scoped-rules). The Claude-only `agents.md` rule goes to `.claude/rules/`, which Claude Code loads alongside `AGENTS.md`. The block is capped at 20 KB because other CLIs silently truncate large instruction files (Antigravity at 24,000 bytes per file, Codex at 32 KiB in total). Rules that don't fit go to `.agents/rules/foundry-<rule>.md` — with Antigravity `trigger:` frontmatter, so Antigravity loads them natively — and `AGENTS.md` points to them.
 - **`.agents/skills/`** is the cross-vendor skill root (Copilot CLI, Codex and Antigravity all load it). Only portable skills go there — megamind ×4, `clickhouse-io`, `gui-threading`, `python-qt-gui`, `writer`, `humanizer`, `update-foundry`, the cross-model CLI references `copilot-cli`, `codex-cli`, `agy-cli`, and `delegate` (see [Delegation](#delegation)). Deploying adapts them without touching the Claude sources: Claude-only frontmatter (`model`, `allowed-tools`) is dropped, `.claude/skills/` paths and `Skill(x)` calls are rewritten, and a `SKILL.md` over 8 KB (Codex's limit for an explicitly invoked skill) becomes a short pointer to the unchanged text in `SKILL.full.md`. Skills tied to Claude-only state — `private-*` (private sources), `review-process` (Claude reviewer agents) — stay Claude Code-only.
 - `.agents/` is shared with other tools, so every file the foundry writes there carries an ownership marker and updates only ever prune marked content.
 
@@ -121,9 +121,42 @@ python3 <project>/.foundry/setup.py update-all
 `AGENTS.md` holds your project's own instructions plus a block wrapped in marker comments (`<!-- agent-foundry -->` ... `<!-- /agent-foundry -->`) that setup rewrites on every run:
 - Environment commands for detected languages (setup, test)
 - Pointers to `docs/`
-- The portable coding-standard rules, inlined (up to 20 KB; the rest go to `.agents/rules/` as pointers)
+- The coding-standard rules that apply to every task, inlined (up to 20 KB; the rest go to `.agents/rules/` as pointers)
+- Pointers to the scoped rules, when a CLI other than Claude Code is a target
 
 Everything outside the block is yours and is never touched. For a new project, setup creates `AGENTS.md` with just a title and the block.
+
+### Scoped rules
+
+A rule about one kind of file loads only when such a file is in play, so it costs nothing in a session that never touches one. Scoped today: every language rule (by its file extensions and config files) and the Embedded C, Embedded DSP, Desktop GUI Qt and React App templates. Rules about the kind of project, the platform or the security level have no file pattern and stay in the block.
+
+| Target | Where a scoped rule goes | How it loads |
+|--------|--------------------------|--------------|
+| Claude Code | `.claude/rules/<rule>.md` with `paths` | by itself, once Claude works on a matching file |
+| Antigravity | `.agents/rules/foundry-<rule>.md` with `trigger: glob` | natively, plus the pointer in `AGENTS.md` |
+| Codex, Copilot CLI | the same `.agents/rules/` file | through the pointer in `AGENTS.md`: the model reads the file before working on matching files |
+
+The `.agents/rules/` files and the pointers are written only when a CLI other than Claude Code is a target.
+
+### What each CLI loads
+
+Observed with marker tokens in a throwaway project (Claude Code 2.1.322, Copilot CLI 1.0.93, Codex 0.161.0, Antigravity CLI 1.3.1), each tool run non-interactively:
+
+| File | Claude Code | Copilot CLI | Codex | Antigravity |
+|------|-------------|-------------|-------|-------------|
+| `AGENTS.md` | yes, while no `CLAUDE.md` exists | yes | yes | yes |
+| `CLAUDE.md` | yes, and then `AGENTS.md` is skipped | not tested | no | not tested |
+| `@path` import inside `AGENTS.md` | expanded | expanded | not expanded | not expanded |
+| `@[label](path)` import inside `AGENTS.md` | not expanded | not expanded | not expanded | expanded |
+| `.claude/rules/*.md`, no `paths` | at startup | at startup | no | no |
+| `.claude/rules/*.md` with `paths` | once a matching file is read | no | no | no |
+| `.agents/rules/*.md`, `trigger: always_on` | no | no | no | at startup |
+| `.agents/rules/*.md`, `trigger: glob` | no | no | no | not after reading or editing a matching file |
+| `.claude/skills/` | yes | yes | no | no |
+| `.agents/skills/` | no | yes; wins over a same-named skill in `.claude/skills/` | yes | yes |
+| Hooks in `.claude/settings.json` | run | did not run | no | no |
+
+Two consequences. Copilot CLI reads `.claude/rules/` files that have no `paths`, so the Claude-only `agents.md` rule reaches it as well. And Antigravity's glob-triggered rules did not load in a one-shot run, so the pointers in `AGENTS.md` are what make a scoped rule reachable there, as in Codex and Copilot.
 
 ### Moving off CLAUDE.md
 
@@ -143,7 +176,7 @@ Portable rules an older foundry deployed to `.claude/rules/` are removed there, 
 
 ## Documentation Structure
 
-Claude-foundry recommends a two-tier documentation approach:
+Agent-foundry recommends a two-tier documentation approach:
 
 | Location | Purpose | Maintained by |
 |----------|---------|---------------|
@@ -185,7 +218,7 @@ Everything is copied into `<project>/.claude/`:
 
 ## Rules
 
-Rules are markdown files loaded by Claude Code at session start. They shape how Claude writes code, handles errors, makes commits, and reviews changes.
+Rules are markdown files the agent loads as instructions. They shape how it writes code, handles errors, makes commits, and reviews changes. Rules for every task load at session start; rules for specific files load when such a file is in play (see [Scoped rules](#scoped-rules)).
 
 **Base rules** (`common/rules/`) are recommended for all projects:
 

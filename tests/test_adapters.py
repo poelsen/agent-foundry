@@ -394,3 +394,47 @@ def test_malformed_manifest_mcp_fields_dont_crash():
     assert _mcp_state({"deployed_mcp": None, "mcp_servers": ["memory", 3]}) == {
         ".mcp.json": {"memory": None}}
     assert _mcp_state({"deployed_mcp": {".mcp.json": None, "agy": {}}}) == {"agy": {}}
+
+
+# ── Scoped rules for Claude Code ──
+
+
+def test_claude_gets_scoped_rules_with_paths_and_no_agents_rules(tmp_path: Path):
+    """A Claude-only project: the Python rule is a .claude/rules/ file with
+    `paths`, it is not in AGENTS.md, and nothing lands in .agents/rules/."""
+    (tmp_path / "app.py").write_text("print(1)\n")
+    assert cmd_init(tmp_path, interactive=False, clis=["claude"])
+    rule = (tmp_path / ".claude" / "rules" / "python.md").read_text()
+    assert rule.startswith('---\npaths: ["**/*.py", "**/pyproject.toml", "**/requirements.txt"]\n---\n')
+    assert "# Language: Python" in rule
+    agents_md = (tmp_path / "AGENTS.md").read_text()
+    assert "Language: Python" not in agents_md
+    assert "Rules for specific files" not in agents_md
+    assert "### Coding Style (Core)" in agents_md
+    assert not (tmp_path / ".agents" / "rules").exists()
+
+
+def test_scoped_rules_reach_other_clis_as_files_and_pointers(tmp_path: Path):
+    """With Codex as a second target the same rule is also a glob-triggered
+    file in .agents/rules/, and AGENTS.md points to it."""
+    (tmp_path / "app.py").write_text("print(1)\n")
+    assert cmd_init(tmp_path, interactive=False, clis=["claude", "codex"])
+    shared_rule = (tmp_path / ".agents" / "rules" / "foundry-python.md").read_text()
+    assert shared_rule.startswith("---\ntrigger: glob\n")
+    agents_md = (tmp_path / "AGENTS.md").read_text()
+    assert "`.agents/rules/foundry-python.md`" in agents_md
+    assert "Language: Python" not in agents_md
+    assert (tmp_path / ".claude" / "rules" / "python.md").read_text().startswith("---\npaths:")
+
+
+def test_update_moves_an_embedded_scoped_rule_out_of_the_block(tmp_path: Path):
+    """A project set up before scoping: the next run leaves the user's part of
+    AGENTS.md alone and takes the language rule out of the block."""
+    (tmp_path / "app.py").write_text("print(1)\n")
+    (tmp_path / "AGENTS.md").write_text(
+        "# demo\n\nOur own notes stay.\n\n<!-- agent-foundry -->\n"
+        "### Language: Python\n\nold embedded copy\n<!-- /agent-foundry -->\n")
+    assert cmd_init(tmp_path, interactive=False, clis=["claude"])
+    agents_md = (tmp_path / "AGENTS.md").read_text()
+    assert "Our own notes stay." in agents_md
+    assert "old embedded copy" not in agents_md and "Language: Python" not in agents_md

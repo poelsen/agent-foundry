@@ -60,8 +60,10 @@ def test_rendered_block_does_not_shout():
         agents=[], skills=[], hooks=[], plugins=[], mcp_servers=[],
         langs=set(MODULAR_RULES["lang"]), project_name="demo", version="9999.99.99",
     )
-    block, _ = shared.render_agents_block(sel, budget=10**7)
+    block, files = shared.render_agents_block(sel, budget=10**7)
     assert shouted_lines(block) == []
+    for rule in files:  # scoped rules reach projects as their own files
+        assert shouted_lines(rule.body) == [], rule.name
 
 
 @pytest.mark.parametrize(

@@ -226,7 +226,10 @@ class TestRulesInAgentsMd:
 
         cmd_init(temp_project, interactive=False)
 
-        assert "<!-- rule: python.md -->" in _agents_md(temp_project)
+        # A language rule is scoped: a .claude/rules/ file with `paths`, not block text.
+        rule = (temp_project / ".claude" / "rules" / "python.md").read_text()
+        assert rule.startswith("---\npaths: ") and "# Language: Python" in rule
+        assert "<!-- rule: python.md -->" not in _agents_md(temp_project)
 
     def test_base_rules_embedded_claude_only_rules_not(self, temp_project):
         cmd_init(temp_project, interactive=False)
