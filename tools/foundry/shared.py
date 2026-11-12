@@ -327,6 +327,7 @@ def write_agents_md(
             print(f"  ⚠ Claude Code skips AGENTS.md while {shown} exists "
                   "— move its content into AGENTS.md and delete it")
     _write_rule_files(project, overflow)
+    print(f"  agent-foundry block: {len(block.encode('utf-8')):,} bytes, loaded in every session")
     size = len(agents_md.read_bytes())
     for cli, limit in (limits or {}).items():
         if size > limit:
