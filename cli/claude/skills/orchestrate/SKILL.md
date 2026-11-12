@@ -165,9 +165,10 @@ task can still start or is still running.
 - **Bring each agent's commits onto the working branch** in a linear history
   (cherry-pick or rebase, no merge commits), then run the targeted tests on
   the combined tree.
-- **One full-suite run at most**, by you, with no agent running, and only
-  where the project's testing rule calls for one. Suites run side by side
-  produce timing failures that aren't real.
+- **Full-suite runs follow the project's testing rule**: when a change is
+  wide, when you can't tell what it touches, and before the work is handed
+  over. Run them yourself, one at a time, on a tree no agent is writing to.
+  Suites run side by side produce timing failures that aren't real.
 - **Review** as `--review` says. Confirm each finding against the code before
   acting on it, and send a confirmed fix to the agent that wrote the code.
 - **Leave worktrees and branches in place** and list them in the report.
