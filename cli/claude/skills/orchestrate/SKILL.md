@@ -70,10 +70,13 @@ goes in unchanged.
 Task <ID>: <the goal in one sentence>
 Context: <why, where it fits, the docs and paths to read first>
 Scope: <files or modules this task owns>. Out of scope: <what to leave alone>
+Base: <the commit this task builds on, from `git rev-parse HEAD`>
 Done when: <the test, command or behaviour that shows it>
 Verify with: <targeted test command>. Don't run the whole suite.
 
 Rules for this job
+- First run `git merge-base --is-ancestor <Base> HEAD`. If it fails, your
+  checkout lacks the work this task builds on: stop and report that.
 - Nobody can answer questions while you work. Take routine choices yourself
   and list them under Assumptions. If something needs the user's ruling,
   finish everything that doesn't depend on it and list it under Blocked with
@@ -99,7 +102,10 @@ in a file and give its path.
   their own worktree. When a task needs state a new worktree lacks (a built
   environment, uncommitted or untracked files, a single device), run it in
   the current checkout with no other writer active. Agents that only read
-  work in the current checkout.
+  work in the current checkout. A worktree starts from the default branch
+  unless the project's settings set `worktree.baseRef` to `head`, which
+  foundry setup does. When an agent reports a failed Base check, run its
+  task in the current checkout instead.
 - **Wait, don't watch.** A finished agent wakes you by itself. No polling
   loops and no monitor on progress output: each tick replays your whole
   context. A long external job is one background run and its completion
