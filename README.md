@@ -596,7 +596,9 @@ before launch. After that the orchestrator decides what is routine or cheap to
 reverse without raising it. For a choice worth a later look it steps back to
 what the job is for, gathers the context, names the real options and decides
 on the merits, then records it in the decision log (context, options,
-decision, how to reverse it). It parks what is not its to take,
+decision, how to reverse it). A heavy decision, one that much later work
+builds on, is first challenged by an agent on the top model. It parks what is
+not its to take,
 such as pushes, deletions and failed proof gates, while the rest of the work
 continues. Agents are briefed to do the same: they cannot ask, so they report
 assumptions and blocked items instead. The closing report lists what is done,
