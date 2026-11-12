@@ -214,6 +214,7 @@ Everything is copied into `<project>/.claude/`:
 | **MCP servers** | `common/mcp/` | Cross-vendor MCP configs (deployed to `.mcp.json`) |
 | **Plugins** | configured in `settings.json` | LSP servers |
 | **Copilot CLI** | `cli/claude/skills/copilot-cli/` | Thin reference skill for the local GitHub Copilot CLI — lets review-process run non-Claude models. See [Copilot CLI](#copilot-cli). |
+| **Orchestration** | `cli/claude/skills/orchestrate/` | `/orchestrate` runs a larger job over a bounded set of subagents, with options for how many local and delegate agents run, the model, effort and unattended running. See [Orchestration](#orchestration). |
 | **Delegation** | `cli/claude/skills/delegate/` | Any target CLI hands tasks to any other (Claude Code, Codex, Antigravity, Copilot) as managed jobs: own worktree, policy, audit log, review gate. See [Delegation](#delegation). |
 
 ## Rules
@@ -299,7 +300,7 @@ The skill menu in `setup.py init` presents related skills as **groups**, not ind
 | **Megamind Reasoning** | `megamind-deep`, `megamind-creative`, `megamind-adversarial` | on |
 | **Writing** | `writer`, `humanizer` | off (opt-in) |
 
-Megamind Reasoning is **on by default**; Writing is **off by default** — toggle it on to deploy the drafting pipeline (`writer` drafts in the author's voice with ten selectable presets, then invokes `humanizer` for the anti-AI audit; the pair deploys together because the hand-off requires both). Ungrouped skills appear as individual entries. `update-foundry`, `private-list`, `private-remove`, `review-process`, `copilot-cli`, `codex-cli`, `agy-cli` and `delegate` are on by default; `megamind-financial`, `clickhouse-io`, `gui-threading` and `python-qt-gui` are off unless detection or you turn them on; `copilot-cli`, `codex-cli`, `agy-cli` and `delegate` come on with the matching target CLI.
+Megamind Reasoning is **on by default**; Writing is **off by default** — toggle it on to deploy the drafting pipeline (`writer` drafts in the author's voice with ten selectable presets, then invokes `humanizer` for the anti-AI audit; the pair deploys together because the hand-off requires both). Ungrouped skills appear as individual entries. `update-foundry`, `private-list`, `private-remove`, `review-process`, `orchestrate`, `copilot-cli`, `codex-cli`, `agy-cli` and `delegate` are on by default; `megamind-financial`, `clickhouse-io`, `gui-threading` and `python-qt-gui` are off unless detection or you turn them on; `copilot-cli`, `codex-cli`, `agy-cli` and `delegate` come on with the matching target CLI.
 
 The manifest still stores individual skill names (not group names), so existing projects keep working without migration.
 
@@ -561,6 +562,51 @@ OpenAI models without a Copilot subscription) and `agy-cli`
 (`agy -p … --output-format json` for Gemini models). `review-process` probes
 for all three and routes its cross-vendor reviewer through whichever is
 installed.
+
+## Orchestration
+
+`/orchestrate [options] <task>` turns the session into an orchestrator: it
+splits the job, briefs subagents, checks and integrates what they return, and
+reports. It runs only when you type it, so it never starts agents by itself.
+Claude Code only; installed by default.
+
+| Option | Default | Meaning |
+|--------|---------|---------|
+| `--local_agents N` | 2 | Most local subagents in flight at once, reviewers included |
+| `--delegate_agents N CLI[:MODEL]` | none | Most jobs in flight on another CLI through `delegate`. Repeat it per CLI or model; only the CLIs named are used |
+| `--model M[,TOP]` | `opus`, session's model | `M` runs the workers; `TOP` runs the hardest tasks: design, planning, a root cause that resists, a task a worker failed at twice |
+| `--max_effort E` | `auto` | The highest effort any agent runs at. Effort is chosen per task by complexity and blast radius; a named level caps it, and nothing runs above `xhigh` |
+| `--unattended` | off | Ask nothing, not even before launch |
+| `--review T` | `auto` | Final `review-process` tier, or `none` |
+| `--log PATH` | `docs/decision-log.md` | Decision log and task list |
+
+```
+/orchestrate --local_agents 4 --model opus,fable --unattended docs/plan.md
+/orchestrate --local_agents 2 --delegate_agents 2 codex:gpt-6.1-sol --delegate_agents 1 agy port the parser to Python
+```
+
+Mid-run, plain words change course: `drain` lets running agents finish and
+starts nothing new, `max 3 local` or `+2 codex` moves a limit, `status` prints
+the task table.
+
+**How a run avoids stalling.** Questions that change the work are asked once,
+before launch. After that the orchestrator decides what is routine or cheap to
+reverse, records the choices worth a later look in the decision log (context,
+options, decision, how to reverse it), and parks what is not its to take,
+such as pushes, deletions and failed proof gates, while the rest of the work
+continues. Agents are briefed to do the same: they cannot ask, so they report
+assumptions and blocked items instead. The closing report lists what is done,
+the decisions taken and what needs you.
+
+**How it saves tokens.** The orchestrator reads little and delegates the
+rest, waits on completion notices instead of polling, asks for short reports,
+and continues an existing agent for follow-up work so nothing is read twice.
+It chooses per task whether to continue an agent or start a new one, and
+gives agents that write at the same time a worktree each.
+
+**Before you leave a run alone**, put the session in a permission mode that
+does not prompt for the commands the job needs. A permission prompt stops a
+run the same way a question does.
 
 ## Delegation
 

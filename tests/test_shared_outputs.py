@@ -275,6 +275,7 @@ def test_cross_cli_skills_follow_selected_clis(tmp_path: Path):
     claude_only = run_selection(tmp_path, None, interactive=False, cli_private_sources=None,
                                 clis=("claude",))
     assert not {"copilot-cli", "codex-cli", "agy-cli", "delegate"} & set(claude_only.skills)
+    assert {"review-process", "orchestrate"} <= set(claude_only.skills)
     with_codex = run_selection(tmp_path, None, interactive=False, cli_private_sources=None,
                                clis=("claude", "codex"))
     assert {"codex-cli", "delegate"} <= set(with_codex.skills)
