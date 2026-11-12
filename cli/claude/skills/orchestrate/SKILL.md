@@ -161,6 +161,12 @@ A decision worth the user's later look is made in this order:
    context.
 5. Write the entry, then act on it.
 
+A few decisions are heavy: much of the later work builds on them, as with
+an architecture choice. Before acting on one, give the entry and its
+context to a new agent on the top model and ask what it would decide and
+why. Then settle it yourself and add to the entry what the challenge
+changed. This is for the few, not for every logged decision.
+
 ```
 ## D<n>: <the decision in a sentence> (<task ID>)
 - Context: <what forced the choice>
