@@ -394,7 +394,7 @@ class Validator:
 
             # Check expected contents
             expected = ["VERSION", "common/rules", "common/rule-library", "common/mcp",
-                        "cli/claude/agents", "cli/claude/commands", "cli/claude/skills",
+                        "cli/claude/agents", "cli/claude/skills",
                         "cli/claude/hooks", "tools/setup.py"]
             for item in expected:
                 path = root / item
