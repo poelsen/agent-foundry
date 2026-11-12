@@ -36,6 +36,15 @@ def test_project_keys_survive():
     assert removed == []
 
 
+def test_worktree_base_defaults_to_head_unless_the_project_chose():
+    generated = generate_settings_json([], [])
+    merged, _ = merge_settings_json({}, generated, set())
+    assert merged["worktree"] == {"baseRef": "head"}
+    chosen = {"worktree": {"baseRef": "fresh", "other": "kept"}}
+    merged, _ = merge_settings_json(chosen, generated, set())
+    assert merged["worktree"] == chosen["worktree"]
+
+
 def test_project_hooks_survive_and_foundry_hooks_are_reconciled():
     own_group = {"matcher": "Bash", "hooks": [{"type": "command", "command": "./scripts/audit.sh"}]}
     mixed_group = {"matcher": "Edit|MultiEdit|Write", "hooks": [
