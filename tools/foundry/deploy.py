@@ -151,6 +151,9 @@ BASH_GUARD = "bash-output-guard.py"
 # form: older Claude Code versions reject a bare boolean and skip the file.
 PLUGIN_MARKETPLACE = "claude-plugins-official"
 NO_ATTRIBUTION = {"commit": "", "pr": "", "sessionUrl": False}
+# Claude Code branches a worktree (and a subagent's) from the default branch
+# unless told to use the current HEAD; on a feature branch that is stale code.
+WORKTREE_DEFAULTS = {"baseRef": "head"}
 BASH_GUARD_SRC = REPO_ROOT / "cli" / "claude" / "hooks" / BASH_GUARD
 
 
@@ -160,7 +163,8 @@ def generate_settings_json(
 ) -> dict:
     """The foundry's own part of .claude/settings.json."""
     settings: dict = {"bashOutputMaxChars": BASH_OUTPUT_MAX_CHARS,
-                      "attribution": dict(NO_ATTRIBUTION)}
+                      "attribution": dict(NO_ATTRIBUTION),
+                      "worktree": dict(WORKTREE_DEFAULTS)}
 
     # Plugins
     if plugins:
@@ -231,7 +235,8 @@ def merge_settings_json(existing: dict, generated: dict,
 
     The foundry owns `bashOutputMaxChars`, its `attribution` fields, the hook
     handlers that run its scripts, and the plugins it enabled (`owned_plugins`,
-    by name). Everything else in the file is the project's and is kept.
+    by name). Its `worktree` values are defaults: one the project set wins.
+    Everything else in the file is the project's and is kept.
     Returns the merged settings and the owned plugins that were removed.
     """
     merged = dict(existing)
@@ -240,6 +245,10 @@ def merge_settings_json(existing: dict, generated: dict,
     attribution = existing.get("attribution")
     merged["attribution"] = {**(attribution if isinstance(attribution, dict) else {}),
                              **generated["attribution"]}
+
+    worktree = existing.get("worktree")
+    merged["worktree"] = {**generated["worktree"],
+                          **(worktree if isinstance(worktree, dict) else {})}
 
     current = existing.get("enabledPlugins")
     plugins = dict(current) if isinstance(current, dict) else {}
