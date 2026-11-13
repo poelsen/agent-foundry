@@ -1,7 +1,7 @@
 ---
 name: orchestrate
 description: Orchestrate a larger job over a bounded set of local subagents and delegate jobs. Options set counts, models, effort and unattended running. Runs only when the user invokes /orchestrate.
-argument-hint: "[--local_agents N] [--delegate_agents N CLI[:MODEL]]... [--model M[,TOP]] [--max_effort E] [--unattended] [--review TIER|none] [--log PATH] <task>"
+argument-hint: "[--local_agents N] [--delegate_agents N CLI[:MODEL]]... [--model M[,TOP]] [--max_effort E] [--optimize GOAL] [--unattended] [--review TIER|none] [--log PATH] <task>"
 disable-model-invocation: true
 ---
 
@@ -20,10 +20,11 @@ can go on for hours.
 
 | Option | Default | Meaning |
 |--------|---------|---------|
-| `--local_agents N` | 2 | Most local subagents in flight at once, reviewers and top-model agents included. `0` leaves all agent work to the delegates |
+| `--local_agents N` | 2 | Most local subagents in flight at once, reviewers and top-model agents included. `0` leaves all agent work to the delegates, top-model work on the strongest delegate model |
 | `--delegate_agents N CLI[:MODEL]` | none | Most jobs in flight on another agent CLI, through the `delegate` skill. Repeat it for each CLI or model. Only the CLIs named are used |
-| `--model M[,TOP]` | `opus`, session's model | `M` runs the worker agents. `TOP` runs the few tasks where the reasoning is the hard part: design and architecture, planning, a root cause that resists, a task a worker failed at twice. Most tasks stay on `M` |
-| `--max_effort E` | `auto` | The highest effort any agent runs at. You set effort per task: `medium` for normal work, `high` for complex work, `xhigh` for complex work with a wide blast radius (shared, core or native code). `auto` leaves that ladder as it is; a named level caps it. Nothing runs above `xhigh` |
+| `--model M[,TOP]` | `opus`, session's model | `M` runs the worker agents. `TOP` runs the few tasks where the reasoning is the hard part. Examples: design and architecture, planning, a root cause that resists, a task a worker failed at twice. Most tasks stay on `M` |
+| `--max_effort E` | `auto` | The highest effort any agent runs at. You set effort per task: `medium` for normal work, `high` for complex work, `xhigh` for complex work with a wide blast radius (for example shared, core or native code). `auto` leaves that ladder as it is; a named level caps it. Nothing runs above `xhigh` |
+| `--optimize GOAL` | `tokens` | What to favour when the two pull apart: `tokens` or `speed` |
 | `--unattended` | off | The user is away: ask nothing, not even before launch |
 | `--review T` | `auto` | Final review through `review-process` at tier T; `none` skips it. `auto` is T2 for an unattended run or a change that other code depends on, and your own read of the diff otherwise |
 | `--log PATH` | `docs/decision-log.md` | Where decisions and the task list are kept |
@@ -34,7 +35,8 @@ options in effect on one line, defaults included. They hold until the user
 changes them, and plain words work mid-run:
 
 - **"drain"**: running agents finish, nothing new starts, then you report.
-- **"max 3 local"**, **"+2 codex"**: a new limit for that pool. Lowering it never stops a running agent.
+- **A new limit for a pool**, for example "max 3 local" or "+2 codex".
+  Lowering it never stops a running agent.
 - **"status"**: a short table of tasks and agents. Nothing else changes.
 - A question from the user during a run is a question. Answer it and leave the
   run as it is.
@@ -50,14 +52,14 @@ changes them, and plain words work mid-run:
    integrated. When the job needs a design or a plan before it can be split,
    give that to one agent on the top model at `high` effort, or the cap if
    that is lower, and have it return the task breakdown.
-3. List what you would need the user to decide. Strike every item that has a
-   conventional answer or is cheap to reverse; those are yours (see
-   Decisions). Attended: ask what is left once, together, before anything
-   launches. Unattended: ask nothing.
-4. Write the task list at the top of the log: ID, state, agent, branch. Where
-   the project tracks work in issues, each task carries its issue ID, filed
-   first if it has none. Keep the list current. It is what lets the run resume
-   after a context summary or a usage limit.
+3. List what you would need the user to decide. Strike every item that
+   Decisions makes yours. Attended: ask what is left once, together, before
+   anything launches. Unattended: ask nothing and park what is left.
+4. Write the options in effect and the task list at the top of the log. The
+   task list has ID, state, agent, branch. Where the project's rules say
+   work is tracked in issues, each task carries its issue ID, filed first if
+   it has none. Keep both current, mid-run changes included. They are what
+   lets the run resume after a context summary or a usage limit.
 5. Tell the user in a few lines what will run, what you will not do without
    them, and where the log is. Then launch.
 
@@ -68,7 +70,7 @@ goes in unchanged.
 
 ```
 Task <ID>: <the goal in one sentence>
-Context: <why, where it fits, the docs and paths to read first>
+Context: <why, where it fits, the logged decisions that bear on it, the docs and paths to read first>
 Scope: <files or modules this task owns>. Out of scope: <what to leave alone>
 Base: <the commit this task builds on, from `git rev-parse HEAD`>
 Done when: <the test, command or behaviour that shows it>
@@ -81,8 +83,9 @@ Rules for this job
   and list them under Assumptions. If something needs the user's ruling,
   finish everything that doesn't depend on it and list it under Blocked with
   your recommendation.
-- If a command is denied or waits for approval, don't retry it and don't wait.
-  Use another route, or list it under Blocked.
+- If a command is denied or waits for approval, don't retry it, don't wait,
+  and don't work around the refusal. Do what doesn't need it and list it
+  under Blocked.
 - Git: add explicit paths and commit on the branch you start on. No checkout
   or switch, reset, rebase, clean, stash, restore, push, worktree commands or
   branch deletion. Run `git branch --show-current` before your first commit
@@ -99,41 +102,55 @@ in a file and give its path.
 - **Launch a wave in one message**, within each pool's limit. A reviewer
   counts in the pool it runs in.
 - **One writer per checkout.** Agents that write at the same time each get
-  their own worktree. When a task needs state a new worktree lacks (a built
-  environment, uncommitted or untracked files, a single device), run it in
+  their own worktree. When a task needs state a new worktree lacks (for
+  example a built environment, uncommitted files, a single device), run it in
   the current checkout with no other writer active. Agents that only read
   work in the current checkout. A worktree starts from the default branch
   unless the project's settings set `worktree.baseRef` to `head`, which
   foundry setup does. When an agent reports a failed Base check, run its
-  task in the current checkout instead.
+  task in the current checkout instead, with no other writer active.
+- **How wide to go follows `--optimize`.** With `tokens`, a task waits for
+  the agent that already knows its files instead of starting a new one, and
+  a wave holds only tasks in unrelated areas, so little is read twice and
+  little needs reworking at integration. With `speed`, every ready task
+  that shares no files with a running one starts at once, up to the limits,
+  on a new agent when the one that knows the area is busy. Either way the
+  limits are ceilings, not targets.
 - **Wait, don't watch.** A finished agent wakes you by itself. No polling
   loops and no monitor on progress output: each tick replays your whole
   context. A long external job is one background run and its completion
   notice, plus a single long timer only if it can hang.
 - **Continue before you spawn.** Message an existing agent, by the ID from its
-  launch, when the work follows from what it has already read: answering its
-  question, fixing review findings on its own change, the next step in the
-  same files, picking up after a limit or an error. Start a new agent for an
-  unrelated task, when an agent's reports turn vague or repetitive, and
-  for every review: a reviewer never wrote the code it reads.
+  launch, when the work follows from what it has already read. Examples:
+  answering its question, fixing review findings on its own change, the next
+  step in the same files, picking up after a limit or an error. For a new
+  task, continue an agent only when the task builds on nothing its checkout
+  lacks, and give it as Base its own last commit. Start a new agent for an
+  unrelated task, when an agent's reports turn vague or repetitive, and for
+  every review: a reviewer never wrote the code it reads.
 - **Don't stop a running agent to change its brief**; message it. Stop one
   only when it is doing damage or the user says so. Finished agents can be
   left: they cost nothing and stay addressable.
-- **An agent that ended early** (usage limit, capacity error, crash) gets
-  "continue from where you stopped". A capacity error from another vendor is
-  transient: wait about 20 seconds and retry, a handful of times, before
-  counting it as failed.
-- **A task that failed twice the same way** isn't run a third time unchanged.
-  Split it again, change the approach, move it to the top model, or park it.
+- **An agent that ended early** (for example on a usage limit, a capacity
+  error or a crash) gets "continue from where you stopped". A capacity
+  error from another vendor is transient: wait about 20 seconds and retry,
+  a handful of times, before counting it as failed.
+- **A task that keeps failing** isn't run again unchanged. Split it again,
+  change the approach, or move it to the top model. Once it has failed
+  there too, park it.
 
 ## Decisions
 
-When a question comes up, whether yours or in an agent's report:
+When a question comes up, whether yours or in an agent's report, sort it by
+what depends on the answer:
 
-1. **Routine or cheap to reverse** (a name, an internal design choice, which
-   of two workable approaches): decide. Don't raise it.
-2. **Worth the user's later look**: weigh the options, take your
-   recommendation, record it in the log, continue.
+1. **Routine**: nothing outside the task depends on it, and it keeps to the
+   plan, the issue and the project docs. It changes neither what the job
+   delivers nor how other tasks are done. Decide. Don't raise it.
+2. **Worth the user's later look**: it changes what the job delivers or how
+   other tasks are done, or it departs from the plan, the issue or the
+   project docs. Decide it as set out below, record it in the log,
+   continue.
 3. **Not yours to take**: park it. Record it, prepare it so one step remains,
    and carry on with everything that doesn't depend on it.
 
@@ -142,6 +159,24 @@ merging to a shared or protected branch; deleting branches, worktrees, data or
 evidence; stopping processes the run didn't start; spending money or touching
 credentials; choosing the fallback when a proof or validation gate fails;
 anything the user reserved.
+
+A decision worth the user's later look is made in this order:
+
+1. Step back from the task to what the whole job is for.
+2. Gather the context: the project docs, what the user said at launch,
+   earlier decisions in the log, and the facts from the agent that raised
+   the question.
+3. Name the real options, with what each gains and costs.
+4. Decide on the merits: the option that best serves the goal, given that
+   context.
+5. Write the entry, then act on it.
+
+A few decisions are heavy: much of the later work builds on them. An
+architecture choice is one example. Before acting on one, give its Context
+and Options, without your Decision, to a new agent on the top model and ask
+what it would decide and why. Then settle it yourself and add to the entry
+what the challenge changed. This is for the few, not for every logged
+decision.
 
 ```
 ## D<n>: <the decision in a sentence> (<task ID>)
@@ -164,20 +199,22 @@ task can still start or is still running.
   check yourself when that is cheap.
 - **Bring each agent's commits onto the working branch** in a linear history
   (cherry-pick or rebase, no merge commits), then run the targeted tests on
-  the combined tree.
-- **One full-suite run at most**, by you, with no agent running, and only
-  where the project's testing rule calls for one. Suites run side by side
-  produce timing failures that aren't real.
+  the combined tree. Do this while no agent is writing in the current
+  checkout.
+- **Full-suite runs follow the project's testing rule.** Run them yourself,
+  one at a time, on a tree no agent is writing to.
+  Suites run side by side produce timing failures that aren't real.
 - **Review** as `--review` says. Confirm each finding against the code before
   acting on it, and send a confirmed fix to the agent that wrote the code.
 - **Leave worktrees and branches in place** and list them in the report.
 
 ## Ending
 
-The run ends when every task is done or parked. Report:
+The run ends when no task is running or can start. Report:
 
 - **Done**: per task, one line with its commit and the check that passed.
-- **Decisions**: how many, where the log is, and the few most worth a look.
+- **Decisions**: how many, where the log is, every decision that changed what
+  the job delivers, and the few others most worth a look.
 - **Needs you**: each parked item with your recommendation and the step that remains.
 - **Not done**: what is left and why.
 - **Left behind**: worktrees, branches, background jobs. Say plainly whether anything was pushed.
@@ -188,16 +225,17 @@ With `--delegate_agents`, read the `delegate` skill first. Each pool has its
 own limit, and you choose per task which pool it goes to. A full pool is no
 reason to push a task into one that suits it badly; let it wait.
 
-- **A delegate job** suits a self-contained task with a clear check: a port,
-  an audit, a contained fix, bulk mechanical work. It also suits a review
-  that should come from another model family. It spends none of this
-  session's usage, so lean on it when that is running short.
+- **A delegate job** suits a self-contained task with a clear check.
+  Examples: a port, an audit, a contained fix, bulk mechanical work. It also
+  suits a review that should come from another model family. It spends none
+  of this session's usage, so lean on it when that is running short.
 - **A local subagent** suits work that needs this session's tools, skills or
   connections, a task likely to take several rounds of follow-up, and
   everything for the top model.
 
 A delegate job counts against its CLI's limit and has its own worktree.
 `start` it with the brief as the task and the task's effort, run `wait` as a
-background command so its completion wakes you, review it with `diff`, and
+background command with `--timeout` set to the job's own limit, so that it
+wakes you once when the job ends, review it with `diff`, and
 bring its commits over as under Integrating. Its `--resume` continues a
 worker. A job that fails on the other CLI can go to a local subagent.

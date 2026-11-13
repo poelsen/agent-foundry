@@ -572,10 +572,11 @@ Claude Code only; installed by default.
 
 | Option | Default | Meaning |
 |--------|---------|---------|
-| `--local_agents N` | 2 | Most local subagents in flight at once, reviewers included |
+| `--local_agents N` | 2 | Most local subagents in flight at once, reviewers and top-model agents included. `0` leaves all agent work to the delegates |
 | `--delegate_agents N CLI[:MODEL]` | none | Most jobs in flight on another CLI through `delegate`. Repeat it per CLI or model; only the CLIs named are used |
-| `--model M[,TOP]` | `opus`, session's model | `M` runs the workers; `TOP` runs the hardest tasks: design, planning, a root cause that resists, a task a worker failed at twice |
+| `--model M[,TOP]` | `opus`, session's model | `M` runs the workers; `TOP` runs the few tasks where the reasoning is the hard part, for example design, planning, a root cause that resists, or a task a worker failed at twice |
 | `--max_effort E` | `auto` | The highest effort any agent runs at. Effort is chosen per task by complexity and blast radius; a named level caps it, and nothing runs above `xhigh` |
+| `--optimize GOAL` | `tokens` | `tokens` favours fewer, longer-lived agents; `speed` starts every ready task at once, up to the limits |
 | `--unattended` | off | Ask nothing, not even before launch |
 | `--review T` | `auto` | Final `review-process` tier, or `none` |
 | `--log PATH` | `docs/decision-log.md` | Decision log and task list |
@@ -583,26 +584,39 @@ Claude Code only; installed by default.
 ```
 /orchestrate --local_agents 4 --model opus,fable --unattended docs/plan.md
 /orchestrate --local_agents 2 --delegate_agents 2 codex:gpt-6.1-sol --delegate_agents 1 agy port the parser to Python
+/orchestrate --local_agents 20 --optimize speed --unattended the open issues labelled cleanup
 ```
 
 Mid-run, plain words change course: `drain` lets running agents finish and
 starts nothing new, `max 3 local` or `+2 codex` moves a limit, `status` prints
 the task table.
 
-**How a run avoids stalling.** Questions that change the work are asked once,
-before launch. After that the orchestrator decides what is routine or cheap to
-reverse, records the choices worth a later look in the decision log (context,
-options, decision, how to reverse it), and parks what is not its to take,
-such as pushes, deletions and failed proof gates, while the rest of the work
+**How a run avoids stalling.** Questions that only you can settle are asked
+once, before launch. After that the orchestrator decides what is routine
+without raising it. For a choice worth a later look it steps back to
+what the job is for, gathers the context, names the real options and decides
+on the merits, then records it in the decision log (context, options,
+decision, how to reverse it). A heavy decision, one that much later work
+builds on, is first put to an agent on the top model, which is not shown the
+orchestrator's choice. The orchestrator parks what is not its to take, such
+as pushes, deletions and failed proof gates, while the rest of the work
 continues. Agents are briefed to do the same: they cannot ask, so they report
 assumptions and blocked items instead. The closing report lists what is done,
-the decisions taken and what needs you.
+every decision that changed what the job delivers, and what needs you.
 
 **How it saves tokens.** The orchestrator reads little and delegates the
 rest, waits on completion notices instead of polling, asks for short reports,
 and continues an existing agent for follow-up work so nothing is read twice.
-It chooses per task whether to continue an agent or start a new one, and
-gives agents that write at the same time a worktree each.
+It chooses per task whether to continue an agent or start a new one. With
+`--optimize tokens`, the default, a task waits for the agent that already
+knows its files and only unrelated areas run side by side; `--optimize speed`
+starts every ready task at once, up to the limits.
+
+**How it keeps agents apart.** Agents that write at the same time get a
+worktree each, and every agent first checks that its checkout contains the
+commit its task builds on. Agents verify with targeted tests; the
+orchestrator runs the full suite where the project's testing rule calls for
+it, one run at a time.
 
 **Before you leave a run alone**, put the session in a permission mode that
 does not prompt for the commands the job needs. A permission prompt stops a
