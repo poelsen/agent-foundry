@@ -54,8 +54,7 @@ changes them, and plain words work mid-run:
    that is lower, and have it return the task breakdown.
 3. List what you would need the user to decide. Strike every item that
    Decisions makes yours. Attended: ask what is left once, together, before
-   anything launches. Unattended: ask nothing, and sort what is left as
-   under Decisions.
+   anything launches. Unattended: ask nothing and park what is left.
 4. Write the options in effect and the task list at the top of the log. The
    task list has ID, state, agent, branch. Where the project's rules say
    work is tracked in issues, each task carries its issue ID, filed first if
@@ -125,10 +124,10 @@ in a file and give its path.
   launch, when the work follows from what it has already read. Examples:
   answering its question, fixing review findings on its own change, the next
   step in the same files, picking up after a limit or an error. For a new
-  task, continue an agent only when its checkout holds what that task builds
-  on, and give it the new Base to check. Start a new agent for an unrelated
-  task, when an agent's reports turn vague or repetitive, and for every
-  review: a reviewer never wrote the code it reads.
+  task, continue an agent only when the task builds on nothing its checkout
+  lacks, and give it as Base its own last commit. Start a new agent for an
+  unrelated task, when an agent's reports turn vague or repetitive, and for
+  every review: a reviewer never wrote the code it reads.
 - **Don't stop a running agent to change its brief**; message it. Stop one
   only when it is doing damage or the user says so. Finished agents can be
   left: they cost nothing and stay addressable.
@@ -236,7 +235,7 @@ reason to push a task into one that suits it badly; let it wait.
 
 A delegate job counts against its CLI's limit and has its own worktree.
 `start` it with the brief as the task and the task's effort, run `wait` as a
-background command with `--wait` set to the job's own timeout, so that it
+background command with `--timeout` set to the job's own limit, so that it
 wakes you once when the job ends, review it with `diff`, and
 bring its commits over as under Integrating. Its `--resume` continues a
 worker. A job that fails on the other CLI can go to a local subagent.
