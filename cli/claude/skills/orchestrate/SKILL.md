@@ -52,8 +52,7 @@ changes them, and plain words work mid-run:
    give that to one agent on the top model at `high` effort, or the cap if
    that is lower, and have it return the task breakdown.
 3. List what you would need the user to decide. Strike every item that has a
-   conventional answer or is cheap to reverse; those are yours (see
-   Decisions). Attended: ask what is left once, together, before anything
+   conventional answer; those are yours (see Decisions). Attended: ask what is left once, together, before anything
    launches. Unattended: ask nothing.
 4. Write the task list at the top of the log: ID, state, agent, branch. Where
    the project tracks work in issues, each task carries its issue ID, filed
@@ -137,8 +136,8 @@ in a file and give its path.
 
 When a question comes up, whether yours or in an agent's report:
 
-1. **Routine or cheap to reverse** (a name, an internal design choice, which
-   of two workable approaches): decide. Don't raise it.
+1. **Routine** (a name, an internal design choice, which of two workable
+   approaches): decide. Don't raise it.
 2. **Worth the user's later look**: decide it as set out below, record it
    in the log, continue.
 3. **Not yours to take**: park it. Record it, prepare it so one step remains,

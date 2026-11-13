@@ -592,8 +592,8 @@ starts nothing new, `max 3 local` or `+2 codex` moves a limit, `status` prints
 the task table.
 
 **How a run avoids stalling.** Questions that change the work are asked once,
-before launch. After that the orchestrator decides what is routine or cheap to
-reverse without raising it. For a choice worth a later look it steps back to
+before launch. After that the orchestrator decides what is routine without
+raising it. For a choice worth a later look it steps back to
 what the job is for, gathers the context, names the real options and decides
 on the merits, then records it in the decision log (context, options,
 decision, how to reverse it). A heavy decision, one that much later work
