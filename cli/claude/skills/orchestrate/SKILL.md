@@ -22,8 +22,8 @@ can go on for hours.
 |--------|---------|---------|
 | `--local_agents N` | 2 | Most local subagents in flight at once, reviewers and top-model agents included. `0` leaves all agent work to the delegates |
 | `--delegate_agents N CLI[:MODEL]` | none | Most jobs in flight on another agent CLI, through the `delegate` skill. Repeat it for each CLI or model. Only the CLIs named are used |
-| `--model M[,TOP]` | `opus`, session's model | `M` runs the worker agents. `TOP` runs the few tasks where the reasoning is the hard part: design and architecture, planning, a root cause that resists, a task a worker failed at twice. Most tasks stay on `M` |
-| `--max_effort E` | `auto` | The highest effort any agent runs at. You set effort per task: `medium` for normal work, `high` for complex work, `xhigh` for complex work with a wide blast radius (shared, core or native code). `auto` leaves that ladder as it is; a named level caps it. Nothing runs above `xhigh` |
+| `--model M[,TOP]` | `opus`, session's model | `M` runs the worker agents. `TOP` runs the few tasks where the reasoning is the hard part. Examples: design and architecture, planning, a root cause that resists, a task a worker failed at twice. Most tasks stay on `M` |
+| `--max_effort E` | `auto` | The highest effort any agent runs at. You set effort per task: `medium` for normal work, `high` for complex work, `xhigh` for complex work with a wide blast radius (for example shared, core or native code). `auto` leaves that ladder as it is; a named level caps it. Nothing runs above `xhigh` |
 | `--optimize GOAL` | `tokens` | What to favour when the two pull apart: `tokens` or `speed` |
 | `--unattended` | off | The user is away: ask nothing, not even before launch |
 | `--review T` | `auto` | Final review through `review-process` at tier T; `none` skips it. `auto` is T2 for an unattended run or a change that other code depends on, and your own read of the diff otherwise |
@@ -99,8 +99,8 @@ in a file and give its path.
 - **Launch a wave in one message**, within each pool's limit. A reviewer
   counts in the pool it runs in.
 - **One writer per checkout.** Agents that write at the same time each get
-  their own worktree. When a task needs state a new worktree lacks (a built
-  environment, uncommitted or untracked files, a single device), run it in
+  their own worktree. When a task needs state a new worktree lacks (for
+  example a built environment, uncommitted files, a single device), run it in
   the current checkout with no other writer active. Agents that only read
   work in the current checkout. A worktree starts from the default branch
   unless the project's settings set `worktree.baseRef` to `head`, which
@@ -117,18 +117,19 @@ in a file and give its path.
   context. A long external job is one background run and its completion
   notice, plus a single long timer only if it can hang.
 - **Continue before you spawn.** Message an existing agent, by the ID from its
-  launch, when the work follows from what it has already read: answering its
-  question, fixing review findings on its own change, the next step in the
-  same files, picking up after a limit or an error. Start a new agent for an
-  unrelated task, when an agent's reports turn vague or repetitive, and
-  for every review: a reviewer never wrote the code it reads.
+  launch, when the work follows from what it has already read. Examples:
+  answering its question, fixing review findings on its own change, the next
+  step in the same files, picking up after a limit or an error. Start a new
+  agent for an unrelated task, when an agent's reports turn vague or
+  repetitive, and for every review: a reviewer never wrote the code it
+  reads.
 - **Don't stop a running agent to change its brief**; message it. Stop one
   only when it is doing damage or the user says so. Finished agents can be
   left: they cost nothing and stay addressable.
-- **An agent that ended early** (usage limit, capacity error, crash) gets
-  "continue from where you stopped". A capacity error from another vendor is
-  transient: wait about 20 seconds and retry, a handful of times, before
-  counting it as failed.
+- **An agent that ended early** (for example on a usage limit, a capacity
+  error or a crash) gets "continue from where you stopped". A capacity
+  error from another vendor is transient: wait about 20 seconds and retry,
+  a handful of times, before counting it as failed.
 - **A task that failed twice the same way** isn't run a third time unchanged.
   Split it again, change the approach, move it to the top model, or park it.
 
@@ -164,11 +165,11 @@ A decision worth the user's later look is made in this order:
    context.
 5. Write the entry, then act on it.
 
-A few decisions are heavy: much of the later work builds on them, as with
-an architecture choice. Before acting on one, give the entry and its
-context to a new agent on the top model and ask what it would decide and
-why. Then settle it yourself and add to the entry what the challenge
-changed. This is for the few, not for every logged decision.
+A few decisions are heavy: much of the later work builds on them. An
+architecture choice is one example. Before acting on one, give the entry
+and its context to a new agent on the top model and ask what it would
+decide and why. Then settle it yourself and add to the entry what the
+challenge changed. This is for the few, not for every logged decision.
 
 ```
 ## D<n>: <the decision in a sentence> (<task ID>)
@@ -216,10 +217,10 @@ With `--delegate_agents`, read the `delegate` skill first. Each pool has its
 own limit, and you choose per task which pool it goes to. A full pool is no
 reason to push a task into one that suits it badly; let it wait.
 
-- **A delegate job** suits a self-contained task with a clear check: a port,
-  an audit, a contained fix, bulk mechanical work. It also suits a review
-  that should come from another model family. It spends none of this
-  session's usage, so lean on it when that is running short.
+- **A delegate job** suits a self-contained task with a clear check.
+  Examples: a port, an audit, a contained fix, bulk mechanical work. It also
+  suits a review that should come from another model family. It spends none
+  of this session's usage, so lean on it when that is running short.
 - **A local subagent** suits work that needs this session's tools, skills or
   connections, a task likely to take several rounds of follow-up, and
   everything for the top model.

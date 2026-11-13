@@ -574,7 +574,7 @@ Claude Code only; installed by default.
 |--------|---------|---------|
 | `--local_agents N` | 2 | Most local subagents in flight at once, reviewers included |
 | `--delegate_agents N CLI[:MODEL]` | none | Most jobs in flight on another CLI through `delegate`. Repeat it per CLI or model; only the CLIs named are used |
-| `--model M[,TOP]` | `opus`, session's model | `M` runs the workers; `TOP` runs the hardest tasks: design, planning, a root cause that resists, a task a worker failed at twice |
+| `--model M[,TOP]` | `opus`, session's model | `M` runs the workers; `TOP` runs the few tasks where the reasoning is the hard part, for example design, planning, a root cause that resists, or a task a worker failed at twice |
 | `--max_effort E` | `auto` | The highest effort any agent runs at. Effort is chosen per task by complexity and blast radius; a named level caps it, and nothing runs above `xhigh` |
 | `--optimize GOAL` | `tokens` | `tokens` favours fewer, longer-lived agents; `speed` starts every ready task at once, up to the limits |
 | `--unattended` | off | Ask nothing, not even before launch |
