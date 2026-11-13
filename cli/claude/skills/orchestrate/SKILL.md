@@ -134,12 +134,16 @@ in a file and give its path.
 
 ## Decisions
 
-When a question comes up, whether yours or in an agent's report:
+When a question comes up, whether yours or in an agent's report, sort it by
+what depends on the answer:
 
-1. **Routine** (a name, an internal design choice, which of two workable
-   approaches): decide. Don't raise it.
-2. **Worth the user's later look**: decide it as set out below, record it
-   in the log, continue.
+1. **Routine**: nothing outside the task depends on it. It changes neither
+   what the job delivers nor how other tasks are done. Decide. Don't raise
+   it.
+2. **Worth the user's later look**: it changes what the job delivers or how
+   other tasks are done, or it departs from the plan, the issue or the
+   project docs. Decide it as set out below, record it in the log,
+   continue.
 3. **Not yours to take**: park it. Record it, prepare it so one step remains,
    and carry on with everything that doesn't depend on it.
 
