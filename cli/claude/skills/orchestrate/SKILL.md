@@ -1,7 +1,7 @@
 ---
 name: orchestrate
 description: Orchestrate a larger job over a bounded set of local subagents and delegate jobs. Options set counts, models, effort and unattended running. Runs only when the user invokes /orchestrate.
-argument-hint: "[--local_agents N] [--delegate_agents N CLI[:MODEL]]... [--model M[,TOP]] [--max_effort E] [--optimize GOAL] [--unattended] [--review TIER|none] [--log PATH] <task>"
+argument-hint: "[--local_agents N (2)] [--delegate_agents N CLI[:MODEL]]... [--model M[,TOP] (opus,session)] [--max_effort E (auto)] [--optimize tokens|speed (tokens)] [--unattended] [--review TIER|none (auto)] [--log PATH (docs/decision-log.md)] <task>"
 disable-model-invocation: true
 ---
 
