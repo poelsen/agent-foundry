@@ -283,6 +283,85 @@ def test_cross_cli_skills_follow_selected_clis(tmp_path: Path):
     assert "megamind-financial" not in with_codex.skills
 
 
+def _unselect_in_skill_menu(monkeypatch, *labels: str) -> None:
+    """Fake the menus: every one is accepted as offered, except that the
+    Skills menu has the named entries (a skill or a group label) turned off."""
+    def _menu(title, items, selected, required_one=False):
+        chosen = set(selected)
+        if title == "Skills":
+            for label in labels:
+                chosen -= {i for i, item in enumerate(items) if item.startswith(label)}
+        return chosen
+
+    monkeypatch.setattr("foundry.selection.toggle_menu", _menu)
+    monkeypatch.setattr("builtins.input", lambda *_: "")
+
+
+def test_unselected_default_skill_stays_off(tmp_path: Path, monkeypatch):
+    _unselect_in_skill_menu(monkeypatch, "review-process")
+    first = run_selection(tmp_path, None, interactive=True, cli_private_sources=None)
+    assert "review-process" not in first.skills
+    assert first.declined_skills == ["review-process"]
+
+    manifest = {"skills": first.skills, "declined_skills": first.declined_skills}
+    update = run_selection(tmp_path, manifest, interactive=False, cli_private_sources=None)
+    assert "review-process" not in update.skills
+    assert update.declined_skills == ["review-process"]
+    assert {"orchestrate", "megamind-deep"} <= set(update.skills)  # other defaults still apply
+
+
+def test_unselected_default_group_stays_off(tmp_path: Path, monkeypatch):
+    _unselect_in_skill_menu(monkeypatch, "Megamind Reasoning")
+    first = run_selection(tmp_path, None, interactive=True, cli_private_sources=None)
+    manifest = {"skills": first.skills, "declined_skills": first.declined_skills}
+    update = run_selection(tmp_path, manifest, interactive=False, cli_private_sources=None)
+    assert not [s for s in update.skills if s.startswith("megamind-")]
+
+
+def test_selecting_a_declined_skill_again_clears_it(tmp_path: Path, monkeypatch):
+    def _menu(title, items, selected, required_one=False):
+        return set(range(len(items))) if title == "Skills" else set(selected)
+
+    monkeypatch.setattr("foundry.selection.toggle_menu", _menu)
+    monkeypatch.setattr("builtins.input", lambda *_: "")
+    manifest = {"skills": ["orchestrate"], "declined_skills": ["review-process"]}
+    result = run_selection(tmp_path, manifest, interactive=True, cli_private_sources=None)
+    assert "review-process" in result.skills
+    assert result.declined_skills == []
+
+
+def test_default_skill_reaches_a_project_that_never_declined_it(tmp_path: Path):
+    """A manifest written before a skill became a default still gets it."""
+    manifest = {"skills": ["megamind-deep"]}
+    update = run_selection(tmp_path, manifest, interactive=False, cli_private_sources=None)
+    assert {"review-process", "orchestrate"} <= set(update.skills)
+    assert update.declined_skills == []
+
+
+def test_unselected_skill_survives_going_back_in_the_menu(tmp_path: Path, monkeypatch):
+    """Revisiting the Skills step in one session does not re-select what was turned off."""
+    from foundry.console import GoBack
+    offered: list[set[str]] = []
+    went_back: list[bool] = []
+
+    def _menu(title, items, selected, required_one=False):
+        chosen = set(selected)
+        if title == "Skills":
+            offered.append({items[i] for i in selected})
+            chosen -= {i for i, item in enumerate(items) if item == "review-process"}
+        if title == "Plugins" and not went_back:
+            went_back.append(True)
+            raise GoBack()
+        return chosen
+
+    monkeypatch.setattr("foundry.selection.toggle_menu", _menu)
+    monkeypatch.setattr("builtins.input", lambda *_: "")
+    result = run_selection(tmp_path, None, interactive=True, cli_private_sources=None)
+    assert len(offered) == 2 and "review-process" in offered[0]
+    assert "review-process" not in offered[1]
+    assert "review-process" not in result.skills
+
+
 def test_skipped_menus_keep_manifest_choices(tmp_path: Path, monkeypatch):
     _record_menus(monkeypatch)
     manifest = {"hooks": ["ruff-format.sh"], "agents": ["code-reviewer-python.md"], "skills": []}

@@ -48,6 +48,7 @@ class SelectionResult:
     hooks: list[str] = field(default_factory=list)
     agents: list[str] = field(default_factory=list)
     skills: list[str] = field(default_factory=list)
+    declined_skills: list[str] = field(default_factory=list)
     plugins: list[str] = field(default_factory=list)
     mcp_servers: list[str] = field(default_factory=list)
     pending_private: list[dict] = field(default_factory=list)
@@ -132,6 +133,10 @@ def run_selection(
     if interactive and not cli_private_sources and _applies("private"):
         STEPS.append("private")
     saved_steps: dict[str, set[int]] = {}
+    # Skills the user turned off in the menu. A default (default-on set,
+    # detection, default group) never selects one of these again; choosing
+    # the skill in the menu takes it off the list.
+    declined_skills: set[str] = set(manifest.get("declined_skills", [])) if manifest else set()
     saved_plugin_names: set[str] | None = None
     pending_private: list[dict] = []
     step = 0
@@ -238,17 +243,18 @@ def run_selection(
                 elif name == "skills":
                     sfd = _for_detection()
                     if "skills" in saved_steps:
-                        auto = saved_steps["skills"]
+                        auto = set(saved_steps["skills"])
                     elif manifest:
                         auto = _manifest_indices(SKILLS, "skills")
                     else:
                         auto = set()
+                    defaults: set[int] = set()
                     # Detection-based auto-selects (platform-specific)
                     for i, skill in enumerate(SKILLS):
                         if skill == "gui-threading" and "desktop-gui-qt.md" in sfd:
-                            auto.add(i)
+                            defaults.add(i)
                         if skill == "python-qt-gui" and "desktop-gui-qt.md" in sfd:
-                            auto.add(i)
+                            defaults.add(i)
                     # Default-on individual skills (the small always-useful set)
                     always_on = {"update-foundry", "private-list", "private-remove",
                                  "review-process", "orchestrate"}
@@ -258,12 +264,13 @@ def run_selection(
                         always_on.add("delegate")
                     for i, skill in enumerate(SKILLS):
                         if skill in always_on:
-                            auto.add(i)
+                            defaults.add(i)
                     default_groups = ("Megamind Reasoning",)
                     for group_name in default_groups:
                         for skill in SKILL_GROUPS[group_name]:
                             if skill in SKILLS:
-                                auto.add(SKILLS.index(skill))
+                                defaults.add(SKILLS.index(skill))
+                    auto |= {i for i in defaults if SKILLS[i] not in declined_skills}
 
                     # Build the visible menu: groups first, then ungrouped
                     # skills; HIDDEN_SKILLS never appear (none today).
@@ -302,6 +309,9 @@ def run_selection(
                         else:
                             final -= idxs
                     saved_steps["skills"] = final
+                    if ask:
+                        declined_skills |= {SKILLS[i] for i in auto - final}
+                    declined_skills -= {SKILLS[i] for i in final}
 
                 elif name == "plugins":
                     sfd = _for_detection()
@@ -447,6 +457,7 @@ def run_selection(
         hooks=selected_hooks,
         agents=selected_agents,
         skills=selected_skills,
+        declined_skills=sorted(declined_skills & set(SKILLS)),
         plugins=selected_plugins,
         mcp_servers=mcp_servers,
         pending_private=pending_private,

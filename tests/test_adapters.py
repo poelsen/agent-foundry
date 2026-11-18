@@ -185,6 +185,31 @@ def test_interactive_drop_needs_confirmation(tmp_path: Path, monkeypatch, capsys
     assert "Keeping OpenAI Codex CLI as a target." in capsys.readouterr().out
 
 
+def test_skill_unselected_in_setup_is_not_deployed_by_a_later_update(tmp_path: Path, monkeypatch):
+    (tmp_path / "pyproject.toml").write_text('name = "x"\n')
+
+    def _menu(title, items, selected, **_):
+        chosen = set(selected)
+        if title == "Skills":
+            chosen -= {i for i, item in enumerate(items) if item == "review-process"}
+        return chosen
+
+    monkeypatch.setattr("foundry.orchestrator.toggle_menu", lambda t, items, sel, **k: set(sel))
+    monkeypatch.setattr("foundry.selection.toggle_menu", _menu)
+    monkeypatch.setattr("foundry.orchestrator.confirm", lambda msg, **k: True)
+    monkeypatch.setattr("builtins.input", lambda *_: "")
+    assert cmd_init(tmp_path, interactive=True)
+    skill = tmp_path / ".claude" / "skills" / "review-process"
+    manifest_path = tmp_path / ".claude" / "setup-manifest.json"
+    assert not skill.exists()
+    assert json.loads(manifest_path.read_text())["declined_skills"] == ["review-process"]
+
+    assert cmd_init(tmp_path, interactive=False)  # what an update runs
+    assert not skill.exists()
+    assert (tmp_path / ".claude" / "skills" / "orchestrate").is_dir()
+    assert json.loads(manifest_path.read_text())["declined_skills"] == ["review-process"]
+
+
 def test_main_exit_codes(tmp_path: Path):
     import subprocess
     setup = Path(__file__).parent.parent / "tools" / "setup.py"

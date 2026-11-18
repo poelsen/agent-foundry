@@ -300,9 +300,11 @@ The skill menu in `setup.py init` presents related skills as **groups**, not ind
 | **Megamind Reasoning** | `megamind-deep`, `megamind-creative`, `megamind-adversarial` | on |
 | **Writing** | `writer`, `humanizer` | off (opt-in) |
 
-Megamind Reasoning is **on by default**; Writing is **off by default** — toggle it on to deploy the drafting pipeline (`writer` drafts in the author's voice with ten selectable presets, then invokes `humanizer` for the anti-AI audit; the pair deploys together because the hand-off requires both). Ungrouped skills appear as individual entries. `update-foundry`, `private-list`, `private-remove`, `review-process`, `orchestrate`, `copilot-cli`, `codex-cli`, `agy-cli` and `delegate` are on by default; `megamind-financial`, `clickhouse-io`, `gui-threading` and `python-qt-gui` are off unless detection or you turn them on; `copilot-cli`, `codex-cli`, `agy-cli` and `delegate` come on with the matching target CLI.
+Megamind Reasoning is **on by default**; Writing is **off by default** — toggle it on to deploy the drafting pipeline (`writer` drafts in the author's voice with ten selectable presets, then invokes `humanizer` for the anti-AI audit; the pair deploys together because the hand-off requires both). Ungrouped skills appear as individual entries. `update-foundry`, `private-list`, `private-remove`, `review-process`, `orchestrate`, `sql-lean`, `copilot-cli`, `codex-cli`, `agy-cli` and `delegate` are on by default; `megamind-financial`, `clickhouse-io`, `gui-threading` and `python-qt-gui` are off unless detection or you turn them on; `copilot-cli`, `codex-cli`, `agy-cli` and `delegate` come on with the matching target CLI.
 
 The manifest still stores individual skill names (not group names), so existing projects keep working without migration.
+
+A skill or group you turn off in the menu stays off. The manifest records it under `declined_skills`, and no default selects it again on a later update: not the default-on set, not detection, not a default group. Selecting it in the menu takes it off that list. A skill that becomes a default in a later release still reaches every project that has not turned it off.
 
 ## Private Sources
 
@@ -501,7 +503,7 @@ python3 tools/run_swebench_agentic.py --model <copilot-model> --instances pallet
 
 A tiered review-orchestration skill that turns scattered reviewers into a disciplined workflow. Default-on in `setup.py init`; activates on `/review-process` or whenever a change/decision/PR is about to be reviewed.
 
-> **Rollout note for existing projects.** `review-process` is in the `always_on` set, so it auto-appears on the next `/update-foundry` even if it's missing from a stale manifest. The skill is dormant until invoked — adding the files costs ~30 KB on disk and zero runtime overhead until you use `/review-process`. To remove it, delete `.claude/skills/review-process/` after the update; foundry will re-add it on the run after that unless you also remove it from `always_on` in `tools/foundry/selection.py`. If this default-on behavior is unwanted, file an issue and we'll move it to a normal opt-in toggle.
+> **Rollout note for existing projects.** `review-process` is in the `always_on` set, so it auto-appears on the next `/update-foundry` even if it's missing from a stale manifest, unless the project turned it off in the skill menu. The skill is dormant until invoked — adding the files costs ~30 KB on disk and zero runtime overhead until you use `/review-process`. To remove it, delete `.claude/skills/review-process/` after the update; foundry will re-add it on the run after that unless you also remove it from `always_on` in `tools/foundry/selection.py`. If this default-on behavior is unwanted, file an issue and we'll move it to a normal opt-in toggle.
 
 ### What it adds
 
