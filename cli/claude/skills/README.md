@@ -119,6 +119,16 @@ Real-world validation comes from usage by software engineers who report that the
 |-------|---------|-------------|
 | [clickhouse-io](clickhouse-io/) | ClickHouse analytics patterns | Data engineering |
 
+### Database access
+
+| Skill | Purpose | When to Use |
+|-------|---------|-------------|
+| [sql-lean](sql-lean/) | Database access from application code that stays cheap at full data size: work done once, narrow reads, set reads, indexes that serve each lookup, measurement on real-size data | Writing, changing or reviewing code that runs SQL or processes rows from a database |
+
+Loads by itself from its description, so it is not typed. Installed by
+default and portable to every target CLI. See the top-level
+[README — Database access section](../README.md#database-access).
+
 ### Copilot CLI
 
 | Skill | Purpose | When to Use |

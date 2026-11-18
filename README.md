@@ -23,7 +23,7 @@ Pick targets with `--clis claude,copilot,codex,agy` (or the interactive menu, wh
 **Shared outputs.** Files that several CLIs read — `AGENTS.md`, `.agents/skills/`, `.mcp.json` — are written once per run for all selected targets, not once per adapter:
 
 - **`AGENTS.md`** is every CLI's instructions file, Claude Code's included — see [AGENTS.md Convention](#agentsmd-convention). It gets a marker-wrapped block with the portable coding-standard rules that apply to every task. Rules for specific files (language rules and the templates tied to a file type) are scoped instead; see [Scoped rules](#scoped-rules). The Claude-only `agents.md` rule goes to `.claude/rules/`, which Claude Code loads alongside `AGENTS.md`. The block is capped at 20 KB because other CLIs silently truncate large instruction files (Antigravity at 24,000 bytes per file, Codex at 32 KiB in total). Rules that don't fit go to `.agents/rules/foundry-<rule>.md` — with Antigravity `trigger:` frontmatter, so Antigravity loads them natively — and `AGENTS.md` points to them.
-- **`.agents/skills/`** is the cross-vendor skill root (Copilot CLI, Codex and Antigravity all load it). Only portable skills go there — megamind ×4, `clickhouse-io`, `gui-threading`, `python-qt-gui`, `writer`, `humanizer`, `update-foundry`, the cross-model CLI references `copilot-cli`, `codex-cli`, `agy-cli`, and `delegate` (see [Delegation](#delegation)). Deploying adapts them without touching the Claude sources: Claude-only frontmatter (`model`, `allowed-tools`) is dropped, `.claude/skills/` paths and `Skill(x)` calls are rewritten, and a `SKILL.md` over 8 KB (Codex's limit for an explicitly invoked skill) becomes a short pointer to the unchanged text in `SKILL.full.md`. Skills tied to Claude-only state — `private-*` (private sources), `review-process` (Claude reviewer agents) — stay Claude Code-only.
+- **`.agents/skills/`** is the cross-vendor skill root (Copilot CLI, Codex and Antigravity all load it). Only portable skills go there — megamind ×4, `clickhouse-io`, `sql-lean`, `gui-threading`, `python-qt-gui`, `writer`, `humanizer`, `update-foundry`, the cross-model CLI references `copilot-cli`, `codex-cli`, `agy-cli`, and `delegate` (see [Delegation](#delegation)). Deploying adapts them without touching the Claude sources: Claude-only frontmatter (`model`, `allowed-tools`) is dropped, `.claude/skills/` paths and `Skill(x)` calls are rewritten, and a `SKILL.md` over 8 KB (Codex's limit for an explicitly invoked skill) becomes a short pointer to the unchanged text in `SKILL.full.md`. Skills tied to Claude-only state — `private-*` (private sources), `review-process` (Claude reviewer agents) — stay Claude Code-only.
 - `.agents/` is shared with other tools, so every file the foundry writes there carries an ownership marker and updates only ever prune marked content.
 
 **Codex specifics.** Codex reads `AGENTS.md` and `.agents/skills/` in any project, but everything under `.codex/` (agents, MCP servers, hooks) only once the project is trusted — setup prints how to trust it (`codex` → accept the prompt, or `[projects."<path>"] trust_level = "trusted"` in `~/.codex/config.toml`). Hooks additionally stay inert until you approve each one in Codex's `/hooks`. The foundry only rewrites its own marked block in `.codex/config.toml`, its own agent files and its own hook group, so project settings in those files survive updates. Agents without write tools (architect, code-reviewer) run in Codex's `read-only` sandbox.
@@ -209,12 +209,13 @@ Everything is copied into `<project>/.claude/`:
 |-----------|--------|--------------|
 | **Rules** | `common/rules/` + `common/rule-library/` | Markdown files that instruct the agent on coding standards, security, git workflow, testing methodology (cross-CLI) |
 | **Agents** | `cli/claude/agents/` | Specialized sub-agents for code review, security analysis, E2E tests and dead-code cleanup (Claude Code) |
-| **Skills** | `cli/claude/skills/` | Domain knowledge modules (megamind reasoning, writing pipeline with voice presets, GUI threading, ClickHouse) |
+| **Skills** | `cli/claude/skills/` | Domain knowledge modules (megamind reasoning, lean database access, writing pipeline with voice presets, GUI threading, ClickHouse) |
 | **Hooks** | `cli/claude/hooks/library/` | Shell scripts that run before/after Claude Code tool calls (formatters, type checkers) |
 | **MCP servers** | `common/mcp/` | Cross-vendor MCP configs (deployed to `.mcp.json`) |
 | **Plugins** | configured in `settings.json` | LSP servers |
 | **Copilot CLI** | `cli/claude/skills/copilot-cli/` | Thin reference skill for the local GitHub Copilot CLI — lets review-process run non-Claude models. See [Copilot CLI](#copilot-cli). |
 | **Orchestration** | `cli/claude/skills/orchestrate/` | `/orchestrate` runs a larger job over a bounded set of subagents, with options for how many local and delegate agents run, the model, effort and unattended running. See [Orchestration](#orchestration). |
+| **Database access** | `cli/claude/skills/sql-lean/` | `sql-lean` loads by itself when code that runs SQL is written or reviewed, and keeps that code cheap at full data size. See [Database access](#database-access). |
 | **Delegation** | `cli/claude/skills/delegate/` | Any target CLI hands tasks to any other (Claude Code, Codex, Antigravity, Copilot) as managed jobs: own worktree, policy, audit log, review gate. See [Delegation](#delegation). |
 
 ## Rules
@@ -623,6 +624,25 @@ it, one run at a time.
 **Before you leave a run alone**, put the session in a permission mode that
 does not prompt for the commands the job needs. A permission prompt stops a
 run the same way a question does.
+
+## Database access
+
+`sql-lean` is for code that runs SQL or processes rows read from a database.
+Such code is written and tested on a few items, where every version is fast;
+what it costs shows only at full data size. The skill has the agent settle
+that while it writes:
+
+| When | What the agent does |
+|------|---------------------|
+| Before writing | Finds the table sizes, states how many times the code runs at full size and what one run costs, and looks for a batch reader or stored result that already exists |
+| While writing | Does each piece of work once, reads only what the caller uses, narrows to the wanted keys in the query, writes the set form first, checks that an index serves each lookup, and writes in batches |
+| Before finishing | Measures on real-size data, shows the query plan, confirms the results are unchanged, and pins the behaviour with a test where the project does that |
+
+There is nothing to type. The skill's description tells the agent to load it
+before writing, changing or reviewing database code. It is installed by
+default and deploys to every target CLI. The method applies to any SQL
+database; the engine notes cover SQLite and PostgreSQL. Where the data is
+small and stays small, it asks for the simple version.
 
 ## Delegation
 

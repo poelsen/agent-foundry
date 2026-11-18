@@ -57,8 +57,26 @@ A function over 50 lines or a leftover debug statement is usually LOW. It rises 
 - Missing generators for large sequences
 - Repeated computation in loops (hoist invariants)
 - Missing caching (`functools.lru_cache` where appropriate)
-- N+1 queries (ORM lazy loading)
 - Wrong data structure (list lookup instead of set/dict)
+
+## Database access
+
+For a change that runs SQL or processes rows read from a database.
+
+Establish the scale first: the row counts of the tables involved and how many items the changed code runs for. Take them from the project's database notes, or count on a database you can open read-only. A pattern below is a finding only at a scale where it costs something. When you cannot establish the scale, say that in the finding instead of guessing.
+
+- A query, a connection or a commit inside a loop over data, including inside a function the loop calls (read one level into the callee; ORM lazy loading counts)
+- Work that does not depend on the loop variable done inside the loop: a lookup rebuilt, a reference table reloaded, the same payload decoded again
+- A single-item reader called per item where a batch reader exists or the query could take the whole set (search the module for one)
+- More read than used: every column or a whole record where the caller uses a few fields, or a full read to answer an existence or single-row question
+- Rows filtered, ranked or aggregated in Python that the query could have narrowed first
+- A lookup its index cannot serve: a function around the indexed column, differing types (in SQLite, untyped columns from `CREATE TABLE AS SELECT`), a later column of a composite index without the leading ones, a temporary table joined without an index, an unindexed `DELETE` or `UPDATE` predicate, a correlated subquery over an unindexed lookup
+- One insert or one commit per row
+- A change made for speed with no measurement, or whose results were not compared with the old ones
+
+Where a database or its schema is available, run the plan of each new or changed query (`EXPLAIN QUERY PLAN` in SQLite, plain `EXPLAIN` in PostgreSQL) and cite it as evidence. Open the database read-only and run no statement that writes.
+
+`.claude/skills/sql-lean/SKILL.md`, when present, is the method the author is expected to have followed.
 
 ## Best Practices
 
