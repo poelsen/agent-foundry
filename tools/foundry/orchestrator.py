@@ -313,6 +313,7 @@ def cmd_init(
         "hooks": selected_hooks,
         "agents": selected_agents,
         "skills": selected_skills,
+        "declined_skills": result.declined_skills,
         "plugins": selected_plugins,
         "mcp_servers": mcp_servers,
     }
