@@ -257,7 +257,7 @@ def run_selection(
                             defaults.add(i)
                     # Default-on individual skills (the small always-useful set)
                     always_on = {"update-foundry", "private-list", "private-remove",
-                                 "review-process", "orchestrate"}
+                                 "review-process", "orchestrate", "sql-lean"}
                     others = [c for c in clis if c != "claude"]
                     always_on |= {f"{c}-cli" for c in others}
                     if others:

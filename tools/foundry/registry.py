@@ -188,7 +188,7 @@ HOOK_SCRIPTS = {
 }
 
 SKILLS = [
-    "clickhouse-io", "gui-threading", "python-qt-gui",
+    "clickhouse-io", "sql-lean", "gui-threading", "python-qt-gui",
     "megamind-deep", "megamind-creative", "megamind-adversarial", "megamind-financial",
     "delegate", "review-process", "orchestrate",
     "update-foundry", "private-list", "private-remove",
@@ -223,7 +223,7 @@ SKILL_GROUPS: dict[str, list[str]] = {
 # orchestrate → Claude Code's subagent tools).
 PORTABLE_SKILLS: set[str] = {
     "megamind-deep", "megamind-creative", "megamind-adversarial", "megamind-financial",
-    "clickhouse-io", "gui-threading", "python-qt-gui", "writer", "humanizer",
+    "clickhouse-io", "sql-lean", "gui-threading", "python-qt-gui", "writer", "humanizer",
     "update-foundry", "copilot-cli", "codex-cli", "agy-cli", "delegate",
 }
 
