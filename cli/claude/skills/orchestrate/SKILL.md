@@ -75,6 +75,7 @@ Scope: <files or modules this task owns>. Out of scope: <what to leave alone>
 Base: <the commit this task builds on, from `git rev-parse HEAD`>
 Done when: <the test, command or behaviour that shows it>
 Verify with: <targeted test command>. Don't run the whole suite.
+Long runs: <each command expected to take more than a few minutes, and how long>
 
 Rules for this job
 - First run `git merge-base --is-ancestor <Base> HEAD`. If it fails, your
@@ -91,6 +92,9 @@ Rules for this job
   branch deletion. Run `git branch --show-current` before your first commit
   and after your last; stop and report if it changed.
 - Stay inside Scope. Note anything else you find under Found; don't fix it.
+- A command that runs for more than a few minutes: start it in the
+  background, arm one wait that ends when it does, and do nothing until
+  then. Never check on it in a loop; every check re-reads your whole context.
 
 Report in at most 30 lines: Result, Changed (files and commits), Verified
 (what you ran and its outcome), Assumptions, Blocked, Found. Put long output
