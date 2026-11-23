@@ -1,6 +1,6 @@
 # Agent Foundry
 
-> **Early alpha.** Under active development. The current rule set is most mature for **Python** and **PySide6/Qt** projects. Other languages (C, C++, Rust, Go, TypeScript) have base rules but are less battle-tested. Expect breaking changes.
+> **Beta.** Under active development. The current rule set is most mature for **Python** and **PySide6/Qt** projects.
 
 A framework for configuring **coding-agent CLIs** across different project types and programming languages. It provides modular rules, specialized agents, reusable skills, tool hooks, slash commands, and MCP servers — selected per-project based on what you're building, and deployed into each target CLI's native layout.
 
